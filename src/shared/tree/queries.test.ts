@@ -5,22 +5,8 @@ import {
   getNode,
   getRootNodes,
 } from "./queries";
-import type { TabNode, TreeState } from "./types";
-
-function createNode(overrides: Partial<TabNode> & { id: number }): TabNode {
-  return {
-    url: `https://example.com/${overrides.id}`,
-    title: `Tab ${overrides.id}`,
-    favIconUrl: undefined,
-    parentId: null,
-    childIds: [],
-    pinned: false,
-    suspended: false,
-    loading: false,
-    collapsed: false,
-    ...overrides,
-  };
-}
+import { createNode } from "./test-helpers";
+import type { TreeState } from "./types";
 
 // A
 // ├─ B
