@@ -94,6 +94,32 @@ export function removeTab(tree: TreeState, id: number): TreeState {
   return { nodes, rootIds: tree.rootIds };
 }
 
+export type TabUpdate = Partial<
+  Pick<
+    TabNode,
+    "url" | "title" | "favIconUrl" | "loading" | "suspended" | "pinned"
+  >
+>;
+
+/**
+ * Update a tab's own properties, leaving its position in the tree untouched.
+ */
+export function updateTab(
+  tree: TreeState,
+  id: number,
+  update: TabUpdate,
+): TreeState {
+  const node = tree.nodes[id];
+  if (node === undefined) {
+    return tree;
+  }
+
+  return {
+    ...tree,
+    nodes: { ...tree.nodes, [id]: { ...node, ...update } },
+  };
+}
+
 /**
  * Remove a tab from its current parent's `childIds` (or `rootIds`).
  */

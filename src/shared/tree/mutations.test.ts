@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { addTab, removeTab, reorderFromNativeMove } from "./mutations";
+import {
+  addTab,
+  removeTab,
+  reorderFromNativeMove,
+  updateTab,
+} from "./mutations";
 import { getNativeOrder } from "./queries";
 import { createNode } from "./test-helpers";
 import type { TreeState } from "./types";
@@ -179,6 +184,40 @@ describe("removeTab", () => {
     const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
 
     const result = removeTab(tree, 999);
+
+    expect(result).toEqual(tree);
+  });
+});
+
+describe("updateTab", () => {
+  it("merges the given properties into the tab, leaving others untouched", () => {
+    const a = createNode({ id: 1, title: "Old title", loading: true });
+    const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
+
+    const result = updateTab(tree, 1, { title: "New title", loading: false });
+
+    expect(result.nodes[1]?.title).toBe("New title");
+    expect(result.nodes[1]?.loading).toBe(false);
+    expect(result.nodes[1]?.url).toBe(a.url);
+  });
+
+  it("leaves the tab's position in the tree untouched", () => {
+    const a = createNode({ id: 1, childIds: [2] });
+    const b = createNode({ id: 2, parentId: 1 });
+    const tree: TreeState = { nodes: { 1: a, 2: b }, rootIds: [1] };
+
+    const result = updateTab(tree, 2, { title: "New title" });
+
+    expect(result.nodes[1]?.childIds).toEqual([2]);
+    expect(result.nodes[2]?.parentId).toBe(1);
+    expect(result.rootIds).toEqual([1]);
+  });
+
+  it("returns the tree unchanged when the given id doesn't exist", () => {
+    const a = createNode({ id: 1 });
+    const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
+
+    const result = updateTab(tree, 999, { title: "New title" });
 
     expect(result).toEqual(tree);
   });
