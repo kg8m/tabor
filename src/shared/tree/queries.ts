@@ -37,3 +37,11 @@ export function flattenDepthFirst(tree: TreeState): TabNode[] {
 
   return result;
 }
+
+/**
+ * The tab id order the native tab bar should be kept in sync with,
+ * derived from the tree's depth-first order.
+ */
+export function getNativeOrder(tree: TreeState): number[] {
+  return flattenDepthFirst(tree).map((node) => node.id);
+}

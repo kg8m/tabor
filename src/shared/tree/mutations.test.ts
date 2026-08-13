@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { addTab, removeTab } from "./mutations";
+import { addTab, removeTab, reorderFromNativeMove } from "./mutations";
+import { getNativeOrder } from "./queries";
 import { createNode } from "./test-helpers";
 import type { TreeState } from "./types";
 
@@ -178,6 +179,94 @@ describe("removeTab", () => {
     const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
 
     const result = removeTab(tree, 999);
+
+    expect(result).toEqual(tree);
+  });
+});
+
+describe("reorderFromNativeMove", () => {
+  it("moves a tab to become the first child of its new preceding tab", () => {
+    // A(B, C, D) -> native order [A, C, B, D] -> A(C, B, D)
+    const a = createNode({ id: 1, childIds: [2, 3, 4] });
+    const b = createNode({ id: 2, parentId: 1 });
+    const c = createNode({ id: 3, parentId: 1 });
+    const d = createNode({ id: 4, parentId: 1 });
+    const tree: TreeState = {
+      nodes: { 1: a, 2: b, 3: c, 4: d },
+      rootIds: [1],
+    };
+
+    const result = reorderFromNativeMove(tree, 3, [1, 3, 2, 4]);
+
+    expect(result.nodes[1]?.childIds).toEqual([3, 2, 4]);
+    expect(result.nodes[3]?.parentId).toBe(1);
+    expect(getNativeOrder(result)).toEqual([1, 3, 2, 4]);
+  });
+
+  it("reparents a tab into a different tab's subtree when moved past it", () => {
+    // A(B, C), D(E) -> native order [A, B, D, C, E] -> A(B), D(C, E)
+    const a = createNode({ id: 1, childIds: [2, 3] });
+    const b = createNode({ id: 2, parentId: 1 });
+    const c = createNode({ id: 3, parentId: 1 });
+    const d = createNode({ id: 4, childIds: [5] });
+    const e = createNode({ id: 5, parentId: 4 });
+    const tree: TreeState = {
+      nodes: { 1: a, 2: b, 3: c, 4: d, 5: e },
+      rootIds: [1, 4],
+    };
+
+    const result = reorderFromNativeMove(tree, 3, [1, 2, 4, 3, 5]);
+
+    expect(result.nodes[1]?.childIds).toEqual([2]);
+    expect(result.nodes[4]?.childIds).toEqual([3, 5]);
+    expect(result.nodes[3]?.parentId).toBe(4);
+    expect(getNativeOrder(result)).toEqual([1, 2, 4, 3, 5]);
+  });
+
+  it("becomes the next sibling of the preceding tab when that tab has no children", () => {
+    // A(B, C), D(E) -> native order [A, B, D, E, C] -> A(B), D(E, C)
+    const a = createNode({ id: 1, childIds: [2, 3] });
+    const b = createNode({ id: 2, parentId: 1 });
+    const c = createNode({ id: 3, parentId: 1 });
+    const d = createNode({ id: 4, childIds: [5] });
+    const e = createNode({ id: 5, parentId: 4 });
+    const tree: TreeState = {
+      nodes: { 1: a, 2: b, 3: c, 4: d, 5: e },
+      rootIds: [1, 4],
+    };
+
+    const result = reorderFromNativeMove(tree, 3, [1, 2, 4, 5, 3]);
+
+    expect(result.nodes[1]?.childIds).toEqual([2]);
+    expect(result.nodes[4]?.childIds).toEqual([5, 3]);
+    expect(result.nodes[3]?.parentId).toBe(4);
+    expect(getNativeOrder(result)).toEqual([1, 2, 4, 5, 3]);
+  });
+
+  it("becomes a new first root when moved to the very front", () => {
+    // A(B), D(E) -> native order [C, A, B, D, E] -> C, A(B), D(E)
+    const a = createNode({ id: 1, childIds: [2] });
+    const b = createNode({ id: 2, parentId: 1 });
+    const c = createNode({ id: 3 });
+    const d = createNode({ id: 4, childIds: [5] });
+    const e = createNode({ id: 5, parentId: 4 });
+    const tree: TreeState = {
+      nodes: { 1: a, 2: b, 3: c, 4: d, 5: e },
+      rootIds: [1, 3, 4],
+    };
+
+    const result = reorderFromNativeMove(tree, 3, [3, 1, 2, 4, 5]);
+
+    expect(result.rootIds).toEqual([3, 1, 4]);
+    expect(result.nodes[3]?.parentId).toBeNull();
+    expect(getNativeOrder(result)).toEqual([3, 1, 2, 4, 5]);
+  });
+
+  it("returns the tree unchanged when the given id doesn't exist", () => {
+    const a = createNode({ id: 1 });
+    const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
+
+    const result = reorderFromNativeMove(tree, 999, [1]);
 
     expect(result).toEqual(tree);
   });

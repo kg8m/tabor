@@ -93,3 +93,123 @@ export function removeTab(tree: TreeState, id: number): TreeState {
 
   return { nodes, rootIds: tree.rootIds };
 }
+
+/**
+ * Remove a tab from its current parent's `childIds` (or `rootIds`).
+ */
+function detach(tree: TreeState, id: number): TreeState {
+  const node = tree.nodes[id];
+  if (node === undefined) {
+    return tree;
+  }
+
+  if (node.parentId === null) {
+    return { ...tree, rootIds: tree.rootIds.filter((rootId) => rootId !== id) };
+  }
+
+  const parent = tree.nodes[node.parentId];
+  if (parent === undefined) {
+    return tree;
+  }
+
+  return {
+    ...tree,
+    nodes: {
+      ...tree.nodes,
+      [parent.id]: {
+        ...parent,
+        childIds: parent.childIds.filter((childId) => childId !== id),
+      },
+    },
+  };
+}
+
+/**
+ * Insert a tab as a child of `parentId` (or as a root, if `null`) at `index`.
+ */
+function attachAt(
+  tree: TreeState,
+  id: number,
+  parentId: number | null,
+  index: number,
+): TreeState {
+  const node = tree.nodes[id];
+  if (node === undefined) {
+    return tree;
+  }
+
+  const nodes = { ...tree.nodes, [id]: { ...node, parentId } };
+
+  if (parentId === null) {
+    const rootIds = [...tree.rootIds];
+    rootIds.splice(index, 0, id);
+    return { nodes, rootIds };
+  }
+
+  const parent = nodes[parentId];
+  if (parent === undefined) {
+    return { nodes, rootIds: [...tree.rootIds, id] };
+  }
+
+  const childIds = [...parent.childIds];
+  childIds.splice(index, 0, id);
+  nodes[parent.id] = { ...parent, childIds };
+
+  return { nodes, rootIds: tree.rootIds };
+}
+
+/**
+ * Reconcile the tree with a tab having moved in the native tab bar.
+ *
+ * The native tab bar has no concept of a tree, so the only information a
+ * move gives us is the tab's new position among the other (non-pinned)
+ * tabs, `newOrder`. We derive the new parent from whichever tab now
+ * precedes it: if that tab already has children, the moved tab becomes its
+ * first child (matching depth-first order); otherwise it becomes that tab's
+ * next sibling. Moving to the front makes it a new first root.
+ */
+export function reorderFromNativeMove(
+  tree: TreeState,
+  movedId: number,
+  newOrder: number[],
+): TreeState {
+  if (tree.nodes[movedId] === undefined) {
+    return tree;
+  }
+
+  const detached = detach(tree, movedId);
+
+  const index = newOrder.indexOf(movedId);
+  const previousId = newOrder[index - 1];
+
+  if (previousId === undefined) {
+    return attachAt(detached, movedId, null, 0);
+  }
+
+  const previous = detached.nodes[previousId];
+  if (previous === undefined) {
+    return attachAt(detached, movedId, null, detached.rootIds.length);
+  }
+
+  if (previous.childIds.length > 0) {
+    return attachAt(detached, movedId, previousId, 0);
+  }
+
+  if (previous.parentId === null) {
+    const previousIndex = detached.rootIds.indexOf(previousId);
+    return attachAt(detached, movedId, null, previousIndex + 1);
+  }
+
+  const grandParent = detached.nodes[previous.parentId];
+  if (grandParent === undefined) {
+    return attachAt(detached, movedId, null, detached.rootIds.length);
+  }
+
+  const previousIndexInParent = grandParent.childIds.indexOf(previousId);
+  return attachAt(
+    detached,
+    movedId,
+    previous.parentId,
+    previousIndexInParent + 1,
+  );
+}

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   flattenDepthFirst,
   getChildren,
+  getNativeOrder,
   getNode,
   getRootNodes,
 } from "./queries";
@@ -73,5 +74,12 @@ describe("flattenDepthFirst", () => {
   it("returns an empty array for an empty tree", () => {
     const tree: TreeState = { nodes: {}, rootIds: [] };
     expect(flattenDepthFirst(tree)).toEqual([]);
+  });
+});
+
+describe("getNativeOrder", () => {
+  it("returns the tab ids in depth-first order", () => {
+    const tree = createSampleTree();
+    expect(getNativeOrder(tree)).toEqual([1, 2, 3, 4, 5]);
   });
 });
