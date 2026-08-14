@@ -1,4 +1,8 @@
 :root {
+  /* Tells the browser which palette its own native UI (scrollbars, form
+     controls) should render in, so they follow the same light/dark switch
+     as the colors below instead of defaulting to a fixed light appearance. */
+  color-scheme: light dark;
   --tabor-accent: #1a73e8;
   --tabor-bg: #ffffff;
   --tabor-fg: #202124;
