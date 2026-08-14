@@ -1,4 +1,4 @@
-import type { ActualTab } from "../shared/tree/restore";
+import type { ActualTab } from "./tree/restore";
 
 // Vivaldi (unlike Chrome) surfaces the side panel's own document as a real
 // tab—it shows up in `chrome.tabs.query`/`onCreated` alongside the user's

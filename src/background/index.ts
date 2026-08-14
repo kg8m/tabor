@@ -47,7 +47,7 @@ import {
   setTree,
 } from "./store";
 import { toSelfHealingUpdate, toTabUpdate } from "./tab-update";
-import { isTaborOwnTab, toActualTab } from "./tabs";
+import { isTaborOwnTab, toActualTab } from "../shared/tabs";
 
 // TODO(debug): temporary instrumentation for two intermittent, hard-to-
 // reproduce bugs (a stuck loading spinner on an already-loaded tab; a
