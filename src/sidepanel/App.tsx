@@ -16,7 +16,7 @@ export function App() {
   useScrollActiveIntoView(activeTabId, tree);
 
   return (
-    <>
+    <div className="app">
       <PinnedTabsView
         tree={tree}
         selectedIds={selectedIds}
@@ -30,6 +30,6 @@ export function App() {
         dragAndDrop={dragAndDrop}
         activeTabId={activeTabId}
       />
-    </>
+    </div>
   );
 }

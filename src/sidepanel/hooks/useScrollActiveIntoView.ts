@@ -3,8 +3,9 @@ import type { TreeState } from "../../shared/tree/types";
 
 /**
  * Scrolls the active tab's row into view whenever the active tab changes,
- * so switching to a tab that's currently scrolled out of view brings it
- * on screen. A no-op if the row is already visible.
+ * so switching to a tab that's currently scrolled out of view (or merely
+ * close to the edge—see `.tab-node`'s `scroll-margin-block`) brings it
+ * clearly on screen. A no-op if the row already has enough clearance.
  */
 export function useScrollActiveIntoView(
   activeTabId: number | undefined,

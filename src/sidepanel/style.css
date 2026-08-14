@@ -6,10 +6,24 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   margin: 0;
   font-family: system-ui, sans-serif;
   font-size: 13px;
+}
+
+.app {
+  /* The actual scroll container, so `scroll-margin` on `.tab-node` has an
+     explicit `overflow` ancestor to apply against—unlike the document's own
+     root scroller, which didn't reliably respect it. */
+  height: 100%;
+  overflow-y: auto;
 }
 
 .pinned-tabs,
@@ -55,6 +69,10 @@ body {
   gap: 6px;
   padding: 4px 8px;
   border-radius: 4px;
+  /* Leaves breathing room (a few rows' worth) above/below when
+     useScrollActiveIntoView's scrollIntoView() brings this row to the edge
+     of the `.app` scroll container. */
+  scroll-margin-block: 64px;
 }
 
 .tab-node:hover {
