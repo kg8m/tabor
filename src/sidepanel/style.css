@@ -57,10 +57,13 @@ body {
 }
 
 .tree-view__children {
-  /* Aligns the guide line under the parent row's toggle/pin icon (which
-     sits at roughly half its 14px width past the row's 8px padding). */
+  /* `margin-left` aligns the guide line under the parent row's toggle/pin
+     icon (which sits at roughly half its 14px width past the row's 8px
+     padding). `padding-left`, combined with a child row's own 8px padding,
+     puts a child's own toggle/pin icon under the parent's favicon (8px
+     padding + 14px toggle + 6px gap past the parent row's own left edge). */
   margin-left: 15px;
-  padding-left: 9px;
+  padding-left: 5px;
   border-left: 1px solid color-mix(in srgb, currentColor 15%, transparent);
 }
 
