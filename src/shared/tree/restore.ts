@@ -63,6 +63,8 @@ export function restoreTree(
       title: actualTab.title,
       favIconUrl: actualTab.favIconUrl,
       pinned: actualTab.pinned,
+      loading: actualTab.loading,
+      suspended: actualTab.suspended,
       parentId:
         node.parentId === null
           ? null

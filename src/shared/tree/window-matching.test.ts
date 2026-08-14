@@ -27,6 +27,8 @@ function actualWindow(windowId: number, ...urls: string[]): ActualWindow {
       title: url,
       favIconUrl: undefined,
       pinned: false,
+      loading: false,
+      suspended: false,
     })),
   };
 }

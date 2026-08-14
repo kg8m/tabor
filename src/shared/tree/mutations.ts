@@ -6,6 +6,8 @@ export interface NewTabInput {
   title: string;
   favIconUrl: string | undefined;
   pinned: boolean;
+  loading: boolean;
+  suspended: boolean;
 }
 
 /**
@@ -20,8 +22,23 @@ export function addTab(
   input: NewTabInput,
   parentId: number | null,
 ): TreeState {
+  // Already in the tree—e.g. a startup reconciliation (see
+  // `restoreTree`/`initializeAllWindows`) picked it up before the
+  // `onCreated` handler that's adding it got a chance to run. Adding it
+  // again would duplicate its id in `rootIds`/`childIds`.
+  if (tree.nodes[input.id] !== undefined) {
+    return tree;
+  }
+
+  // A tab can't be its own parent (e.g. the caller mistakenly resolved the
+  // "current tab" to the tab that's only just now being added). Treating it
+  // as its own parent would make the node its own child once attached below.
+  const resolvedParentId = parentId === input.id ? null : parentId;
+
   const parent =
-    parentId === null || input.pinned ? undefined : tree.nodes[parentId];
+    resolvedParentId === null || input.pinned
+      ? undefined
+      : tree.nodes[resolvedParentId];
 
   const node: TabNode = {
     id: input.id,
@@ -31,8 +48,8 @@ export function addTab(
     parentId: parent?.id ?? null,
     childIds: [],
     pinned: input.pinned,
-    suspended: false,
-    loading: false,
+    suspended: input.suspended,
+    loading: input.loading,
     collapsed: false,
   };
 

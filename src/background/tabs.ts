@@ -10,5 +10,7 @@ export function toActualTab(tab: chrome.tabs.Tab): ActualTab {
     title: tab.title ?? "",
     favIconUrl: tab.favIconUrl,
     pinned: tab.pinned,
+    loading: tab.status === "loading",
+    suspended: tab.discarded,
   };
 }

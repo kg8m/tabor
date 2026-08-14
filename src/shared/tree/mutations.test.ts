@@ -26,6 +26,8 @@ describe("addTab", () => {
         title: "Tab 3",
         favIconUrl: undefined,
         pinned: false,
+        loading: false,
+        suspended: false,
       },
       1,
     );
@@ -33,6 +35,76 @@ describe("addTab", () => {
     expect(result.nodes[1]?.childIds).toEqual([2, 3]);
     expect(result.nodes[3]?.parentId).toBe(1);
     expect(result.rootIds).toEqual([1]);
+  });
+
+  it("carries over the given loading and suspended state", () => {
+    const tree: TreeState = { nodes: {}, rootIds: [] };
+
+    const result = addTab(
+      tree,
+      {
+        id: 1,
+        url: "https://example.com/1",
+        title: "Tab 1",
+        favIconUrl: undefined,
+        pinned: false,
+        loading: true,
+        suspended: true,
+      },
+      null,
+    );
+
+    expect(result.nodes[1]?.loading).toBe(true);
+    expect(result.nodes[1]?.suspended).toBe(true);
+  });
+
+  it("adds as a root instead of becoming its own parent when parentId equals its own id", () => {
+    const tree: TreeState = { nodes: {}, rootIds: [] };
+
+    const result = addTab(
+      tree,
+      {
+        id: 1,
+        url: "https://example.com/1",
+        title: "Tab 1",
+        favIconUrl: undefined,
+        pinned: false,
+        loading: false,
+        suspended: false,
+      },
+      1,
+    );
+
+    expect(result.rootIds).toEqual([1]);
+    expect(result.nodes[1]?.parentId).toBeNull();
+    expect(result.nodes[1]?.childIds).toEqual([]);
+  });
+
+  it("does nothing when a tab with the given id is already in the tree", () => {
+    // e.g. a startup reconciliation already picked up this tab before the
+    // onCreated handler for it got a chance to run.
+    const parent = createNode({ id: 1, childIds: [2] });
+    const existing = createNode({ id: 2, parentId: 1 });
+    const tree: TreeState = {
+      nodes: { 1: parent, 2: existing },
+      rootIds: [1],
+    };
+
+    const result = addTab(
+      tree,
+      {
+        id: 2,
+        url: "https://example.com/2",
+        title: "Tab 2",
+        favIconUrl: undefined,
+        pinned: false,
+        loading: false,
+        suspended: false,
+      },
+      1,
+    );
+
+    expect(result).toEqual(tree);
   });
 
   it("adds a tab without a parent as a new root, appended at the end", () => {
@@ -47,6 +119,8 @@ describe("addTab", () => {
         title: "Tab 2",
         favIconUrl: undefined,
         pinned: false,
+        loading: false,
+        suspended: false,
       },
       null,
     );
@@ -66,6 +140,8 @@ describe("addTab", () => {
         title: "Tab 1",
         favIconUrl: undefined,
         pinned: false,
+        loading: false,
+        suspended: false,
       },
       999,
     );
@@ -86,6 +162,8 @@ describe("addTab", () => {
         title: "Tab 2",
         favIconUrl: undefined,
         pinned: true,
+        loading: false,
+        suspended: false,
       },
       1,
     );

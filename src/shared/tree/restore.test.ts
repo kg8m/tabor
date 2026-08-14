@@ -9,6 +9,8 @@ function actualTab(overrides: Partial<ActualTab> & { id: number }): ActualTab {
     title: `Tab ${overrides.id}`,
     favIconUrl: undefined,
     pinned: false,
+    loading: false,
+    suspended: false,
     ...overrides,
   };
 }
@@ -92,6 +94,28 @@ describe("restoreTree", () => {
     ]);
 
     expect(result.nodes[1]?.collapsed).toBe(true);
+  });
+
+  it("reflects the actual tab's loading/suspended state, not the saved one", () => {
+    const a = createNode({
+      id: 100,
+      url: "https://a.com",
+      loading: true,
+      suspended: false,
+    });
+    const savedTree: TreeState = { nodes: { 100: a }, rootIds: [100] };
+
+    const result = restoreTree(savedTree, [
+      actualTab({
+        id: 1,
+        url: "https://a.com",
+        loading: false,
+        suspended: true,
+      }),
+    ]);
+
+    expect(result.nodes[1]?.loading).toBe(false);
+    expect(result.nodes[1]?.suspended).toBe(true);
   });
 
   it("matches same-url saved nodes and actual tabs in encounter order", () => {
