@@ -85,6 +85,28 @@ const enqueue = (() => {
   };
 })();
 
+/**
+ * Bounds how long `handleTabMoved` suppresses reconciling the tree from a
+ * window's native tab order, keyed by window id, after `syncNativeOrder`
+ * moves tabs there itself.
+ *
+ * `chrome.tabs.move` given an array only actually dispatches its
+ * `chrome.tabs.onMoved` events once every tab in it has finished moving—so
+ * by the time any of them reach `handleTabMoved`, `chrome.tabs.query`
+ * already reflects the final, fully-settled order for all of them, not a
+ * gradually-changing one. That ruled out clearing this the moment one event
+ * reports the target order having been reached: nearly every event in the
+ * batch reports that same already-final order, so the first one to do so
+ * would end the suppression while dozens more from the very same batch were
+ * still on their way, each free to reconcile the tree via
+ * `reorderFromNativeMove` against a move that isn't a genuine user drag at
+ * all—corrupting whatever tree `syncNativeOrder` was sent out to reflect in
+ * the first place. A plain expiry, generous enough to outlast the whole
+ * batch, avoids needing to identify the last event at all.
+ */
+const pendingNativeOrderSync = new Map<number, { expiresAt: number }>();
+const NATIVE_ORDER_SYNC_GUARD_MS = 8000;
+
 // Windows already reconciled this session, whether by `initializeAllWindows`
 // or by `initializeWindow` itself. Chrome fires `windows.onCreated` not just
 // for windows genuinely opened later, but also for ones session restore
@@ -368,6 +390,12 @@ async function handleTabMoved(
     .map((tab) => tab.id)
     .filter((id): id is number => id !== undefined);
 
+  const pending = pendingNativeOrderSync.get(info.windowId);
+  const isSuppressed = pending !== undefined && Date.now() < pending.expiresAt;
+  if (isSuppressed) {
+    return;
+  }
+
   const tree = getTree(info.windowId);
   const updated = reorderFromNativeMove(tree, tabId, newOrder);
   setTree(info.windowId, updated);
@@ -514,7 +542,22 @@ async function syncNativeOrder(
     return;
   }
 
-  await chrome.tabs.move(order, { windowId, index: 0 });
+  pendingNativeOrderSync.set(windowId, {
+    expiresAt: Date.now() + NATIVE_ORDER_SYNC_GUARD_MS,
+  });
+  // Chunked out of caution rather than passed as one `order.length`-sized
+  // array: a single very large batch (e.g. after restoring a backup that
+  // reorders most of a heavily-tabbed window) coincided with a browser crash
+  // during testing, though it was never conclusively pinned on this call in
+  // particular. Each chunk moves only its own ids to their target slice of
+  // the order, leaving ids outside it (already placed by an earlier chunk,
+  // or not yet reached) alone—so chunking here doesn't change the final
+  // order, only how many tabs move in one call.
+  const CHUNK_SIZE = 20;
+  for (let start = 0; start < order.length; start += CHUNK_SIZE) {
+    const chunk = order.slice(start, start + CHUNK_SIZE);
+    await chrome.tabs.move(chunk, { windowId, index: start });
+  }
 }
 
 async function handleMoveNode(
