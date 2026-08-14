@@ -5,6 +5,7 @@ import type { TreeState } from "../../shared/tree/types";
 export interface Selection {
   selectedIds: Set<number>;
   handleNodeClick: (id: number, event: MouseEvent) => void;
+  clearSelection: () => void;
 }
 
 /**
@@ -56,5 +57,10 @@ export function useSelection(tree: TreeState): Selection {
     setAnchorId(id);
   };
 
-  return { selectedIds, handleNodeClick };
+  const clearSelection = (): void => {
+    setSelectedIds(new Set());
+    setAnchorId(null);
+  };
+
+  return { selectedIds, handleNodeClick, clearSelection };
 }

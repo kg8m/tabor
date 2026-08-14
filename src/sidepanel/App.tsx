@@ -1,3 +1,4 @@
+import { useEffect, type MouseEvent } from "react";
 import { ContextMenu } from "./components/ContextMenu";
 import { PinnedTabsView } from "./components/PinnedTabsView";
 import { TreeView } from "./components/TreeView";
@@ -13,13 +14,45 @@ export function App() {
   const windowId = useWindowId();
   const tree = useWindowTree(windowId);
   const activeTabId = useActiveTabId(windowId);
-  const { selectedIds, handleNodeClick } = useSelection(tree);
+  const { selectedIds, handleNodeClick, clearSelection } = useSelection(tree);
   const dragAndDrop = useDragAndDrop(selectedIds);
   const { menu, openMenu, closeMenu } = useContextMenu();
   useScrollActiveIntoView(activeTabId, tree);
 
+  // Escape only clears the selection when no context menu is open: the menu
+  // has its own Escape handler to close itself, and letting both fire at
+  // once would drop the selection out from under a menu the user might still
+  // want to act on after backing out of an accidental right-click.
+  useEffect(() => {
+    if (menu) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        clearSelection();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menu, clearSelection]);
+
+  // Clears the selection on a click that doesn't land on any tab row—checked
+  // via `closest` rather than target === currentTarget, so this also catches
+  // clicks in the indentation/guide-line gutters between rows, not just the
+  // empty space below the last one.
+  const handleBackgroundClick = (event: MouseEvent): void => {
+    if ((event.target as HTMLElement).closest(".tab-node")) {
+      return;
+    }
+    clearSelection();
+  };
+
   return (
-    <div className="app">
+    <div className="app" onClick={handleBackgroundClick}>
       <PinnedTabsView
         tree={tree}
         selectedIds={selectedIds}
