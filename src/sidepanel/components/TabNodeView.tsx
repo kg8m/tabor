@@ -69,6 +69,7 @@ export function TabNodeView({
     "tab-node",
     node.suspended && "tab-node--suspended",
     selected && "tab-node--selected",
+    isActive && "tab-node--active",
     dropIndicatorPosition && `tab-node--drop-${dropIndicatorPosition}`,
   ]
     .filter(Boolean)
@@ -77,6 +78,7 @@ export function TabNodeView({
   return (
     <div
       className={className}
+      data-tab-id={node.id}
       draggable={onDragStart !== undefined}
       onClick={handleClick}
       onDragStart={onDragStart}

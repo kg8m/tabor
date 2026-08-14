@@ -2,6 +2,7 @@ import { PinnedTabsView } from "./components/PinnedTabsView";
 import { TreeView } from "./components/TreeView";
 import { useActiveTabId } from "./hooks/useActiveTabId";
 import { useDragAndDrop } from "./hooks/useDragAndDrop";
+import { useScrollActiveIntoView } from "./hooks/useScrollActiveIntoView";
 import { useSelection } from "./hooks/useSelection";
 import { useWindowId } from "./hooks/useWindowId";
 import { useWindowTree } from "./hooks/useWindowTree";
@@ -12,6 +13,7 @@ export function App() {
   const activeTabId = useActiveTabId(windowId);
   const { selectedIds, handleNodeClick } = useSelection(tree);
   const dragAndDrop = useDragAndDrop(selectedIds);
+  useScrollActiveIntoView(activeTabId, tree);
 
   return (
     <>

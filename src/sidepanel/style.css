@@ -1,3 +1,7 @@
+:root {
+  --tabor-accent: #1a73e8;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -49,6 +53,20 @@ body {
 
 .tab-node--selected:hover {
   background: color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.tab-node--active::before {
+  /* A plain absolutely-positioned bar, rather than a border or box-shadow
+     (both of which get clipped to the row's rounded corners, curving the
+     bar's ends), and rather than an inset box-shadow (same clipping issue).
+     Doesn't affect the row's content box width either way. */
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--tabor-accent);
 }
 
 .tab-node--drop-before::before,
