@@ -1,5 +1,7 @@
-import { useEffect, type MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
+import { BackupHistoryPanel } from "./components/BackupHistoryPanel";
 import { ContextMenu } from "./components/ContextMenu";
+import { HistoryIcon } from "./components/icons";
 import { PinnedTabsView } from "./components/PinnedTabsView";
 import { TreeView } from "./components/TreeView";
 import { useActiveTabId } from "./hooks/useActiveTabId";
@@ -12,6 +14,7 @@ import { useWindowTree } from "./hooks/useWindowTree";
 
 export function App() {
   const windowId = useWindowId();
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const tree = useWindowTree(windowId);
   const activeTabId = useActiveTabId(windowId);
   const { selectedIds, handleNodeClick, clearSelection } = useSelection(
@@ -55,32 +58,50 @@ export function App() {
   };
 
   return (
-    <div className="app" onClick={handleBackgroundClick}>
-      <PinnedTabsView
-        tree={tree}
-        selectedIds={selectedIds}
-        onNodeClick={handleNodeClick}
-        onNodeContextMenu={(id, event) => openMenu(id, event, selectedIds)}
-        activeTabId={activeTabId}
-      />
-      <TreeView
-        tree={tree}
-        selectedIds={selectedIds}
-        onNodeClick={handleNodeClick}
-        onNodeContextMenu={(id, event) => openMenu(id, event, selectedIds)}
-        dragAndDrop={dragAndDrop}
-        activeTabId={activeTabId}
-      />
-      {menu && (
-        <ContextMenu
-          x={menu.x}
-          y={menu.y}
-          targetIds={menu.targetIds}
-          isEveryTargetPinned={menu.targetIds.every(
-            (id) => tree.nodes[id]?.pinned,
-          )}
+    <div className="app-shell">
+      <header className="app-header">
+        <button
+          type="button"
+          className="app-header__history-button"
+          aria-label="Backup history"
+          onClick={() => setIsHistoryOpen(true)}
+        >
+          <HistoryIcon />
+        </button>
+      </header>
+      <div className="app" onClick={handleBackgroundClick}>
+        <PinnedTabsView
+          tree={tree}
+          selectedIds={selectedIds}
+          onNodeClick={handleNodeClick}
+          onNodeContextMenu={(id, event) => openMenu(id, event, selectedIds)}
           activeTabId={activeTabId}
-          onClose={closeMenu}
+        />
+        <TreeView
+          tree={tree}
+          selectedIds={selectedIds}
+          onNodeClick={handleNodeClick}
+          onNodeContextMenu={(id, event) => openMenu(id, event, selectedIds)}
+          dragAndDrop={dragAndDrop}
+          activeTabId={activeTabId}
+        />
+        {menu && (
+          <ContextMenu
+            x={menu.x}
+            y={menu.y}
+            targetIds={menu.targetIds}
+            isEveryTargetPinned={menu.targetIds.every(
+              (id) => tree.nodes[id]?.pinned,
+            )}
+            activeTabId={activeTabId}
+            onClose={closeMenu}
+          />
+        )}
+      </div>
+      {isHistoryOpen && (
+        <BackupHistoryPanel
+          windowId={windowId}
+          onClose={() => setIsHistoryOpen(false)}
         />
       )}
     </div>

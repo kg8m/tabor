@@ -50,6 +50,24 @@ export function PauseIcon() {
   );
 }
 
+export function HistoryIcon() {
+  return (
+    <IconBase
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="8" cy="8.5" r="6" />
+      <polyline points="8,5 8,8.5 10.5,10" />
+      <polyline points="2.5,2 2.5,5 5.5,5" />
+    </IconBase>
+  );
+}
+
 export function CloseIcon() {
   return (
     <IconBase

@@ -20,6 +20,14 @@ export async function saveBackup(
   });
 }
 
+export async function loadBackup(
+  timestamp: number,
+): Promise<Record<number, TreeState> | undefined> {
+  const key = getBackupStorageKey(timestamp);
+  const result = await chrome.storage.local.get(key);
+  return result[key] as Record<number, TreeState> | undefined;
+}
+
 export async function loadAllBackups(): Promise<BackupSnapshot[]> {
   const all = await chrome.storage.local.get(null);
   const backups: BackupSnapshot[] = [];

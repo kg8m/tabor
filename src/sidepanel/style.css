@@ -34,11 +34,50 @@ body {
   color: var(--tabor-fg);
 }
 
+.app-shell {
+  /* `position: relative` gives `.backup-history` (an `inset: 0` overlay) an
+     explicit ancestor to cover, rather than the document's own root. */
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  /* Matches `.backup-history__header`'s own padding, so the header's total
+     height doesn't visibly change when that panel opens over it. */
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.app-header__history-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.app-header__history-button:hover {
+  background: color-mix(in srgb, currentColor 15%, transparent);
+}
+
 .app {
   /* The actual scroll container, so `scroll-margin` on `.tab-node` has an
      explicit `overflow` ancestor to apply against—unlike the document's own
-     root scroller, which didn't reliably respect it. */
-  height: 100%;
+     root scroller, which didn't reliably respect it. Sized via `flex: 1`
+     (rather than `height: 100%`, back when this was the outermost element)
+     so it shares `.app-shell` with `.app-header` above it instead of
+     overflowing past it. */
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -342,4 +381,154 @@ body {
 
 .context-menu__confirm-actions .context-menu__item {
   text-align: center;
+}
+
+.backup-history {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  background: var(--tabor-bg);
+}
+
+.backup-history__header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.backup-history__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.backup-history__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.backup-history__close:hover {
+  background: color-mix(in srgb, currentColor 15%, transparent);
+}
+
+/* Stacked (list above, preview below) rather than side by side: the side
+   panel itself is narrow, and splitting that further into two columns left
+   too little width for either. */
+.backup-history__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.backup-history__list {
+  flex: none;
+  max-height: 140px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  overflow-y: auto;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.backup-history__item {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.backup-history__item:hover {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.backup-history__item--selected {
+  background: color-mix(in srgb, var(--tabor-accent) 15%, transparent);
+}
+
+.backup-history__preview {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.backup-history__empty {
+  margin: 0;
+  padding: 8px;
+  opacity: 0.7;
+}
+
+.backup-history__preview-tree,
+.backup-history__preview-children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.backup-history__preview-children {
+  margin-left: 15px;
+  padding-left: 5px;
+  border-left: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.backup-history__preview-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+}
+
+.backup-history__preview-favicon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.backup-history__preview-title {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backup-history__footer {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px;
+  border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.backup-history__restore {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 4px;
+  background: var(--tabor-accent);
+  color: var(--tabor-bg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.backup-history__restore:disabled {
+  opacity: 0.5;
+  cursor: default;
 }

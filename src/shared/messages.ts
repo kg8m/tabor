@@ -19,4 +19,13 @@ export interface MoveNodeMessage {
   target: DropTarget;
 }
 
-export type TaborMessage = ToggleCollapsedMessage | MoveNodeMessage;
+export interface RestoreBackupMessage {
+  type: "restoreBackup";
+  windowId: number;
+  timestamp: number;
+}
+
+export type TaborMessage =
+  | ToggleCollapsedMessage
+  | MoveNodeMessage
+  | RestoreBackupMessage;

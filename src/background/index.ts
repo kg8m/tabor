@@ -1,5 +1,6 @@
 import {
   loadAllBackups,
+  loadBackup,
   removeBackups,
   saveBackup,
   selectBackupTimestampsToKeep,
@@ -560,6 +561,45 @@ async function syncNativeOrder(
   }
 }
 
+/**
+ * Reconciles a chosen backup's tree for one window with that window's tabs
+ * as they actually stand right now, the same way a saved tree is reconciled
+ * with actual tabs at startup (see `restoreTree`)—so a tab opened/closed
+ * since the backup was taken doesn't cause a mismatch, and pinned/suspended
+ * state stays whatever it actually is now rather than reverting to the
+ * backup's.
+ *
+ * The backup's own window ids can't be looked up directly against the
+ * current window: like tab ids, they don't survive a browser restart. Used
+ * the same URL-overlap matching (`matchWindows`) startup restore already
+ * relies on for the same reason, rather than assuming the backup's
+ * `windows[windowId]` entry is the right one.
+ */
+async function handleRestoreBackup(
+  windowId: number,
+  timestamp: number,
+): Promise<void> {
+  await ensureInitialized();
+
+  const backup = await loadBackup(timestamp);
+  const savedWindows: SavedWindow[] = Object.entries(backup ?? {}).map(
+    ([savedWindowId, tree]) => ({ windowId: Number(savedWindowId), tree }),
+  );
+
+  const queriedTabs = await chrome.tabs.query({ windowId });
+  const actualTabs = queriedTabs
+    .filter((tab) => !isTaborOwnTab(tab))
+    .map((tab) => toActualTab(tab));
+
+  const [match] = matchWindows(savedWindows, [{ windowId, tabs: actualTabs }]);
+  const savedTree = match?.savedTree ?? { nodes: {}, rootIds: [] };
+
+  const restored = restoreTree(savedTree, actualTabs);
+  setTree(windowId, restored);
+  await saveTree(windowId, restored);
+  await syncNativeOrder(restored, windowId);
+}
+
 async function handleMoveNode(
   tabIds: number[],
   target: DropTarget,
@@ -694,9 +734,20 @@ chrome.tabs.onActivated.addListener((activeInfo) =>
 // Side-panel-driven tree changes (e.g. toggling collapsed) arrive here
 // instead of through a chrome.tabs/chrome.windows event.
 chrome.runtime.onMessage.addListener((message: TaborMessage) => {
-  if (message.type === "toggleCollapsed") {
-    void enqueue(() => handleToggleCollapsed(message.tabId));
-  } else if (message.type === "moveNode") {
-    void enqueue(() => handleMoveNode(message.tabIds, message.target));
+  switch (message.type) {
+    case "toggleCollapsed": {
+      void enqueue(() => handleToggleCollapsed(message.tabId));
+      break;
+    }
+    case "moveNode": {
+      void enqueue(() => handleMoveNode(message.tabIds, message.target));
+      break;
+    }
+    case "restoreBackup": {
+      void enqueue(() =>
+        handleRestoreBackup(message.windowId, message.timestamp),
+      );
+      break;
+    }
   }
 });
