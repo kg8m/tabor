@@ -240,7 +240,19 @@ async function handleTabDetached(
   await saveTree(info.oldWindowId, updated);
 }
 
-function toTabUpdate(changeInfo: chrome.tabs.OnUpdatedInfo): TabUpdate {
+/**
+ * `loading`/`suspended` are derived from `tab.status`/`tab.discarded`—the
+ * full, current tab state—rather than from `changeInfo`, which only carries
+ * whatever fields changed in this particular event. If an event that would
+ * have flipped `loading` back to `false` is ever missed (e.g. the service
+ * worker was asleep for it), deriving from the live `tab` object instead of
+ * that one delta lets the very next `onUpdated` event for the tab—whatever
+ * it's about—self-correct the stale value instead of leaving it stuck.
+ */
+function toTabUpdate(
+  changeInfo: chrome.tabs.OnUpdatedInfo,
+  tab: chrome.tabs.Tab,
+): TabUpdate {
   const update: TabUpdate = {};
   if (changeInfo.url !== undefined) {
     update.url = changeInfo.url;
@@ -251,12 +263,8 @@ function toTabUpdate(changeInfo: chrome.tabs.OnUpdatedInfo): TabUpdate {
   if (changeInfo.favIconUrl !== undefined) {
     update.favIconUrl = changeInfo.favIconUrl;
   }
-  if (changeInfo.status !== undefined) {
-    update.loading = changeInfo.status === "loading";
-  }
-  if (changeInfo.discarded !== undefined) {
-    update.suspended = changeInfo.discarded;
-  }
+  update.loading = tab.status === "loading";
+  update.suspended = tab.discarded;
   if (changeInfo.pinned !== undefined) {
     update.pinned = changeInfo.pinned;
   }
@@ -270,15 +278,35 @@ async function handleTabUpdated(
 ): Promise<void> {
   await ensureInitialized();
 
-  const update = toTabUpdate(changeInfo);
-  if (Object.keys(update).length === 0) {
-    return;
-  }
-
+  const update = toTabUpdate(changeInfo, tab);
   const tree = getTree(tab.windowId);
   const updated = updateTab(tree, tabId, update);
   setTree(tab.windowId, updated);
   await saveTree(tab.windowId, updated);
+}
+
+/**
+ * Besides tracking the active tab, re-reads the activated tab's actual
+ * loading/discarded state and corrects the tree if it's out of sync—the
+ * same self-healing `toTabUpdate` does, but triggered by the tab becoming
+ * active rather than waiting for its next `onUpdated` event, so a tab stuck
+ * showing a stale spinner fixes itself as soon as it's clicked.
+ */
+async function handleTabActivated(
+  activeInfo: chrome.tabs.OnActivatedInfo,
+): Promise<void> {
+  await ensureInitialized();
+
+  setActiveTabId(activeInfo.windowId, activeInfo.tabId);
+
+  const tab = await chrome.tabs.get(activeInfo.tabId);
+  const tree = getTree(activeInfo.windowId);
+  const updated = updateTab(tree, activeInfo.tabId, {
+    loading: tab.status === "loading",
+    suspended: tab.discarded,
+  });
+  setTree(activeInfo.windowId, updated);
+  await saveTree(activeInfo.windowId, updated);
 }
 
 async function handleToggleCollapsed(tabId: number): Promise<void> {
@@ -391,10 +419,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) =>
 );
 
 chrome.tabs.onActivated.addListener((activeInfo) =>
-  enqueue(async () => {
-    await ensureInitialized();
-    setActiveTabId(activeInfo.windowId, activeInfo.tabId);
-  }),
+  enqueue(() => handleTabActivated(activeInfo)),
 );
 
 // Side-panel-driven tree changes (e.g. toggling collapsed) arrive here
