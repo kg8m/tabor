@@ -1,4 +1,5 @@
 import type { DropPosition } from "./drop";
+import { flattenDepthFirst } from "./queries";
 import type { TabNode, TreeState } from "./types";
 
 export interface NewTabInput {
@@ -352,4 +353,46 @@ export function moveNode(
   const index = target.position === "before" ? targetIndex : targetIndex + 1;
 
   return attachAt(detached, id, relativeTo.parentId, index);
+}
+
+/**
+ * Move several nodes together to a new position, as a single drag-and-drop
+ * of a multi-selection, preserving their current relative order.
+ *
+ * A node that's a descendant of another node also in `ids` is skipped:
+ * moving the ancestor already carries it along, and moving it separately
+ * too would try to place it in two locations at once.
+ */
+export function moveNodes(
+  tree: TreeState,
+  ids: number[],
+  target: DropTarget,
+): TreeState {
+  const topLevelIds = new Set(
+    ids.filter((id) =>
+      ids.every(
+        (other) => other === id || !isSelfOrDescendant(tree, other, id),
+      ),
+    ),
+  );
+  const orderedIds = flattenDepthFirst(tree)
+    .map((node) => node.id)
+    .filter((id) => topLevelIds.has(id));
+
+  let result = tree;
+  let currentTarget = target;
+
+  for (const id of orderedIds) {
+    const moved = moveNode(result, id, currentTarget);
+    // Anchor the next node right after this one, so the group ends up
+    // contiguous in `orderedIds` order—but only if this move actually took
+    // effect; otherwise the next node should still aim at the original
+    // target rather than a node that never moved.
+    if (moved !== result) {
+      currentTarget = { targetId: id, position: "after" };
+    }
+    result = moved;
+  }
+
+  return result;
 }

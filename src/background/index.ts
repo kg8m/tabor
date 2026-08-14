@@ -1,6 +1,6 @@
 import {
   addTab,
-  moveNode,
+  moveNodes,
   removeTab,
   reorderFromNativeMove,
   updateTab,
@@ -321,14 +321,21 @@ async function syncNativeOrder(
 }
 
 async function handleMoveNode(
-  tabId: number,
+  tabIds: number[],
   target: DropTarget,
 ): Promise<void> {
   await ensureInitialized();
 
-  const tab = await chrome.tabs.get(tabId);
+  const [firstTabId] = tabIds;
+  if (firstTabId === undefined) {
+    return;
+  }
+
+  // All dragged tabs come from the same side panel, so they're always in
+  // the same window; look it up via any one of them.
+  const tab = await chrome.tabs.get(firstTabId);
   const tree = getTree(tab.windowId);
-  const updated = moveNode(tree, tabId, target);
+  const updated = moveNodes(tree, tabIds, target);
   if (updated === tree) {
     return;
   }
@@ -396,6 +403,6 @@ chrome.runtime.onMessage.addListener((message: TaborMessage) => {
   if (message.type === "toggleCollapsed") {
     void enqueue(() => handleToggleCollapsed(message.tabId));
   } else if (message.type === "moveNode") {
-    void enqueue(() => handleMoveNode(message.tabId, message.target));
+    void enqueue(() => handleMoveNode(message.tabIds, message.target));
   }
 });

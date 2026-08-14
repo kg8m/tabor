@@ -19,13 +19,17 @@ export interface DragAndDrop {
 }
 
 /**
- * Single-node drag-and-drop: drag one tab row onto another to reorder it as
- * a sibling (dropped near the target's top/bottom edge) or make it the
- * target's child (dropped near the middle). The dragged tab's id is tracked
- * in state rather than read back from `DataTransfer` during `dragover`,
- * since browsers don't expose the dragged data until the actual `drop`.
+ * Drag one tab row onto another to reorder it as a sibling (dropped near the
+ * target's top/bottom edge) or make it the target's child (dropped near the
+ * middle). Dragging a node that's part of the current multi-selection moves
+ * the whole selection together; dragging an unselected node moves just that
+ * one, regardless of what else happens to be selected.
+ *
+ * The dragged tab's id is tracked in state rather than read back from
+ * `DataTransfer` during `dragover`, since browsers don't expose the dragged
+ * data until the actual `drop`.
  */
-export function useDragAndDrop(): DragAndDrop {
+export function useDragAndDrop(selectedIds: Set<number>): DragAndDrop {
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(
     null,
@@ -59,9 +63,14 @@ export function useDragAndDrop(): DragAndDrop {
     event.preventDefault();
 
     if (draggedId !== null && dropIndicator?.targetId === id) {
+      const tabIds =
+        selectedIds.has(draggedId) && selectedIds.size > 1
+          ? [...selectedIds]
+          : [draggedId];
+
       const message: TaborMessage = {
         type: "moveNode",
-        tabId: draggedId,
+        tabIds,
         target: { targetId: id, position: dropIndicator.position },
       };
       void chrome.runtime.sendMessage(message);

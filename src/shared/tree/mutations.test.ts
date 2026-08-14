@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addTab,
   moveNode,
+  moveNodes,
   removeTab,
   reorderFromNativeMove,
   updateTab,
@@ -504,5 +505,78 @@ describe("moveNode", () => {
     const result = moveNode(tree, 1, { targetId: 999, position: "after" });
 
     expect(result).toEqual(tree);
+  });
+});
+
+describe("moveNodes", () => {
+  it("moves several nodes together as children, preserving their tree order", () => {
+    // A, B, C, D -> drop {C, A} onto D -> B, D(A, C)
+    const a = createNode({ id: 1 });
+    const b = createNode({ id: 2 });
+    const c = createNode({ id: 3 });
+    const d = createNode({ id: 4 });
+    const tree: TreeState = {
+      nodes: { 1: a, 2: b, 3: c, 4: d },
+      rootIds: [1, 2, 3, 4],
+    };
+
+    const result = moveNodes(tree, [3, 1], { targetId: 4, position: "child" });
+
+    expect(result.rootIds).toEqual([2, 4]);
+    expect(result.nodes[4]?.childIds).toEqual([1, 3]);
+  });
+
+  it("skips a selected node that's a descendant of another selected node", () => {
+    // A(B), C -> drop {A, B} onto C -> C(A(B))
+    // B is dropped from the move list since moving A already carries it
+    // along; moving it separately too would try to place it twice.
+    const a = createNode({ id: 1, childIds: [2] });
+    const b = createNode({ id: 2, parentId: 1 });
+    const c = createNode({ id: 3 });
+    const tree: TreeState = { nodes: { 1: a, 2: b, 3: c }, rootIds: [1, 3] };
+
+    const result = moveNodes(tree, [1, 2], {
+      targetId: 3,
+      position: "child",
+    });
+
+    expect(result.rootIds).toEqual([3]);
+    expect(result.nodes[3]?.childIds).toEqual([1]);
+    expect(result.nodes[1]?.childIds).toEqual([2]);
+    expect(result.nodes[2]?.parentId).toBe(1);
+  });
+
+  it("leaves the tree untouched for a move that would create a cycle, and still moves the rest", () => {
+    // A(B), C -> drop {A, C} onto B -> A can't move onto its own descendant
+    // B, so only C moves: A(B), B(C)
+    const a = createNode({ id: 1, childIds: [2] });
+    const b = createNode({ id: 2, parentId: 1 });
+    const c = createNode({ id: 3 });
+    const tree: TreeState = { nodes: { 1: a, 2: b, 3: c }, rootIds: [1, 3] };
+
+    const result = moveNodes(tree, [1, 3], {
+      targetId: 2,
+      position: "child",
+    });
+
+    expect(result.rootIds).toEqual([1]);
+    expect(result.nodes[1]?.childIds).toEqual([2]);
+    expect(result.nodes[2]?.childIds).toEqual([3]);
+  });
+
+  it("orders the moved nodes by their tree position, not the order given", () => {
+    // A, B, C, D -> drop {A, C} (given as [C, A]) after D -> B, D, A, C
+    const a = createNode({ id: 1 });
+    const b = createNode({ id: 2 });
+    const c = createNode({ id: 3 });
+    const d = createNode({ id: 4 });
+    const tree: TreeState = {
+      nodes: { 1: a, 2: b, 3: c, 4: d },
+      rootIds: [1, 2, 3, 4],
+    };
+
+    const result = moveNodes(tree, [3, 1], { targetId: 4, position: "after" });
+
+    expect(result.rootIds).toEqual([2, 4, 1, 3]);
   });
 });

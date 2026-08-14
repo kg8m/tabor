@@ -13,7 +13,9 @@ export interface ToggleCollapsedMessage {
 
 export interface MoveNodeMessage {
   type: "moveNode";
-  tabId: number;
+  // A single tab id for a single-node drag, or several for dragging a
+  // multi-selection together.
+  tabIds: number[];
   target: DropTarget;
 }
 

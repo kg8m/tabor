@@ -6,7 +6,7 @@ import { useWindowTree } from "./hooks/useWindowTree";
 export function App() {
   const tree = useWindowTree();
   const { selectedIds, handleNodeClick } = useSelection(tree);
-  const dragAndDrop = useDragAndDrop();
+  const dragAndDrop = useDragAndDrop(selectedIds);
 
   return (
     <TreeView
