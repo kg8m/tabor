@@ -42,8 +42,8 @@ function TreeNode({ tree, nodeId, ancestorIds }: TreeNodeProps) {
 
   return (
     <li className="tree-view__item">
-      <TabNodeView node={node} />
-      {children.length > 0 && (
+      <TabNodeView node={node} hasChildren={children.length > 0} />
+      {children.length > 0 && !node.collapsed && (
         <ul className="tree-view__children">
           {children.map((child) => (
             <TreeNode

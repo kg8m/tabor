@@ -5,6 +5,7 @@ import {
   updateTab,
   type TabUpdate,
 } from "../shared/tree/mutations";
+import type { TaborMessage } from "../shared/messages";
 import { restoreTree } from "../shared/tree/restore";
 import {
   loadAllTrees,
@@ -276,6 +277,21 @@ async function handleTabUpdated(
   await saveTree(tab.windowId, updated);
 }
 
+async function handleToggleCollapsed(tabId: number): Promise<void> {
+  await ensureInitialized();
+
+  const tab = await chrome.tabs.get(tabId);
+  const tree = getTree(tab.windowId);
+  const node = tree.nodes[tabId];
+  if (node === undefined) {
+    return;
+  }
+
+  const updated = updateTab(tree, tabId, { collapsed: !node.collapsed });
+  setTree(tab.windowId, updated);
+  await saveTree(tab.windowId, updated);
+}
+
 // These listeners return the enqueued task's Promise directly (rather than
 // firing it and returning void) so the MV3 service worker stays alive until
 // the underlying chrome.tabs/chrome.storage calls actually finish.
@@ -327,3 +343,11 @@ chrome.tabs.onActivated.addListener((activeInfo) =>
     setActiveTabId(activeInfo.windowId, activeInfo.tabId);
   }),
 );
+
+// Side-panel-driven tree changes (e.g. toggling collapsed) arrive here
+// instead of through a chrome.tabs/chrome.windows event.
+chrome.runtime.onMessage.addListener((message: TaborMessage) => {
+  if (message.type === "toggleCollapsed") {
+    void enqueue(() => handleToggleCollapsed(message.tabId));
+  }
+});

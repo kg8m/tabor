@@ -114,7 +114,13 @@ export function removeTab(tree: TreeState, id: number): TreeState {
 export type TabUpdate = Partial<
   Pick<
     TabNode,
-    "url" | "title" | "favIconUrl" | "loading" | "suspended" | "pinned"
+    | "url"
+    | "title"
+    | "favIconUrl"
+    | "loading"
+    | "suspended"
+    | "pinned"
+    | "collapsed"
   >
 >;
 

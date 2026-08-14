@@ -299,6 +299,15 @@ describe("updateTab", () => {
 
     expect(result).toEqual(tree);
   });
+
+  it("can toggle collapsed", () => {
+    const a = createNode({ id: 1, collapsed: false });
+    const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
+
+    const result = updateTab(tree, 1, { collapsed: true });
+
+    expect(result.nodes[1]?.collapsed).toBe(true);
+  });
 });
 
 describe("reorderFromNativeMove", () => {
