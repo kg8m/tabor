@@ -1,25 +1,51 @@
+import type { MouseEvent } from "react";
 import type { TaborMessage } from "../../shared/messages";
 import type { TabNode } from "../../shared/tree/types";
 
 interface TabNodeViewProps {
   node: TabNode;
   hasChildren: boolean;
+  selected: boolean;
+  onClick: (event: MouseEvent) => void;
 }
 
-export function TabNodeView({ node, hasChildren }: TabNodeViewProps) {
-  const handleClose = () => {
+export function TabNodeView({
+  node,
+  hasChildren,
+  selected,
+  onClick,
+}: TabNodeViewProps) {
+  const handleClose = (event: MouseEvent) => {
+    event.stopPropagation();
     void chrome.tabs.remove(node.id);
   };
 
-  const handleToggleCollapsed = () => {
+  const handleToggleCollapsed = (event: MouseEvent) => {
+    event.stopPropagation();
     const message: TaborMessage = { type: "toggleCollapsed", tabId: node.id };
     void chrome.runtime.sendMessage(message);
   };
 
+  // A plain click also switches to the tab, matching how clicking a tab in
+  // the native tab bar behaves; Ctrl/Cmd/Shift-click only adjust the
+  // selection.
+  const handleClick = (event: MouseEvent) => {
+    onClick(event);
+    if (!event.ctrlKey && !event.metaKey && !event.shiftKey) {
+      void chrome.tabs.update(node.id, { active: true });
+    }
+  };
+
+  const className = [
+    "tab-node",
+    node.suspended && "tab-node--suspended",
+    selected && "tab-node--selected",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div
-      className={node.suspended ? "tab-node tab-node--suspended" : "tab-node"}
-    >
+    <div className={className} onClick={handleClick}>
       {hasChildren ? (
         <button
           type="button"

@@ -5,6 +5,7 @@ import {
   getNativeOrder,
   getNode,
   getRootNodes,
+  getVisibleOrder,
 } from "./queries";
 import { createNode } from "./test-helpers";
 import type { TreeState } from "./types";
@@ -84,11 +85,68 @@ describe("flattenDepthFirst", () => {
 
     expect(flattenDepthFirst(tree).map((node) => node.id)).toEqual([1, 2]);
   });
+
+  it("still descends into a collapsed node's children by default", () => {
+    const tree = createSampleTree();
+    const collapsed = {
+      ...tree,
+      nodes: { ...tree.nodes, 2: { ...tree.nodes[2]!, collapsed: true } },
+    };
+
+    expect(flattenDepthFirst(collapsed).map((node) => node.id)).toEqual([
+      1, 2, 3, 4, 5,
+    ]);
+  });
+
+  it("skips a collapsed node's children when respectCollapsed is set", () => {
+    const tree = createSampleTree();
+    const collapsed = {
+      ...tree,
+      nodes: { ...tree.nodes, 2: { ...tree.nodes[2]!, collapsed: true } },
+    };
+
+    expect(
+      flattenDepthFirst(collapsed, { respectCollapsed: true }).map(
+        (node) => node.id,
+      ),
+    ).toEqual([1, 2, 4, 5]);
+  });
 });
 
 describe("getNativeOrder", () => {
   it("returns the tab ids in depth-first order", () => {
     const tree = createSampleTree();
     expect(getNativeOrder(tree)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("includes a collapsed node's children", () => {
+    const tree = createSampleTree();
+    const collapsed = {
+      ...tree,
+      nodes: { ...tree.nodes, 2: { ...tree.nodes[2]!, collapsed: true } },
+    };
+
+    expect(getNativeOrder(collapsed)).toEqual([1, 2, 3, 4, 5]);
+  });
+});
+
+describe("getVisibleOrder", () => {
+  it("returns the same order as flattenDepthFirst when nothing is collapsed", () => {
+    const tree = createSampleTree();
+    expect(getVisibleOrder(tree).map((node) => node.id)).toEqual([
+      1, 2, 3, 4, 5,
+    ]);
+  });
+
+  it("skips a collapsed node's children", () => {
+    const tree = createSampleTree();
+    const collapsed = {
+      ...tree,
+      nodes: { ...tree.nodes, 2: { ...tree.nodes[2]!, collapsed: true } },
+    };
+
+    expect(getVisibleOrder(collapsed).map((node) => node.id)).toEqual([
+      1, 2, 4, 5,
+    ]);
   });
 });

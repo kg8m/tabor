@@ -21,6 +21,14 @@ export function getRootNodes(tree: TreeState): TabNode[] {
     .filter((node): node is TabNode => node !== undefined);
 }
 
+interface FlattenDepthFirstOptions {
+  /**
+   * Stop descending into a collapsed node's children, matching what's
+   * actually visible in the side panel.
+   */
+  respectCollapsed?: boolean;
+}
+
 /**
  * Flatten the tree in depth-first order.
  *
@@ -29,7 +37,10 @@ export function getRootNodes(tree: TreeState): TabNode[] {
  * turning into infinite recursion instead of just silently truncating the
  * cyclic branch.
  */
-export function flattenDepthFirst(tree: TreeState): TabNode[] {
+export function flattenDepthFirst(
+  tree: TreeState,
+  { respectCollapsed = false }: FlattenDepthFirstOptions = {},
+): TabNode[] {
   const result: TabNode[] = [];
   const visited = new Set<number>();
 
@@ -40,6 +51,9 @@ export function flattenDepthFirst(tree: TreeState): TabNode[] {
     visited.add(node.id);
 
     result.push(node);
+    if (respectCollapsed && node.collapsed) {
+      return;
+    }
     for (const child of getChildren(tree, node.id)) {
       visit(child);
     }
@@ -58,4 +72,13 @@ export function flattenDepthFirst(tree: TreeState): TabNode[] {
  */
 export function getNativeOrder(tree: TreeState): number[] {
   return flattenDepthFirst(tree).map((node) => node.id);
+}
+
+/**
+ * The depth-first order of nodes actually visible in the side panel, i.e.
+ * skipping the descendants of collapsed nodes. Used to resolve a Shift-click
+ * range selection to the tabs shown between the two clicked nodes.
+ */
+export function getVisibleOrder(tree: TreeState): TabNode[] {
+  return flattenDepthFirst(tree, { respectCollapsed: true });
 }
