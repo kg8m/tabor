@@ -14,7 +14,10 @@ export function App() {
   const windowId = useWindowId();
   const tree = useWindowTree(windowId);
   const activeTabId = useActiveTabId(windowId);
-  const { selectedIds, handleNodeClick, clearSelection } = useSelection(tree);
+  const { selectedIds, handleNodeClick, clearSelection } = useSelection(
+    tree,
+    activeTabId,
+  );
   const dragAndDrop = useDragAndDrop(selectedIds);
   const { menu, openMenu, closeMenu } = useContextMenu();
   useScrollActiveIntoView(activeTabId, tree);

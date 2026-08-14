@@ -11,14 +11,21 @@ export interface Selection {
 /**
  * Tracks which nodes are selected via Ctrl/Cmd-click (toggle) and
  * Shift-click (range, resolved against the order nodes are actually shown
- * in—skipping the descendants of collapsed nodes). A plain click replaces
- * the selection with just the clicked node.
+ * in—skipping the descendants of collapsed nodes).
+ *
+ * A plain click on the already-active tab replaces the selection with just
+ * that node; a plain click on any other tab only switches to it (the
+ * caller's job) and leaves the selection untouched, since its purpose there
+ * is navigation, not selection.
  *
  * Cmd (metaKey) is checked alongside Ctrl because on macOS, Chromium
  * browsers turn a Ctrl-click into a context-menu open rather than
  * delivering it as a click event, so Ctrl-click alone wouldn't work there.
  */
-export function useSelection(tree: TreeState): Selection {
+export function useSelection(
+  tree: TreeState,
+  activeTabId: number | undefined,
+): Selection {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [anchorId, setAnchorId] = useState<number | null>(null);
 
@@ -50,6 +57,10 @@ export function useSelection(tree: TreeState): Selection {
         return next;
       });
       setAnchorId(id);
+      return;
+    }
+
+    if (id !== activeTabId) {
       return;
     }
 
