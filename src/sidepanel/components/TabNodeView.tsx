@@ -14,6 +14,7 @@ interface TabNodeViewProps {
   onDragLeave: () => void;
   onDrop: (event: DragEvent) => void;
   onDragEnd: () => void;
+  isActive: boolean;
 }
 
 export function TabNodeView({
@@ -27,10 +28,23 @@ export function TabNodeView({
   onDragLeave,
   onDrop,
   onDragEnd,
+  isActive,
 }: TabNodeViewProps) {
   const handleClose = (event: MouseEvent) => {
     event.stopPropagation();
     void chrome.tabs.remove(node.id);
+  };
+
+  // `chrome.tabs.discard` fires an onUpdated event with the tab's new
+  // discarded state, which `handleTabUpdated` already reflects into the
+  // tree—no need to route this through a message like `toggleCollapsed`.
+  //
+  // The button itself is hidden for the active tab (see `isActive` below):
+  // Chrome won't actually free memory there since it has to reload the tab
+  // right away to keep displaying it, so it'd just look like a page reload.
+  const handleSuspend = (event: MouseEvent) => {
+    event.stopPropagation();
+    void chrome.tabs.discard(node.id);
   };
 
   const handleToggleCollapsed = (event: MouseEvent) => {
@@ -90,6 +104,17 @@ export function TabNodeView({
         <img className="tab-node__favicon" src={node.favIconUrl} alt="" />
       )}
       <span className="tab-node__title">{node.title}</span>
+      {!node.suspended && !isActive && (
+        <button
+          type="button"
+          className="tab-node__suspend"
+          aria-label="Suspend tab"
+          draggable={false}
+          onClick={handleSuspend}
+        >
+          ⏸
+        </button>
+      )}
       <button
         type="button"
         className="tab-node__close"

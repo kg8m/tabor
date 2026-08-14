@@ -3,6 +3,7 @@ import {
   moveNodes,
   removeTab,
   reorderFromNativeMove,
+  replaceTabId,
   updateTab,
   type DropTarget,
   type TabUpdate,
@@ -241,6 +242,36 @@ async function handleTabDetached(
 }
 
 /**
+ * Chrome fires this instead of a remove/create pair when it swaps a tab's
+ * underlying process for a new one with a new id—notably, when a discarded
+ * tab is reloaded (also for prerendering/instant navigation). Rename the id
+ * in place so the tab keeps its position, parent, and children.
+ */
+async function handleTabReplaced(
+  addedTabId: number,
+  removedTabId: number,
+): Promise<void> {
+  await ensureInitialized();
+
+  const tab = await chrome.tabs.get(addedTabId);
+  const actualTab = toActualTab(tab);
+  const tree = getTree(tab.windowId);
+  const updated = replaceTabId(tree, removedTabId, addedTabId, {
+    url: actualTab.url,
+    title: actualTab.title,
+    favIconUrl: actualTab.favIconUrl,
+    loading: actualTab.loading,
+    suspended: actualTab.suspended,
+  });
+  setTree(tab.windowId, updated);
+  await saveTree(tab.windowId, updated);
+
+  if (getActiveTabId(tab.windowId) === removedTabId) {
+    setActiveTabId(tab.windowId, addedTabId);
+  }
+}
+
+/**
  * `loading`/`suspended` are derived from `tab.status`/`tab.discarded`—the
  * full, current tab state—rather than from `changeInfo`, which only carries
  * whatever fields changed in this particular event. If an event that would
@@ -416,6 +447,9 @@ chrome.tabs.onDetached.addListener((tabId, info) =>
 );
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) =>
   enqueue(() => handleTabUpdated(tabId, changeInfo, tab)),
+);
+chrome.tabs.onReplaced.addListener((addedTabId, removedTabId) =>
+  enqueue(() => handleTabReplaced(addedTabId, removedTabId)),
 );
 
 chrome.tabs.onActivated.addListener((activeInfo) =>

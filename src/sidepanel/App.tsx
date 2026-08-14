@@ -1,10 +1,14 @@
 import { TreeView } from "./components/TreeView";
+import { useActiveTabId } from "./hooks/useActiveTabId";
 import { useDragAndDrop } from "./hooks/useDragAndDrop";
 import { useSelection } from "./hooks/useSelection";
+import { useWindowId } from "./hooks/useWindowId";
 import { useWindowTree } from "./hooks/useWindowTree";
 
 export function App() {
-  const tree = useWindowTree();
+  const windowId = useWindowId();
+  const tree = useWindowTree(windowId);
+  const activeTabId = useActiveTabId(windowId);
   const { selectedIds, handleNodeClick } = useSelection(tree);
   const dragAndDrop = useDragAndDrop(selectedIds);
 
@@ -14,6 +18,7 @@ export function App() {
       selectedIds={selectedIds}
       onNodeClick={handleNodeClick}
       dragAndDrop={dragAndDrop}
+      activeTabId={activeTabId}
     />
   );
 }

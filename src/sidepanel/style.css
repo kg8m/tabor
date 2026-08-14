@@ -106,6 +106,7 @@ body {
   white-space: nowrap;
 }
 
+.tab-node__suspend,
 .tab-node__close {
   flex: none;
   border: none;
@@ -119,10 +120,12 @@ body {
   visibility: hidden;
 }
 
+.tab-node:hover .tab-node__suspend,
 .tab-node:hover .tab-node__close {
   visibility: visible;
 }
 
+.tab-node__suspend:hover,
 .tab-node__close:hover {
   background: color-mix(in srgb, currentColor 15%, transparent);
 }

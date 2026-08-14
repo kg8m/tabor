@@ -5,6 +5,7 @@ import {
   moveNodes,
   removeTab,
   reorderFromNativeMove,
+  replaceTabId,
   updateTab,
 } from "./mutations";
 import { getNativeOrder } from "./queries";
@@ -309,6 +310,68 @@ describe("updateTab", () => {
     const result = updateTab(tree, 1, { collapsed: true });
 
     expect(result.nodes[1]?.collapsed).toBe(true);
+  });
+});
+
+describe("replaceTabId", () => {
+  it("renames a root node, keeping its position and children", () => {
+    const a = createNode({ id: 1, childIds: [2] });
+    const b = createNode({ id: 2, parentId: 1 });
+    const c = createNode({ id: 3 });
+    const tree: TreeState = { nodes: { 1: a, 2: b, 3: c }, rootIds: [1, 3] };
+
+    const result = replaceTabId(tree, 1, 100);
+
+    expect(result.nodes[1]).toBeUndefined();
+    expect(result.nodes[100]?.id).toBe(100);
+    expect(result.nodes[100]?.childIds).toEqual([2]);
+    expect(result.nodes[2]?.parentId).toBe(100);
+    expect(result.rootIds).toEqual([100, 3]);
+  });
+
+  it("renames a child node, keeping its position among its siblings", () => {
+    const a = createNode({ id: 1, childIds: [2, 3] });
+    const b = createNode({ id: 2, parentId: 1 });
+    const c = createNode({ id: 3, parentId: 1 });
+    const tree: TreeState = { nodes: { 1: a, 2: b, 3: c }, rootIds: [1] };
+
+    const result = replaceTabId(tree, 2, 100);
+
+    expect(result.nodes[2]).toBeUndefined();
+    expect(result.nodes[100]?.parentId).toBe(1);
+    expect(result.nodes[1]?.childIds).toEqual([100, 3]);
+  });
+
+  it("applies the given field updates to the renamed node", () => {
+    const a = createNode({ id: 1, title: "Old title", suspended: false });
+    const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
+
+    const result = replaceTabId(tree, 1, 100, {
+      title: "New title",
+      suspended: true,
+    });
+
+    expect(result.nodes[100]?.title).toBe("New title");
+    expect(result.nodes[100]?.suspended).toBe(true);
+  });
+
+  it("returns the tree unchanged when the old id doesn't exist", () => {
+    const a = createNode({ id: 1 });
+    const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
+
+    const result = replaceTabId(tree, 999, 100);
+
+    expect(result).toEqual(tree);
+  });
+
+  it("returns the tree unchanged when the new id is already in use", () => {
+    const a = createNode({ id: 1 });
+    const b = createNode({ id: 2 });
+    const tree: TreeState = { nodes: { 1: a, 2: b }, rootIds: [1, 2] };
+
+    const result = replaceTabId(tree, 1, 2);
+
+    expect(result).toEqual(tree);
   });
 });
 

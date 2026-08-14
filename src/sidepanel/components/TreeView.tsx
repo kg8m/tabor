@@ -9,6 +9,7 @@ interface TreeViewProps {
   selectedIds: Set<number>;
   onNodeClick: (id: number, event: MouseEvent) => void;
   dragAndDrop: DragAndDrop;
+  activeTabId: number | undefined;
 }
 
 export function TreeView({
@@ -16,6 +17,7 @@ export function TreeView({
   selectedIds,
   onNodeClick,
   dragAndDrop,
+  activeTabId,
 }: TreeViewProps) {
   return (
     <ul className="tree-view">
@@ -28,6 +30,7 @@ export function TreeView({
           selectedIds={selectedIds}
           onNodeClick={onNodeClick}
           dragAndDrop={dragAndDrop}
+          activeTabId={activeTabId}
         />
       ))}
     </ul>
@@ -41,6 +44,7 @@ interface TreeNodeProps {
   selectedIds: Set<number>;
   onNodeClick: (id: number, event: MouseEvent) => void;
   dragAndDrop: DragAndDrop;
+  activeTabId: number | undefined;
 }
 
 function TreeNode({
@@ -50,6 +54,7 @@ function TreeNode({
   selectedIds,
   onNodeClick,
   dragAndDrop,
+  activeTabId,
 }: TreeNodeProps) {
   const node = tree.nodes[nodeId];
   // If the tree data were ever corrupted into a cycle, a node could end up
@@ -79,6 +84,7 @@ function TreeNode({
         onDragLeave={() => dragAndDrop.onDragLeave(nodeId)}
         onDrop={(event) => dragAndDrop.onDrop(nodeId, event)}
         onDragEnd={dragAndDrop.onDragEnd}
+        isActive={nodeId === activeTabId}
       />
       {children.length > 0 && !node.collapsed && (
         <ul className="tree-view__children">
@@ -91,6 +97,7 @@ function TreeNode({
               selectedIds={selectedIds}
               onNodeClick={onNodeClick}
               dragAndDrop={dragAndDrop}
+              activeTabId={activeTabId}
             />
           ))}
         </ul>

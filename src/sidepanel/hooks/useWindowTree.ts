@@ -5,27 +5,10 @@ import type { TreeState } from "../../shared/tree/types";
 const EMPTY_TREE: TreeState = { nodes: {}, rootIds: [] };
 
 /**
- * The live tree for the window this side panel is attached to.
+ * The live tree for the given window.
  */
-export function useWindowTree(): TreeState {
-  const [windowId, setWindowId] = useState<number>();
+export function useWindowTree(windowId: number | undefined): TreeState {
   const [tree, setTree] = useState<TreeState>(EMPTY_TREE);
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    async function detectWindowId() {
-      const window = await chrome.windows.getCurrent();
-      if (!isCancelled && window.id !== undefined) {
-        setWindowId(window.id);
-      }
-    }
-    void detectWindowId();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (windowId === undefined) {

@@ -146,6 +146,55 @@ export function updateTab(
 }
 
 /**
+ * Rename a tab's id in place, keeping its position, parent, and children
+ * untouched—for `chrome.tabs.onReplaced`, which Chrome fires instead of a
+ * remove/create pair when a tab's underlying process is swapped for a new
+ * one with a new id (notably when a discarded tab is reloaded).
+ */
+export function replaceTabId(
+  tree: TreeState,
+  oldId: number,
+  newId: number,
+  update: TabUpdate = {},
+): TreeState {
+  const node = tree.nodes[oldId];
+  if (
+    node === undefined ||
+    oldId === newId ||
+    tree.nodes[newId] !== undefined
+  ) {
+    return tree;
+  }
+
+  const nodes = { ...tree.nodes };
+  delete nodes[oldId];
+  nodes[newId] = { ...node, ...update, id: newId };
+
+  for (const childId of node.childIds) {
+    const child = nodes[childId];
+    if (child !== undefined) {
+      nodes[childId] = { ...child, parentId: newId };
+    }
+  }
+
+  const replaceId = (ids: number[]): number[] =>
+    ids.map((id) => (id === oldId ? newId : id));
+
+  if (node.parentId === null) {
+    return { nodes, rootIds: replaceId(tree.rootIds) };
+  }
+
+  const parent = nodes[node.parentId];
+  if (parent === undefined) {
+    return { nodes, rootIds: tree.rootIds };
+  }
+
+  nodes[parent.id] = { ...parent, childIds: replaceId(parent.childIds) };
+
+  return { nodes, rootIds: tree.rootIds };
+}
+
+/**
  * Remove a tab from its current parent's `childIds` (or `rootIds`).
  */
 function detach(tree: TreeState, id: number): TreeState {
