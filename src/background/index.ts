@@ -6,7 +6,6 @@ import {
   replaceTabId,
   updateTab,
   type DropTarget,
-  type TabUpdate,
 } from "../shared/tree/mutations";
 import type { TaborMessage } from "../shared/messages";
 import { getNativeOrder } from "../shared/tree/queries";
@@ -40,6 +39,7 @@ import {
   setRestoreSession,
   setTree,
 } from "./store";
+import { toSelfHealingUpdate, toTabUpdate } from "./tab-update";
 import { isTaborOwnTab, toActualTab } from "./tabs";
 
 // TODO(debug): temporary instrumentation for two intermittent, hard-to-
@@ -422,37 +422,6 @@ async function handleTabReplaced(
   }
 }
 
-/**
- * `loading`/`suspended` are derived from `tab.status`/`tab.discarded`—the
- * full, current tab state—rather than from `changeInfo`, which only carries
- * whatever fields changed in this particular event. If an event that would
- * have flipped `loading` back to `false` is ever missed (e.g. the service
- * worker was asleep for it), deriving from the live `tab` object instead of
- * that one delta lets the very next `onUpdated` event for the tab—whatever
- * it's about—self-correct the stale value instead of leaving it stuck.
- */
-function toTabUpdate(
-  changeInfo: chrome.tabs.OnUpdatedInfo,
-  tab: chrome.tabs.Tab,
-): TabUpdate {
-  const update: TabUpdate = {};
-  if (changeInfo.url !== undefined) {
-    update.url = changeInfo.url;
-  }
-  if (changeInfo.title !== undefined) {
-    update.title = changeInfo.title;
-  }
-  if (changeInfo.favIconUrl !== undefined) {
-    update.favIconUrl = changeInfo.favIconUrl;
-  }
-  update.loading = tab.status === "loading";
-  update.suspended = tab.discarded;
-  if (changeInfo.pinned !== undefined) {
-    update.pinned = changeInfo.pinned;
-  }
-  return update;
-}
-
 async function handleTabUpdated(
   tabId: number,
   changeInfo: chrome.tabs.OnUpdatedInfo,
@@ -476,7 +445,8 @@ async function handleTabUpdated(
 /**
  * Besides tracking the active tab, re-reads the activated tab's actual
  * loading/discarded state and corrects the tree if it's out of sync—the
- * same self-healing `toTabUpdate` does, but triggered by the tab becoming
+ * same self-healing `toSelfHealingUpdate` applies to an `onUpdated` event
+ * with nothing more specific to go on, but triggered by the tab becoming
  * active rather than waiting for its next `onUpdated` event, so a tab stuck
  * showing a stale spinner fixes itself as soon as it's clicked.
  */
@@ -496,10 +466,7 @@ async function handleTabActivated(
   });
 
   const tree = getTree(activeInfo.windowId);
-  const updated = updateTab(tree, activeInfo.tabId, {
-    loading: tab.status === "loading",
-    suspended: tab.discarded,
-  });
+  const updated = updateTab(tree, activeInfo.tabId, toSelfHealingUpdate(tab));
   setTree(activeInfo.windowId, updated);
   await saveTree(activeInfo.windowId, updated);
 }
