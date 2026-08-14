@@ -1,5 +1,15 @@
 import { useEffect, useState } from "react";
 
+// TODO(debug): temporary instrumentation for two intermittent, hard-to-
+// reproduce bugs (a stuck loading spinner on an already-loaded tab; a
+// missing active-tab indicator after closing the active tab). Remove once
+// root-caused. Prefixed and timestamped so its output can be correlated
+// with the background service worker's own `[Tabor:background]` logs (a
+// separate console—see chrome://extensions's "service worker" link).
+function debugLog(event: string, data: Record<string, unknown>): void {
+  console.log(`[Tabor:sidepanel] ${event}`, { ...data, at: Date.now() });
+}
+
 /**
  * The id of the currently active tab in the given window, kept live via
  * `chrome.tabs.onActivated`.
@@ -27,6 +37,7 @@ export function useActiveTabId(
         active: true,
         windowId: currentWindowId,
       });
+      debugLog("initial query", { windowId: currentWindowId, tabId: tab?.id });
       if (!isCancelled && tab?.id !== undefined) {
         setActiveTabId(tab.id);
       }
@@ -34,6 +45,11 @@ export function useActiveTabId(
     void loadActiveTab();
 
     const listener = (activeInfo: chrome.tabs.OnActivatedInfo) => {
+      debugLog("onActivated", {
+        tabId: activeInfo.tabId,
+        windowId: activeInfo.windowId,
+        matchesCurrentWindow: activeInfo.windowId === currentWindowId,
+      });
       if (activeInfo.windowId === currentWindowId) {
         setActiveTabId(activeInfo.tabId);
       }

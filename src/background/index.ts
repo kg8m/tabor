@@ -32,6 +32,15 @@ import {
 } from "./store";
 import { toActualTab } from "./tabs";
 
+// TODO(debug): temporary instrumentation for two intermittent, hard-to-
+// reproduce bugs (a stuck loading spinner on an already-loaded tab; a
+// missing active-tab indicator after closing the active tab). Remove once
+// root-caused. Prefixed and timestamped so its output can be correlated
+// with the side panel's own `[Tabor:sidepanel]` logs (a separate console).
+function debugLog(event: string, data: Record<string, unknown>): void {
+  console.log(`[Tabor:background] ${event}`, { ...data, at: Date.now() });
+}
+
 /**
  * Runs each queued task after the previous one settles, so that two events
  * arriving close together (e.g. both firing right as the service worker
@@ -191,6 +200,11 @@ async function handleTabRemoved(
   info: chrome.tabs.OnRemovedInfo,
 ): Promise<void> {
   await ensureInitialized();
+  debugLog("onRemoved", {
+    tabId,
+    windowId: info.windowId,
+    isWindowClosing: info.isWindowClosing,
+  });
 
   // The window itself is being torn down; `windows.onRemoved` will drop its
   // tree, so there's no need to reconcile it tab by tab here.
@@ -316,6 +330,12 @@ async function handleTabUpdated(
   tab: chrome.tabs.Tab,
 ): Promise<void> {
   await ensureInitialized();
+  debugLog("onUpdated", {
+    tabId,
+    changeInfo,
+    status: tab.status,
+    discarded: tab.discarded,
+  });
 
   const update = toTabUpdate(changeInfo, tab);
   const tree = getTree(tab.windowId);
@@ -339,6 +359,13 @@ async function handleTabActivated(
   setActiveTabId(activeInfo.windowId, activeInfo.tabId);
 
   const tab = await chrome.tabs.get(activeInfo.tabId);
+  debugLog("onActivated", {
+    tabId: activeInfo.tabId,
+    windowId: activeInfo.windowId,
+    status: tab.status,
+    discarded: tab.discarded,
+  });
+
   const tree = getTree(activeInfo.windowId);
   const updated = updateTab(tree, activeInfo.tabId, {
     loading: tab.status === "loading",
