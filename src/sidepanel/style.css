@@ -220,6 +220,13 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* Pins the line box to the same height as the favicon/toggle regardless
+     of script: a title containing e.g. Japanese falls back to whichever CJK
+     font the browser picks (`system-ui, sans-serif` above doesn't cover
+     those glyphs), and that font's own line-height metrics run taller than
+     the Latin one's—inflating the row's height for that title alone if
+     left to the browser's default. */
+  line-height: 16px;
 }
 
 /* Reserves room for `.tab-node__actions` only while it's actually shown, so
