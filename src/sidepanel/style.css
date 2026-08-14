@@ -88,6 +88,13 @@ body {
   gap: 6px;
   padding: 4px 8px;
   border-radius: 4px;
+  /* Matches the native tab strip's own cursor (a plain arrow, not a hand)
+     rather than leaving this unset, which would otherwise fall back to the
+     browser's default text-select cursor wherever the pointer happens to
+     land on the title text. Child elements with their own specific cursor
+     (the toggle button, the pin icon, the action buttons) still win over
+     this within their own bounds. */
+  cursor: default;
   /* Leaves breathing room (a few rows' worth) above/below when
      useScrollActiveIntoView's scrollIntoView() brings this row to the edge
      of the `.app` scroll container. */
