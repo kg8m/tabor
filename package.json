@@ -4,6 +4,9 @@
   "description": "Tree-style tab manager extension for Vivaldi",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "24.4.1"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
