@@ -128,26 +128,31 @@ body {
   opacity: 0.5;
 }
 
+/* Selection is marked with an outline rather than (or in addition to) a
+   background tint, since `.tab-node--active` below sets its own background
+   that would otherwise fully replace a selected-but-not-active row's tint
+   for a row that's both—leaving no way to tell it's still selected. The
+   outline is a separate property, so it stays visible either way. */
 .tab-node--selected {
   background: color-mix(in srgb, currentColor 15%, transparent);
+  outline: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  outline-offset: -1px;
 }
 
 .tab-node--selected:hover {
   background: color-mix(in srgb, currentColor 20%, transparent);
 }
 
-.tab-node--active::before {
-  /* A plain absolutely-positioned bar, rather than a border or box-shadow
-     (both of which get clipped to the row's rounded corners, curving the
-     bar's ends), and rather than an inset box-shadow (same clipping issue).
-     Doesn't affect the row's content box width either way. */
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--tabor-accent);
+/* Tinted with the accent color rather than the neutral currentColor tint
+   `.tab-node--selected` uses, so the active tab still reads as active at a
+   glance even when it's also selected—the later rule in source order wins
+   the background for a row that's both. */
+.tab-node--active {
+  background: color-mix(in srgb, var(--tabor-accent) 12%, transparent);
+}
+
+.tab-node--active:hover {
+  background: color-mix(in srgb, var(--tabor-accent) 18%, transparent);
 }
 
 .tab-node--drop-before::before,
