@@ -21,6 +21,21 @@ export function getRootNodes(tree: TreeState): TabNode[] {
     .filter((node): node is TabNode => node !== undefined);
 }
 
+/**
+ * Pinned tabs, which are always roots with no children (see `addTab`) and
+ * are displayed in their own section, separate from the tree.
+ */
+export function getPinnedNodes(tree: TreeState): TabNode[] {
+  return getRootNodes(tree).filter((node) => node.pinned);
+}
+
+/**
+ * The root nodes that make up the regular tree, i.e. excluding pinned tabs.
+ */
+export function getUnpinnedRootNodes(tree: TreeState): TabNode[] {
+  return getRootNodes(tree).filter((node) => !node.pinned);
+}
+
 interface FlattenDepthFirstOptions {
   /**
    * Stop descending into a collapsed node's children, matching what's

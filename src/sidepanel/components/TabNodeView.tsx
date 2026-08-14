@@ -5,30 +5,32 @@ import type { TabNode } from "../../shared/tree/types";
 
 interface TabNodeViewProps {
   node: TabNode;
-  hasChildren: boolean;
+  hasChildren?: boolean;
   selected: boolean;
   onClick: (event: MouseEvent) => void;
-  dropIndicatorPosition: DropPosition | null;
-  onDragStart: (event: DragEvent) => void;
-  onDragOver: (event: DragEvent) => void;
-  onDragLeave: () => void;
-  onDrop: (event: DragEvent) => void;
-  onDragEnd: () => void;
   isActive: boolean;
+  // Omitted for rows that don't take part in drag-and-drop (pinned tabs,
+  // which per spec have no parent/child relationships to reorder into).
+  dropIndicatorPosition?: DropPosition | null;
+  onDragStart?: (event: DragEvent) => void;
+  onDragOver?: (event: DragEvent) => void;
+  onDragLeave?: () => void;
+  onDrop?: (event: DragEvent) => void;
+  onDragEnd?: () => void;
 }
 
 export function TabNodeView({
   node,
-  hasChildren,
+  hasChildren = false,
   selected,
   onClick,
-  dropIndicatorPosition,
+  isActive,
+  dropIndicatorPosition = null,
   onDragStart,
   onDragOver,
   onDragLeave,
   onDrop,
   onDragEnd,
-  isActive,
 }: TabNodeViewProps) {
   const handleClose = (event: MouseEvent) => {
     event.stopPropagation();
@@ -75,7 +77,7 @@ export function TabNodeView({
   return (
     <div
       className={className}
-      draggable
+      draggable={onDragStart !== undefined}
       onClick={handleClick}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -93,6 +95,14 @@ export function TabNodeView({
         >
           {node.collapsed ? "▶" : "▼"}
         </button>
+      ) : node.pinned ? (
+        <span
+          className="tab-node__toggle tab-node__pin"
+          role="img"
+          aria-label="Pinned"
+        >
+          📌
+        </span>
       ) : (
         <span className="tab-node__toggle" />
       )}

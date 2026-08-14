@@ -176,6 +176,38 @@ describe("addTab", () => {
     expect(result.nodes[1]?.childIds).toEqual([]);
     expect(result.rootIds).toEqual([1, 2]);
   });
+
+  it("adds a new tab as the first root, right after the pinned tabs, when the given parent is pinned", () => {
+    // Opening a link from a pinned tab shouldn't make the new tab a child of
+    // it—pinned tabs have no parent/child relationships in either direction.
+    // Natively, Chrome places such a tab right after the pinned region
+    // (i.e. as the first non-pinned tab), not at the very end like a tab
+    // opened with no parent at all (e.g. Ctrl+T)—so match that here too.
+    const pinnedParent = createNode({ id: 1, pinned: true });
+    const existingRoot = createNode({ id: 2 });
+    const tree: TreeState = {
+      nodes: { 1: pinnedParent, 2: existingRoot },
+      rootIds: [1, 2],
+    };
+
+    const result = addTab(
+      tree,
+      {
+        id: 3,
+        url: "https://example.com/3",
+        title: "Tab 3",
+        favIconUrl: undefined,
+        pinned: false,
+        loading: false,
+        suspended: false,
+      },
+      1,
+    );
+
+    expect(result.nodes[3]?.parentId).toBeNull();
+    expect(result.nodes[1]?.childIds).toEqual([]);
+    expect(result.rootIds).toEqual([3, 1, 2]);
+  });
 });
 
 describe("removeTab", () => {

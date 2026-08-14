@@ -1,6 +1,6 @@
 import type { MouseEvent } from "react";
 import type { DragAndDrop } from "../hooks/useDragAndDrop";
-import { getChildren, getRootNodes } from "../../shared/tree/queries";
+import { getChildren, getUnpinnedRootNodes } from "../../shared/tree/queries";
 import type { TreeState } from "../../shared/tree/types";
 import { TabNodeView } from "./TabNodeView";
 
@@ -21,7 +21,7 @@ export function TreeView({
 }: TreeViewProps) {
   return (
     <ul className="tree-view">
-      {getRootNodes(tree).map((node) => (
+      {getUnpinnedRootNodes(tree).map((node) => (
         <TreeNode
           key={node.id}
           tree={tree}

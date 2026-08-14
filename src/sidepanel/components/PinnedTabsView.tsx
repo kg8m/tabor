@@ -1,0 +1,43 @@
+import type { MouseEvent } from "react";
+import { getPinnedNodes } from "../../shared/tree/queries";
+import type { TreeState } from "../../shared/tree/types";
+import { TabNodeView } from "./TabNodeView";
+
+interface PinnedTabsViewProps {
+  tree: TreeState;
+  selectedIds: Set<number>;
+  onNodeClick: (id: number, event: MouseEvent) => void;
+  activeTabId: number | undefined;
+}
+
+/**
+ * Pinned tabs, shown above the regular tree in their own flat list—no
+ * collapse toggle or drag-and-drop, since per spec they have no parent/child
+ * relationships to fold or reorder into.
+ */
+export function PinnedTabsView({
+  tree,
+  selectedIds,
+  onNodeClick,
+  activeTabId,
+}: PinnedTabsViewProps) {
+  const pinnedNodes = getPinnedNodes(tree);
+  if (pinnedNodes.length === 0) {
+    return null;
+  }
+
+  return (
+    <ul className="pinned-tabs">
+      {pinnedNodes.map((node) => (
+        <li key={node.id} className="pinned-tabs__item">
+          <TabNodeView
+            node={node}
+            selected={selectedIds.has(node.id)}
+            onClick={(event) => onNodeClick(node.id, event)}
+            isActive={node.id === activeTabId}
+          />
+        </li>
+      ))}
+    </ul>
+  );
+}

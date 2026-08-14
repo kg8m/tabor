@@ -17,7 +17,9 @@ export interface NewTabInput {
  *
  * `parentId` is the tab that was current when the new tab was opened
  * (regardless of whether it was opened via a link or via something like
- * `Ctrl+T`). Pinned tabs are always added as independent root nodes.
+ * `Ctrl+T`). Pinned tabs are always added as independent root nodes, and
+ * likewise never become a parent: opening a tab from one adds it as a new
+ * root instead, since pinned tabs have no parent/child relationships at all.
  */
 export function addTab(
   tree: TreeState,
@@ -37,10 +39,12 @@ export function addTab(
   // as its own parent would make the node its own child once attached below.
   const resolvedParentId = parentId === input.id ? null : parentId;
 
-  const parent =
+  const parentCandidate =
     resolvedParentId === null || input.pinned
       ? undefined
       : tree.nodes[resolvedParentId];
+  const isPinnedParent = parentCandidate?.pinned === true;
+  const parent = isPinnedParent ? undefined : parentCandidate;
 
   const node: TabNode = {
     id: input.id,
@@ -58,7 +62,13 @@ export function addTab(
   const nodes: Record<number, TabNode> = { ...tree.nodes, [node.id]: node };
 
   if (parent === undefined) {
-    return { nodes, rootIds: [...tree.rootIds, node.id] };
+    // A tab opened from a pinned tab natively lands right after the pinned
+    // region, i.e. as the first non-pinned tab—not at the very end like a
+    // tab opened with no parent at all (e.g. Ctrl+T).
+    const rootIds = isPinnedParent
+      ? [node.id, ...tree.rootIds]
+      : [...tree.rootIds, node.id];
+    return { nodes, rootIds };
   }
 
   nodes[parent.id] = { ...parent, childIds: [...parent.childIds, node.id] };

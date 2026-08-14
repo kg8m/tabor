@@ -4,7 +4,9 @@ import {
   getChildren,
   getNativeOrder,
   getNode,
+  getPinnedNodes,
   getRootNodes,
+  getUnpinnedRootNodes,
   getVisibleOrder,
 } from "./queries";
 import { createNode } from "./test-helpers";
@@ -61,6 +63,33 @@ describe("getRootNodes", () => {
   it("returns the top-level nodes in order", () => {
     const tree = createSampleTree();
     expect(getRootNodes(tree).map((node) => node.id)).toEqual([1, 5]);
+  });
+});
+
+describe("getPinnedNodes", () => {
+  it("returns only the pinned root nodes, in order", () => {
+    const a = createNode({ id: 1, pinned: true });
+    const b = createNode({ id: 2 });
+    const c = createNode({ id: 3, pinned: true });
+    const tree: TreeState = { nodes: { 1: a, 2: b, 3: c }, rootIds: [1, 2, 3] };
+
+    expect(getPinnedNodes(tree).map((node) => node.id)).toEqual([1, 3]);
+  });
+
+  it("returns an empty array when no tab is pinned", () => {
+    const tree = createSampleTree();
+    expect(getPinnedNodes(tree)).toEqual([]);
+  });
+});
+
+describe("getUnpinnedRootNodes", () => {
+  it("returns only the non-pinned root nodes, in order", () => {
+    const a = createNode({ id: 1, pinned: true });
+    const b = createNode({ id: 2 });
+    const c = createNode({ id: 3, pinned: true });
+    const tree: TreeState = { nodes: { 1: a, 2: b, 3: c }, rootIds: [1, 2, 3] };
+
+    expect(getUnpinnedRootNodes(tree).map((node) => node.id)).toEqual([2]);
   });
 });
 

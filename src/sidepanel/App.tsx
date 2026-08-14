@@ -1,3 +1,4 @@
+import { PinnedTabsView } from "./components/PinnedTabsView";
 import { TreeView } from "./components/TreeView";
 import { useActiveTabId } from "./hooks/useActiveTabId";
 import { useDragAndDrop } from "./hooks/useDragAndDrop";
@@ -13,12 +14,20 @@ export function App() {
   const dragAndDrop = useDragAndDrop(selectedIds);
 
   return (
-    <TreeView
-      tree={tree}
-      selectedIds={selectedIds}
-      onNodeClick={handleNodeClick}
-      dragAndDrop={dragAndDrop}
-      activeTabId={activeTabId}
-    />
+    <>
+      <PinnedTabsView
+        tree={tree}
+        selectedIds={selectedIds}
+        onNodeClick={handleNodeClick}
+        activeTabId={activeTabId}
+      />
+      <TreeView
+        tree={tree}
+        selectedIds={selectedIds}
+        onNodeClick={handleNodeClick}
+        dragAndDrop={dragAndDrop}
+        activeTabId={activeTabId}
+      />
+    </>
   );
 }
