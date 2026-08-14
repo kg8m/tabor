@@ -408,6 +408,23 @@ describe("replaceTabId", () => {
 });
 
 describe("reorderFromNativeMove", () => {
+  it("keeps a tab as its preceding tab's child when it was already its only child", () => {
+    // A(B) -> native order [A, B] (unchanged) -> should still be A(B), not
+    // two roots. Reprocessing an unmoved-relative-to-its-parent tab (e.g.
+    // triggered by a programmatic move elsewhere in the tab strip) must not
+    // demote it to a sibling just because detaching it to reorder makes its
+    // parent look childless.
+    const a = createNode({ id: 1, childIds: [2] });
+    const b = createNode({ id: 2, parentId: 1 });
+    const tree: TreeState = { nodes: { 1: a, 2: b }, rootIds: [1] };
+
+    const result = reorderFromNativeMove(tree, 2, [1, 2]);
+
+    expect(result.nodes[1]?.childIds).toEqual([2]);
+    expect(result.nodes[2]?.parentId).toBe(1);
+    expect(result.rootIds).toEqual([1]);
+  });
+
   it("moves a tab to become the first child of its new preceding tab", () => {
     // A(B, C, D) -> native order [A, C, B, D] -> A(C, B, D)
     const a = createNode({ id: 1, childIds: [2, 3, 4] });

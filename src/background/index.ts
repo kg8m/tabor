@@ -176,6 +176,14 @@ async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
   const updated = addTab(tree, toActualTab(tab), parentId);
   setTree(tab.windowId, updated);
   await saveTree(tab.windowId, updated);
+
+  // `addTab` places the tab in the tree (e.g. as its parent's last child),
+  // but Chrome creates it wherever it likes natively—often the far end of
+  // the tab strip for a blank tab (Ctrl+T), not next to its parent. Without
+  // this, the tree and the native tab bar would disagree about this tab's
+  // position until some unrelated move reconciled them, which broke
+  // Ctrl+Tab and similar native, position-based navigation.
+  await syncNativeOrder(updated, tab.windowId);
 }
 
 async function handleTabRemoved(

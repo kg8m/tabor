@@ -339,7 +339,15 @@ export function reorderFromNativeMove(
     return attachAt(detached, movedId, null, detached.rootIds.length);
   }
 
-  if (previous.childIds.length > 0) {
+  // Whether `previous` had any children *before* detaching movedId. If
+  // movedId was previous's only child, `detached.nodes[previousId]` would
+  // look childless and wrongly demote movedId from child to sibling of
+  // previous, even though its position relative to previous hasn't
+  // actually changed.
+  const didPreviousHaveChildren =
+    (tree.nodes[previousId]?.childIds.length ?? 0) > 0;
+
+  if (didPreviousHaveChildren) {
     return attachAt(detached, movedId, previousId, 0);
   }
 
