@@ -1,4 +1,5 @@
 import type { MouseEvent } from "react";
+import type { DragAndDrop } from "../hooks/useDragAndDrop";
 import { getChildren, getRootNodes } from "../../shared/tree/queries";
 import type { TreeState } from "../../shared/tree/types";
 import { TabNodeView } from "./TabNodeView";
@@ -7,9 +8,15 @@ interface TreeViewProps {
   tree: TreeState;
   selectedIds: Set<number>;
   onNodeClick: (id: number, event: MouseEvent) => void;
+  dragAndDrop: DragAndDrop;
 }
 
-export function TreeView({ tree, selectedIds, onNodeClick }: TreeViewProps) {
+export function TreeView({
+  tree,
+  selectedIds,
+  onNodeClick,
+  dragAndDrop,
+}: TreeViewProps) {
   return (
     <ul className="tree-view">
       {getRootNodes(tree).map((node) => (
@@ -20,6 +27,7 @@ export function TreeView({ tree, selectedIds, onNodeClick }: TreeViewProps) {
           ancestorIds={new Set()}
           selectedIds={selectedIds}
           onNodeClick={onNodeClick}
+          dragAndDrop={dragAndDrop}
         />
       ))}
     </ul>
@@ -32,6 +40,7 @@ interface TreeNodeProps {
   ancestorIds: Set<number>;
   selectedIds: Set<number>;
   onNodeClick: (id: number, event: MouseEvent) => void;
+  dragAndDrop: DragAndDrop;
 }
 
 function TreeNode({
@@ -40,6 +49,7 @@ function TreeNode({
   ancestorIds,
   selectedIds,
   onNodeClick,
+  dragAndDrop,
 }: TreeNodeProps) {
   const node = tree.nodes[nodeId];
   // If the tree data were ever corrupted into a cycle, a node could end up
@@ -52,6 +62,7 @@ function TreeNode({
   childAncestorIds.add(nodeId);
 
   const children = getChildren(tree, nodeId);
+  const { dropIndicator } = dragAndDrop;
 
   return (
     <li className="tree-view__item">
@@ -60,6 +71,14 @@ function TreeNode({
         hasChildren={children.length > 0}
         selected={selectedIds.has(nodeId)}
         onClick={(event) => onNodeClick(nodeId, event)}
+        dropIndicatorPosition={
+          dropIndicator?.targetId === nodeId ? dropIndicator.position : null
+        }
+        onDragStart={(event) => dragAndDrop.onDragStart(nodeId, event)}
+        onDragOver={(event) => dragAndDrop.onDragOver(nodeId, event)}
+        onDragLeave={() => dragAndDrop.onDragLeave(nodeId)}
+        onDrop={(event) => dragAndDrop.onDrop(nodeId, event)}
+        onDragEnd={dragAndDrop.onDragEnd}
       />
       {children.length > 0 && !node.collapsed && (
         <ul className="tree-view__children">
@@ -71,6 +90,7 @@ function TreeNode({
               ancestorIds={childAncestorIds}
               selectedIds={selectedIds}
               onNodeClick={onNodeClick}
+              dragAndDrop={dragAndDrop}
             />
           ))}
         </ul>

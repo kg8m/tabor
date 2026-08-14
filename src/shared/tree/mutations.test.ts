@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addTab,
+  moveNode,
   removeTab,
   reorderFromNativeMove,
   updateTab,
@@ -407,6 +408,100 @@ describe("reorderFromNativeMove", () => {
     const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
 
     const result = reorderFromNativeMove(tree, 999, [1]);
+
+    expect(result).toEqual(tree);
+  });
+});
+
+describe("moveNode", () => {
+  it("inserts the node as a sibling before the target", () => {
+    // A, B, C -> drop A before C -> B, A, C
+    const a = createNode({ id: 1 });
+    const b = createNode({ id: 2 });
+    const c = createNode({ id: 3 });
+    const tree: TreeState = { nodes: { 1: a, 2: b, 3: c }, rootIds: [1, 2, 3] };
+
+    const result = moveNode(tree, 1, { targetId: 3, position: "before" });
+
+    expect(result.rootIds).toEqual([2, 1, 3]);
+    expect(result.nodes[1]?.parentId).toBeNull();
+  });
+
+  it("inserts the node as a sibling after the target", () => {
+    // A, B, C -> drop A after B -> B, A, C
+    const a = createNode({ id: 1 });
+    const b = createNode({ id: 2 });
+    const c = createNode({ id: 3 });
+    const tree: TreeState = { nodes: { 1: a, 2: b, 3: c }, rootIds: [1, 2, 3] };
+
+    const result = moveNode(tree, 1, { targetId: 2, position: "after" });
+
+    expect(result.rootIds).toEqual([2, 1, 3]);
+  });
+
+  it("makes the node the target's last child", () => {
+    // A, B(C) -> drop A onto B -> B(C, A)
+    const a = createNode({ id: 1 });
+    const b = createNode({ id: 2, childIds: [3] });
+    const c = createNode({ id: 3, parentId: 2 });
+    const tree: TreeState = { nodes: { 1: a, 2: b, 3: c }, rootIds: [1, 2] };
+
+    const result = moveNode(tree, 1, { targetId: 2, position: "child" });
+
+    expect(result.rootIds).toEqual([2]);
+    expect(result.nodes[2]?.childIds).toEqual([3, 1]);
+    expect(result.nodes[1]?.parentId).toBe(2);
+  });
+
+  it("keeps the moved node's own children attached to it", () => {
+    // A(B), C -> drop A after C -> C, A(B)
+    const a = createNode({ id: 1, childIds: [2] });
+    const b = createNode({ id: 2, parentId: 1 });
+    const c = createNode({ id: 3 });
+    const tree: TreeState = { nodes: { 1: a, 2: b, 3: c }, rootIds: [1, 3] };
+
+    const result = moveNode(tree, 1, { targetId: 3, position: "after" });
+
+    expect(result.rootIds).toEqual([3, 1]);
+    expect(result.nodes[1]?.childIds).toEqual([2]);
+    expect(result.nodes[2]?.parentId).toBe(1);
+  });
+
+  it("leaves the tree untouched when the target is the node's own descendant", () => {
+    // A(B(C)) -> dropping A onto its own grandchild C would create a cycle
+    const a = createNode({ id: 1, childIds: [2] });
+    const b = createNode({ id: 2, parentId: 1, childIds: [3] });
+    const c = createNode({ id: 3, parentId: 2 });
+    const tree: TreeState = { nodes: { 1: a, 2: b, 3: c }, rootIds: [1] };
+
+    const result = moveNode(tree, 1, { targetId: 3, position: "child" });
+
+    expect(result).toEqual(tree);
+  });
+
+  it("leaves the tree untouched when dropped onto itself", () => {
+    const a = createNode({ id: 1 });
+    const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
+
+    const result = moveNode(tree, 1, { targetId: 1, position: "after" });
+
+    expect(result).toEqual(tree);
+  });
+
+  it("returns the tree unchanged when the given id doesn't exist", () => {
+    const a = createNode({ id: 1 });
+    const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
+
+    const result = moveNode(tree, 999, { targetId: 1, position: "after" });
+
+    expect(result).toEqual(tree);
+  });
+
+  it("returns the tree unchanged when the target doesn't exist", () => {
+    const a = createNode({ id: 1 });
+    const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
+
+    const result = moveNode(tree, 1, { targetId: 999, position: "after" });
 
     expect(result).toEqual(tree);
   });

@@ -1,5 +1,6 @@
-import type { MouseEvent } from "react";
+import type { DragEvent, MouseEvent } from "react";
 import type { TaborMessage } from "../../shared/messages";
+import type { DropPosition } from "../../shared/tree/drop";
 import type { TabNode } from "../../shared/tree/types";
 
 interface TabNodeViewProps {
@@ -7,6 +8,12 @@ interface TabNodeViewProps {
   hasChildren: boolean;
   selected: boolean;
   onClick: (event: MouseEvent) => void;
+  dropIndicatorPosition: DropPosition | null;
+  onDragStart: (event: DragEvent) => void;
+  onDragOver: (event: DragEvent) => void;
+  onDragLeave: () => void;
+  onDrop: (event: DragEvent) => void;
+  onDragEnd: () => void;
 }
 
 export function TabNodeView({
@@ -14,6 +21,12 @@ export function TabNodeView({
   hasChildren,
   selected,
   onClick,
+  dropIndicatorPosition,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onDragEnd,
 }: TabNodeViewProps) {
   const handleClose = (event: MouseEvent) => {
     event.stopPropagation();
@@ -40,17 +53,28 @@ export function TabNodeView({
     "tab-node",
     node.suspended && "tab-node--suspended",
     selected && "tab-node--selected",
+    dropIndicatorPosition && `tab-node--drop-${dropIndicatorPosition}`,
   ]
     .filter(Boolean)
     .join(" ");
 
   return (
-    <div className={className} onClick={handleClick}>
+    <div
+      className={className}
+      draggable
+      onClick={handleClick}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+    >
       {hasChildren ? (
         <button
           type="button"
           className="tab-node__toggle"
           aria-label={node.collapsed ? "Expand" : "Collapse"}
+          draggable={false}
           onClick={handleToggleCollapsed}
         >
           {node.collapsed ? "▶" : "▼"}
@@ -70,6 +94,7 @@ export function TabNodeView({
         type="button"
         className="tab-node__close"
         aria-label="Close tab"
+        draggable={false}
         onClick={handleClose}
       >
         ×

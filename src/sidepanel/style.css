@@ -20,6 +20,7 @@ body {
 }
 
 .tab-node {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -41,6 +42,29 @@ body {
 
 .tab-node--selected:hover {
   background: color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.tab-node--drop-before::before,
+.tab-node--drop-after::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: currentColor;
+}
+
+.tab-node--drop-before::before {
+  top: -1px;
+}
+
+.tab-node--drop-after::after {
+  bottom: -1px;
+}
+
+.tab-node--drop-child {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
 }
 
 .tab-node__toggle {

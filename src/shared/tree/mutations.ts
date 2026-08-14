@@ -1,3 +1,4 @@
+import type { DropPosition } from "./drop";
 import type { TabNode, TreeState } from "./types";
 
 export interface NewTabInput {
@@ -299,4 +300,56 @@ export function reorderFromNativeMove(
     previous.parentId,
     previousIndexInParent + 1,
   );
+}
+
+export interface DropTarget {
+  targetId: number;
+  position: DropPosition;
+}
+
+/**
+ * Move `id` to a new position in the tree, per a drag-and-drop drop resolved
+ * via `resolveDropPosition`: `before`/`after` reorder it as a sibling of
+ * `target.targetId`, `child` makes it target's last child.
+ *
+ * Refuses the move (returning the tree unchanged) if the target doesn't
+ * exist, is the dragged node itself, or is one of its own descendants—the
+ * latter would create a cycle.
+ */
+export function moveNode(
+  tree: TreeState,
+  id: number,
+  target: DropTarget,
+): TreeState {
+  if (
+    tree.nodes[id] === undefined ||
+    tree.nodes[target.targetId] === undefined
+  ) {
+    return tree;
+  }
+  if (id === target.targetId || isSelfOrDescendant(tree, id, target.targetId)) {
+    return tree;
+  }
+
+  const detached = detach(tree, id);
+
+  if (target.position === "child") {
+    const parent = detached.nodes[target.targetId];
+    return attachAt(
+      detached,
+      id,
+      target.targetId,
+      parent?.childIds.length ?? 0,
+    );
+  }
+
+  const relativeTo = detached.nodes[target.targetId]!;
+  const siblingIds =
+    relativeTo.parentId === null
+      ? detached.rootIds
+      : (detached.nodes[relativeTo.parentId]?.childIds ?? []);
+  const targetIndex = siblingIds.indexOf(target.targetId);
+  const index = target.position === "before" ? targetIndex : targetIndex + 1;
+
+  return attachAt(detached, id, relativeTo.parentId, index);
 }

@@ -1,11 +1,14 @@
 import {
   addTab,
+  moveNode,
   removeTab,
   reorderFromNativeMove,
   updateTab,
+  type DropTarget,
   type TabUpdate,
 } from "../shared/tree/mutations";
 import type { TaborMessage } from "../shared/messages";
+import { getNativeOrder } from "../shared/tree/queries";
 import { restoreTree } from "../shared/tree/restore";
 import {
   loadAllTrees,
@@ -13,6 +16,7 @@ import {
   removeTree,
   saveTree,
 } from "../shared/tree/storage";
+import type { TreeState } from "../shared/tree/types";
 import {
   matchWindows,
   type ActualWindow,
@@ -292,6 +296,48 @@ async function handleToggleCollapsed(tabId: number): Promise<void> {
   await saveTree(tab.windowId, updated);
 }
 
+/**
+ * Move the window's non-pinned tabs to match the tree's depth-first order.
+ * Used after a side-panel drag-and-drop changes the tree, since that only
+ * updates our own state—chrome.tabs.onMoved tells us about the opposite
+ * direction (native move -> tree update), not this one.
+ *
+ * Pinned tabs are left out: they're independent of the tree (see `addTab`),
+ * and Chrome keeps them pinned to the front regardless of the index passed
+ * here.
+ */
+async function syncNativeOrder(
+  tree: TreeState,
+  windowId: number,
+): Promise<void> {
+  const order = getNativeOrder(tree).filter(
+    (id) => tree.nodes[id]?.pinned !== true,
+  );
+  if (order.length === 0) {
+    return;
+  }
+
+  await chrome.tabs.move(order, { windowId, index: 0 });
+}
+
+async function handleMoveNode(
+  tabId: number,
+  target: DropTarget,
+): Promise<void> {
+  await ensureInitialized();
+
+  const tab = await chrome.tabs.get(tabId);
+  const tree = getTree(tab.windowId);
+  const updated = moveNode(tree, tabId, target);
+  if (updated === tree) {
+    return;
+  }
+
+  setTree(tab.windowId, updated);
+  await saveTree(tab.windowId, updated);
+  await syncNativeOrder(updated, tab.windowId);
+}
+
 // These listeners return the enqueued task's Promise directly (rather than
 // firing it and returning void) so the MV3 service worker stays alive until
 // the underlying chrome.tabs/chrome.storage calls actually finish.
@@ -349,5 +395,7 @@ chrome.tabs.onActivated.addListener((activeInfo) =>
 chrome.runtime.onMessage.addListener((message: TaborMessage) => {
   if (message.type === "toggleCollapsed") {
     void enqueue(() => handleToggleCollapsed(message.tabId));
+  } else if (message.type === "moveNode") {
+    void enqueue(() => handleMoveNode(message.tabId, message.target));
   }
 });
