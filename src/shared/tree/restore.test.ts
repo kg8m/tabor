@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { restoreTree, type ActualTab } from "./restore";
+import {
+  createRestoreSession,
+  matchStraggler,
+  restoreTree,
+  type ActualTab,
+} from "./restore";
 import { createNode } from "./test-helpers";
 import type { TreeState } from "./types";
 
@@ -162,5 +167,83 @@ describe("restoreTree", () => {
     const result = restoreTree(savedTree, []);
 
     expect(result).toEqual({ nodes: {}, rootIds: [] });
+  });
+});
+
+describe("matchStraggler", () => {
+  it("matches a straggler against the saved node restoreTree didn't consume, using its resolved parent", () => {
+    // Saved: A(id=100) -> B(id=200). Only A shows up in the initial batch;
+    // B arrives later, as a straggler.
+    const a = createNode({ id: 100, url: "https://a.com", childIds: [200] });
+    const b = createNode({ id: 200, url: "https://b.com", parentId: 100 });
+    const savedTree: TreeState = { nodes: { 100: a, 200: b }, rootIds: [100] };
+
+    const session = createRestoreSession(savedTree);
+    restoreTree(
+      savedTree,
+      [actualTab({ id: 1, url: "https://a.com" })],
+      session,
+    );
+
+    const straggler = matchStraggler(
+      session,
+      actualTab({ id: 2, url: "https://b.com" }),
+    );
+
+    expect(straggler).toEqual({ parentId: 1 });
+  });
+
+  it("returns undefined for a url with no leftover saved node", () => {
+    const a = createNode({ id: 100, url: "https://a.com" });
+    const savedTree: TreeState = { nodes: { 100: a }, rootIds: [100] };
+
+    const session = createRestoreSession(savedTree);
+    restoreTree(
+      savedTree,
+      [actualTab({ id: 1, url: "https://a.com" })],
+      session,
+    );
+
+    const straggler = matchStraggler(
+      session,
+      actualTab({ id: 2, url: "https://unrelated.com" }),
+    );
+
+    expect(straggler).toBeUndefined();
+  });
+
+  it("resolves a straggler's parent to another straggler matched just before it", () => {
+    // Saved: A(id=100) -> B(id=200). Neither shows up in the initial batch;
+    // both arrive later, as stragglers, parent first.
+    const a = createNode({ id: 100, url: "https://a.com", childIds: [200] });
+    const b = createNode({ id: 200, url: "https://b.com", parentId: 100 });
+    const savedTree: TreeState = { nodes: { 100: a, 200: b }, rootIds: [100] };
+
+    const session = createRestoreSession(savedTree);
+    restoreTree(savedTree, [], session);
+
+    matchStraggler(session, actualTab({ id: 1, url: "https://a.com" }));
+    const straggler = matchStraggler(
+      session,
+      actualTab({ id: 2, url: "https://b.com" }),
+    );
+
+    expect(straggler).toEqual({ parentId: 1 });
+  });
+
+  it("falls parentless when a straggler's saved parent hasn't shown up yet", () => {
+    const a = createNode({ id: 100, url: "https://a.com", childIds: [200] });
+    const b = createNode({ id: 200, url: "https://b.com", parentId: 100 });
+    const savedTree: TreeState = { nodes: { 100: a, 200: b }, rootIds: [100] };
+
+    const session = createRestoreSession(savedTree);
+    restoreTree(savedTree, [], session);
+
+    const straggler = matchStraggler(
+      session,
+      actualTab({ id: 2, url: "https://b.com" }),
+    );
+
+    expect(straggler).toEqual({ parentId: null });
   });
 });

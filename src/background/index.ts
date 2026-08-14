@@ -10,7 +10,11 @@ import {
 } from "../shared/tree/mutations";
 import type { TaborMessage } from "../shared/messages";
 import { getNativeOrder } from "../shared/tree/queries";
-import { restoreTree } from "../shared/tree/restore";
+import {
+  createRestoreSession,
+  matchStraggler,
+  restoreTree,
+} from "../shared/tree/restore";
 import {
   loadAllTrees,
   loadTree,
@@ -24,13 +28,19 @@ import {
   type SavedWindow,
 } from "../shared/tree/window-matching";
 import {
+  waitForTabCreationToFullySettle,
+  waitForTabCreationToSettle,
+} from "./settle";
+import {
   deleteWindow,
   getActiveTabId,
+  getRestoreSession,
   getTree,
   setActiveTabId,
+  setRestoreSession,
   setTree,
 } from "./store";
-import { toActualTab } from "./tabs";
+import { isTaborOwnTab, toActualTab } from "./tabs";
 
 // TODO(debug): temporary instrumentation for two intermittent, hard-to-
 // reproduce bugs (a stuck loading spinner on an already-loaded tab; a
@@ -68,18 +78,79 @@ const enqueue = (() => {
   };
 })();
 
+// Windows already reconciled this session, whether by `initializeAllWindows`
+// or by `initializeWindow` itself. Chrome fires `windows.onCreated` not just
+// for windows genuinely opened later, but also for ones session restore
+// recreates at browser startup—so without this, a startup window would get
+// redundantly (and, worse, incorrectly: see `initializeWindow` below)
+// re-initialized right after `initializeAllWindows` already did it properly.
+const initializedWindowIds = new Set<number>();
+
+/**
+ * Tracks how many `track()` calls currently think a restore is in progress
+ * (a counter rather than a boolean, since more than one can be in flight at
+ * once—e.g. the startup scan and a window opened moments later).
+ * `handleTabCreated` checks `isRestoring()` before falling back to "parent =
+ * whatever's active" for a tab it can't otherwise account for.
+ *
+ * `track()` keeps `isRestoring()` true until tab creation has gone fully
+ * quiet (see `waitForTabCreationToFullySettle`), independently of—and
+ * typically outlasting—the single settle round
+ * `initializeAllWindows`/`initializeWindow` themselves wait for before
+ * taking their own snapshot. A large session restore can burst, pause, and
+ * burst again well past that first round, and while `handleTabCreated` has
+ * no saved history to reconnect a straggler tab to (see `matchStraggler`),
+ * the next best thing is to at least not mistake it for a genuinely new tab
+ * and stack it under whatever's active.
+ */
+const restoreTracking = (() => {
+  let count = 0;
+
+  return {
+    isRestoring: (): boolean => count > 0,
+    track: async (): Promise<void> => {
+      count += 1;
+      try {
+        await waitForTabCreationToFullySettle();
+      } finally {
+        count -= 1;
+      }
+    },
+  };
+})();
+
 /**
  * Initialize a single new window with no history to reconcile against
- * (there's nothing saved yet under its brand-new window id).
+ * (there's nothing saved yet under its brand-new window id). Waits for its
+ * own tab creation to settle first (see `waitForTabCreationToSettle`) so a
+ * window opened with several tabs at once (e.g. from a bookmark folder)
+ * doesn't have the later ones missed by this function's own `tabs.query` and
+ * then mishandled as ordinary new tabs by `handleTabCreated`.
+ *
+ * Also simply never reruns for a window `initializeAllWindows` already
+ * restored (see `initializedWindowIds` above). Chrome fires `windows.onCreated`
+ * for a startup window too, not just ones genuinely opened later, and rerunning
+ * this window's own restore right after `initializeAllWindows` already did it
+ * is at best wasted work reconciling the same tabs a second time.
  */
 async function initializeWindow(windowId: number): Promise<void> {
-  const tabs = await chrome.tabs.query({ windowId });
+  if (initializedWindowIds.has(windowId)) {
+    return;
+  }
+  initializedWindowIds.add(windowId);
+
+  void restoreTracking.track();
+  await waitForTabCreationToSettle();
+  const queriedTabs = await chrome.tabs.query({ windowId });
+  const tabs = queriedTabs.filter((tab) => !isTaborOwnTab(tab));
   const actualTabs = tabs.map((tab) => toActualTab(tab));
 
   const savedTree = (await loadTree(windowId)) ?? { nodes: {}, rootIds: [] };
-  const tree = restoreTree(savedTree, actualTabs);
+  const session = createRestoreSession(savedTree);
+  const tree = restoreTree(savedTree, actualTabs, session);
 
   setTree(windowId, tree);
+  setRestoreSession(windowId, session);
   await saveTree(windowId, tree);
 
   const activeTab = tabs.find((tab) => tab.active);
@@ -92,8 +163,27 @@ async function initializeWindow(windowId: number): Promise<void> {
  * Initialize every window at browser startup, matching saved windows to
  * actual windows by tab URL overlap first (window ids don't survive a
  * restart, so we can't just look up each window's tree by id).
+ *
+ * Waits for tab creation to settle first (see `waitForTabCreationToSettle`),
+ * since Chrome's own session restore recreates each previously open tab
+ * asynchronously and querying tabs immediately on `runtime.onStartup` can
+ * catch some windows before all of their tabs exist yet—but that wait has no
+ * hard guarantee of catching every one of them (how long restore actually
+ * takes isn't something this can know in advance). So a `RestoreSession` is
+ * also kept around per window afterward (see `getRestoreSession`): any saved
+ * tab this pass didn't find a match for is still there, ready for
+ * `handleTabCreated` to match a straggler against once it actually shows up,
+ * rather than that straggler falling through to being treated as an
+ * ordinary brand-new tab (parented under whatever's active) and losing its
+ * real saved parent. And for a tab with no saved match at all—there's
+ * nothing unusual about a late-arriving tab having none, since plenty of
+ * tabs are new every session—`restoreTracking` keeps `handleTabCreated` from
+ * treating it as an ordinary new tab either, for as long as tab creation is
+ * still ongoing.
  */
 async function initializeAllWindows(): Promise<void> {
+  void restoreTracking.track();
+  await waitForTabCreationToSettle();
   const windows = await chrome.windows.getAll();
   const windowIds = windows
     .map((window) => window.id)
@@ -102,7 +192,11 @@ async function initializeAllWindows(): Promise<void> {
   const tabsByWindowId = new Map<number, chrome.tabs.Tab[]>();
   await Promise.all(
     windowIds.map(async (windowId) => {
-      tabsByWindowId.set(windowId, await chrome.tabs.query({ windowId }));
+      const queriedTabs = await chrome.tabs.query({ windowId });
+      tabsByWindowId.set(
+        windowId,
+        queriedTabs.filter((tab) => !isTaborOwnTab(tab)),
+      );
     }),
   );
 
@@ -125,10 +219,13 @@ async function initializeAllWindows(): Promise<void> {
     actualWindows.map(async (actualWindow) => {
       const savedTree = matchByActualWindowId.get(actualWindow.windowId)
         ?.savedTree ?? { nodes: {}, rootIds: [] };
-      const tree = restoreTree(savedTree, actualWindow.tabs);
+      const session = createRestoreSession(savedTree);
+      const tree = restoreTree(savedTree, actualWindow.tabs, session);
 
       setTree(actualWindow.windowId, tree);
+      setRestoreSession(actualWindow.windowId, session);
       await saveTree(actualWindow.windowId, tree);
+      initializedWindowIds.add(actualWindow.windowId);
 
       const tabs = tabsByWindowId.get(actualWindow.windowId) ?? [];
       const activeTab = tabs.find((tab) => tab.active);
@@ -138,14 +235,16 @@ async function initializeAllWindows(): Promise<void> {
     }),
   );
 
-  const usedSavedWindowIds = new Set(
-    matches
-      .map((match) => match.savedWindowId)
-      .filter((id): id is number => id !== undefined),
-  );
+  // A saved window's data now lives under its matched actual window's id
+  // (just saved above, under `actualWindow.windowId`)—including when that
+  // differs from the saved window's own old id, which is the common case
+  // across a restart. Anything saved under an id that isn't one of the
+  // actual windows just initialized is therefore stale, whether or not it
+  // got matched to one of them.
+  const actualWindowIds = new Set(windowIds);
   await Promise.all(
     savedWindows
-      .filter((saved) => !usedSavedWindowIds.has(saved.windowId))
+      .filter((saved) => !actualWindowIds.has(saved.windowId))
       .map((saved) => removeTree(saved.windowId)),
   );
 }
@@ -176,13 +275,43 @@ const ensureInitialized = (() => {
 async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
   await ensureInitialized();
 
-  if (tab.id === undefined) {
+  if (tab.id === undefined || isTaborOwnTab(tab)) {
+    return;
+  }
+
+  const tree = getTree(tab.windowId);
+  // Already tracked, most likely because this tab's own `onCreated` fired
+  // during startup's tab-creation settle wait (see
+  // `waitForTabCreationToSettle`) and it was therefore already picked up by
+  // `initializeAllWindows`/`initializeWindow`'s own tab query. Adding it
+  // again here would duplicate it under a brand-new node, parented under
+  // whatever's active rather than wherever the tree just restored it to.
+  if (tree.nodes[tab.id] !== undefined) {
+    return;
+  }
+
+  const actualTab = toActualTab(tab);
+  const session = getRestoreSession(tab.windowId);
+  const straggler = session && matchStraggler(session, actualTab);
+
+  if (straggler || restoreTracking.isRestoring()) {
+    // Either a tab from startup's own session restore that this window's
+    // initial restore pass (see `getRestoreSession`) didn't get to see yet,
+    // reconnected here to its real saved parent—or, if no saved match was
+    // found, one Chrome is still busy creating as part of that same restore
+    // (see `restoreTracking`), where falling through to "parent =
+    // whatever's active" below risks stacking a pile of unrelated restored
+    // tabs under it. Its native position is left alone either way, rather
+    // than reshuffling a window that may still be mid-restore.
+    const parentId = straggler ? straggler.parentId : null;
+    const updated = addTab(tree, actualTab, parentId);
+    setTree(tab.windowId, updated);
+    await saveTree(tab.windowId, updated);
     return;
   }
 
   const parentId = getActiveTabId(tab.windowId) ?? null;
-  const tree = getTree(tab.windowId);
-  const updated = addTab(tree, toActualTab(tab), parentId);
+  const updated = addTab(tree, actualTab, parentId);
   setTree(tab.windowId, updated);
   await saveTree(tab.windowId, updated);
 
@@ -463,6 +592,7 @@ chrome.windows.onCreated.addListener((window) =>
 
 chrome.windows.onRemoved.addListener((windowId) => {
   deleteWindow(windowId);
+  initializedWindowIds.delete(windowId);
 });
 
 chrome.tabs.onCreated.addListener((tab) =>
