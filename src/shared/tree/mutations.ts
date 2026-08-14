@@ -202,6 +202,33 @@ function attachAt(
 }
 
 /**
+ * Whether `id` is `ancestorId` itself or one of its descendants, walking up
+ * `parentId` links. Bails out safely (returns `false`) if it revisits a node,
+ * rather than looping forever on an already-corrupt, cyclic tree.
+ */
+function isSelfOrDescendant(
+  tree: TreeState,
+  ancestorId: number,
+  id: number,
+): boolean {
+  const visited = new Set<number>();
+  let current: number | undefined = id;
+
+  while (current !== undefined) {
+    if (current === ancestorId) {
+      return true;
+    }
+    if (visited.has(current)) {
+      return false;
+    }
+    visited.add(current);
+    current = tree.nodes[current]?.parentId ?? undefined;
+  }
+
+  return false;
+}
+
+/**
  * Reconcile the tree with a tab having moved in the native tab bar.
  *
  * The native tab bar has no concept of a tree, so the only information a
@@ -220,10 +247,21 @@ export function reorderFromNativeMove(
     return tree;
   }
 
-  const detached = detach(tree, movedId);
-
   const index = newOrder.indexOf(movedId);
   const previousId = newOrder[index - 1];
+
+  // A move that would place movedId right after its own descendant would
+  // make movedId a descendant of its own descendant—a cycle. This isn't a
+  // real drag target (the descendant would have had to move first), so
+  // leave the tree untouched rather than corrupting it.
+  if (
+    previousId !== undefined &&
+    isSelfOrDescendant(tree, movedId, previousId)
+  ) {
+    return tree;
+  }
+
+  const detached = detach(tree, movedId);
 
   if (previousId === undefined) {
     return attachAt(detached, movedId, null, 0);

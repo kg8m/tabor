@@ -75,6 +75,15 @@ describe("flattenDepthFirst", () => {
     const tree: TreeState = { nodes: {}, rootIds: [] };
     expect(flattenDepthFirst(tree)).toEqual([]);
   });
+
+  it("doesn't loop forever if the data is corrupted into a cycle", () => {
+    // A -> B -> A (each is the other's parent and child).
+    const a = createNode({ id: 1, childIds: [2] });
+    const b = createNode({ id: 2, parentId: 1, childIds: [1] });
+    const tree: TreeState = { nodes: { 1: a, 2: b }, rootIds: [1] };
+
+    expect(flattenDepthFirst(tree).map((node) => node.id)).toEqual([1, 2]);
+  });
 });
 
 describe("getNativeOrder", () => {

@@ -379,6 +379,20 @@ describe("reorderFromNativeMove", () => {
     expect(getNativeOrder(result)).toEqual([3, 1, 2, 4, 5]);
   });
 
+  it("leaves the tree untouched rather than reparenting a tab under its own descendant", () => {
+    // A(B(C)) -> native order [B, C, A] would put A right after its own
+    // descendant C, which would make A a descendant of B while B stays a
+    // descendant of A. That's a cycle, so this must be a no-op.
+    const a = createNode({ id: 1, childIds: [2] });
+    const b = createNode({ id: 2, parentId: 1, childIds: [3] });
+    const c = createNode({ id: 3, parentId: 2 });
+    const tree: TreeState = { nodes: { 1: a, 2: b, 3: c }, rootIds: [1] };
+
+    const result = reorderFromNativeMove(tree, 1, [2, 3, 1]);
+
+    expect(result).toEqual(tree);
+  });
+
   it("returns the tree unchanged when the given id doesn't exist", () => {
     const a = createNode({ id: 1 });
     const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };

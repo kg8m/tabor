@@ -21,10 +21,24 @@ export function getRootNodes(tree: TreeState): TabNode[] {
     .filter((node): node is TabNode => node !== undefined);
 }
 
+/**
+ * Flatten the tree in depth-first order.
+ *
+ * Guards against revisiting a node: a well-formed tree can't contain one,
+ * but if the data were ever corrupted into a cycle, this stops that from
+ * turning into infinite recursion instead of just silently truncating the
+ * cyclic branch.
+ */
 export function flattenDepthFirst(tree: TreeState): TabNode[] {
   const result: TabNode[] = [];
+  const visited = new Set<number>();
 
   const visit = (node: TabNode) => {
+    if (visited.has(node.id)) {
+      return;
+    }
+    visited.add(node.id);
+
     result.push(node);
     for (const child of getChildren(tree, node.id)) {
       visit(child);

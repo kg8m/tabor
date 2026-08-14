@@ -10,7 +10,12 @@ export function TreeView({ tree }: TreeViewProps) {
   return (
     <ul className="tree-view">
       {getRootNodes(tree).map((node) => (
-        <TreeNode key={node.id} tree={tree} nodeId={node.id} />
+        <TreeNode
+          key={node.id}
+          tree={tree}
+          nodeId={node.id}
+          ancestorIds={new Set()}
+        />
       ))}
     </ul>
   );
@@ -19,13 +24,19 @@ export function TreeView({ tree }: TreeViewProps) {
 interface TreeNodeProps {
   tree: TreeState;
   nodeId: number;
+  ancestorIds: Set<number>;
 }
 
-function TreeNode({ tree, nodeId }: TreeNodeProps) {
+function TreeNode({ tree, nodeId, ancestorIds }: TreeNodeProps) {
   const node = tree.nodes[nodeId];
-  if (node === undefined) {
+  // If the tree data were ever corrupted into a cycle, a node could end up
+  // among its own descendants; bail out instead of recursing forever.
+  if (node === undefined || ancestorIds.has(nodeId)) {
     return null;
   }
+
+  const childAncestorIds = new Set(ancestorIds);
+  childAncestorIds.add(nodeId);
 
   const children = getChildren(tree, nodeId);
 
@@ -35,7 +46,12 @@ function TreeNode({ tree, nodeId }: TreeNodeProps) {
       {children.length > 0 && (
         <ul className="tree-view__children">
           {children.map((child) => (
-            <TreeNode key={child.id} tree={tree} nodeId={child.id} />
+            <TreeNode
+              key={child.id}
+              tree={tree}
+              nodeId={child.id}
+              ancestorIds={childAncestorIds}
+            />
           ))}
         </ul>
       )}
