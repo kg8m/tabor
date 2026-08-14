@@ -15,6 +15,10 @@ export function setTree(windowId: number, tree: TreeState): void {
   trees.set(windowId, tree);
 }
 
+export function getAllTrees(): Record<number, TreeState> {
+  return Object.fromEntries(trees);
+}
+
 export function getActiveTabId(windowId: number): number | undefined {
   return activeTabIds.get(windowId);
 }

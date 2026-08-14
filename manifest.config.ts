@@ -5,7 +5,7 @@ export default defineManifest({
   name: "Tabor",
   version: "0.1.0",
   description: "Tree-style tab manager extension for Vivaldi",
-  permissions: ["tabs", "storage", "sidePanel", "unlimitedStorage"],
+  permissions: ["tabs", "storage", "sidePanel", "unlimitedStorage", "alarms"],
   background: {
     service_worker: "src/background/index.ts",
     type: "module",

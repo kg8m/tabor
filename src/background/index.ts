@@ -1,4 +1,10 @@
 import {
+  loadAllBackups,
+  removeBackups,
+  saveBackup,
+  selectBackupTimestampsToKeep,
+} from "../shared/tree/backup";
+import {
   addTab,
   moveNodes,
   removeTab,
@@ -33,6 +39,7 @@ import {
 import {
   deleteWindow,
   getActiveTabId,
+  getAllTrees,
   getRestoreSession,
   getTree,
   setActiveTabId,
@@ -534,6 +541,59 @@ async function handleMoveNode(
   await saveTree(tab.windowId, updated);
   await syncNativeOrder(updated, tab.windowId);
 }
+
+const BACKUP_ALARM_NAME = "tabor-backup-snapshot";
+const BACKUP_INTERVAL_MINUTES = 5;
+
+/**
+ * Snapshots every window's tree for on-demand restore later, then thins out
+ * older snapshots (see `selectBackupTimestampsToKeep`) so the backup history
+ * doesn't grow without bound.
+ */
+async function handleBackupAlarm(): Promise<void> {
+  await ensureInitialized();
+
+  const windows = getAllTrees();
+  if (Object.keys(windows).length === 0) {
+    return;
+  }
+
+  await saveBackup(Date.now(), windows);
+
+  const backups = await loadAllBackups();
+  const timestamps = backups.map((backup) => backup.timestamp);
+  const kept = new Set(selectBackupTimestampsToKeep(timestamps, Date.now()));
+  const toRemove = timestamps.filter((timestamp) => !kept.has(timestamp));
+  if (toRemove.length > 0) {
+    await removeBackups(toRemove);
+  }
+}
+
+/**
+ * Alarms persist in Chrome independently of the service worker's own
+ * lifetime, so this only needs to actually create one the first time—calling
+ * `chrome.alarms.create` again on every later wake-up (this runs at every
+ * module load, i.e. every time the service worker restarts) would instead
+ * reset its next fire time to `BACKUP_INTERVAL_MINUTES` from now each time,
+ * and a heavily-interactive session can restart the service worker often
+ * enough that the alarm would then rarely, if ever, actually reach its full
+ * interval.
+ */
+async function ensureBackupAlarm(): Promise<void> {
+  const existing = await chrome.alarms.get(BACKUP_ALARM_NAME);
+  if (existing === undefined) {
+    await chrome.alarms.create(BACKUP_ALARM_NAME, {
+      periodInMinutes: BACKUP_INTERVAL_MINUTES,
+    });
+  }
+}
+void ensureBackupAlarm();
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === BACKUP_ALARM_NAME) {
+    void enqueue(handleBackupAlarm);
+  }
+});
 
 // These listeners return the enqueued task's Promise directly (rather than
 // firing it and returning void) so the MV3 service worker stays alive until
