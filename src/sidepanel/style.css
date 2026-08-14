@@ -56,7 +56,26 @@ body {
   margin-bottom: 4px;
 }
 
+/* Animates collapse/expand without ever measuring the children's rendered
+   height in JS: an `1fr`-sized grid row sizes itself to its content like a
+   normal block would, but unlike a block's `height`, `grid-template-rows` is
+   itself an animatable property, so transitioning it to `0fr` smoothly
+   shrinks the row to nothing. That only works because `.tree-view__children`
+   (the grid item) has `overflow: hidden`—a grid item's automatic minimum
+   size otherwise floors at its content's own height, which would stop the
+   row from ever shrinking past that regardless of the `0fr` target. */
+.tree-view__children-outer {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.15s ease;
+}
+
+.tree-view__children-outer--collapsed {
+  grid-template-rows: 0fr;
+}
+
 .tree-view__children {
+  overflow: hidden;
   /* `margin-left` aligns the guide line under the parent row's toggle/pin
      icon (which sits at roughly half its 14px width past the row's 8px
      padding). `padding-left`, combined with a child row's own 8px padding,

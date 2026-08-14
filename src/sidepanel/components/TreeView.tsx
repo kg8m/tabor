@@ -92,22 +92,29 @@ function TreeNode({
         onDragEnd={dragAndDrop.onDragEnd}
         isActive={nodeId === activeTabId}
       />
-      {children.length > 0 && !node.collapsed && (
-        <ul className="tree-view__children">
-          {children.map((child) => (
-            <TreeNode
-              key={child.id}
-              tree={tree}
-              nodeId={child.id}
-              ancestorIds={childAncestorIds}
-              selectedIds={selectedIds}
-              onNodeClick={onNodeClick}
-              onNodeContextMenu={onNodeContextMenu}
-              dragAndDrop={dragAndDrop}
-              activeTabId={activeTabId}
-            />
-          ))}
-        </ul>
+      {children.length > 0 && (
+        <div
+          className={
+            "tree-view__children-outer" +
+            (node.collapsed ? " tree-view__children-outer--collapsed" : "")
+          }
+        >
+          <ul className="tree-view__children">
+            {children.map((child) => (
+              <TreeNode
+                key={child.id}
+                tree={tree}
+                nodeId={child.id}
+                ancestorIds={childAncestorIds}
+                selectedIds={selectedIds}
+                onNodeClick={onNodeClick}
+                onNodeContextMenu={onNodeContextMenu}
+                dragAndDrop={dragAndDrop}
+                activeTabId={activeTabId}
+              />
+            ))}
+          </ul>
+        </div>
       )}
     </li>
   );
