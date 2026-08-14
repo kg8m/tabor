@@ -1,0 +1,184 @@
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+
+// Keeps the menu from touching the panel's edge once clamped into view.
+const VIEWPORT_MARGIN = 4;
+
+interface ContextMenuProps {
+  x: number;
+  y: number;
+  targetIds: number[];
+  isEveryTargetPinned: boolean;
+  activeTabId: number | undefined;
+  onClose: () => void;
+}
+
+/**
+ * A fixed-position menu anchored at the right-click point. Closing on an
+ * outside click is done by checking the click's target against `menuReference`
+ * rather than by stopping propagation on the menu's own items: that way a
+ * click on e.g. "Suspend" still reaches its own `onClick` normally, and only
+ * this component decides when to close (right after running the action).
+ *
+ * "Close" asks for confirmation as an in-menu step (swapping its buttons for
+ * a Cancel/Close pair) rather than via `window.confirm`: Chrome silently
+ * blocks `alert`/`confirm`/`prompt` from extension surfaces like this side
+ * panel, so a real `confirm()` call here would always resolve to `false`
+ * without ever actually prompting anyone.
+ */
+export function ContextMenu({
+  x,
+  y,
+  targetIds,
+  isEveryTargetPinned,
+  activeTabId,
+  onClose,
+}: ContextMenuProps) {
+  // Discarding the active tab is a no-op—Chrome has to reload it right away
+  // to keep displaying it—so it's excluded from a batch suspend the same way
+  // the per-row suspend button hides for it. Unlike that button, the whole
+  // action isn't hidden just because the active tab happens to be one of
+  // several targets: the others are still worth suspending.
+  const suspendableIds = targetIds.filter((id) => id !== activeTabId);
+  const menuReference = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ top: y, left: x });
+  const [isConfirmingClose, setIsConfirmingClose] = useState(false);
+
+  // Clamps the anchor point so the menu never renders past the panel's own
+  // edge (it otherwise wouldn't be able to shrink to fit and would just get
+  // clipped, right-clicks near the right/bottom edge). Needs the menu's own
+  // rendered size, so this runs after mount rather than being computed from
+  // the click position alone; useLayoutEffect (rather than useEffect) applies
+  // the correction before the browser paints, so there's no visible jump.
+  // Also reruns when the close confirmation swaps in (a different size),
+  // since that can newly push the bottom/right edge out of view.
+  useLayoutEffect(() => {
+    const element = menuReference.current;
+    if (!element) {
+      return;
+    }
+
+    const { width, height } = element.getBoundingClientRect();
+    const maxLeft = window.innerWidth - width - VIEWPORT_MARGIN;
+    const maxTop = window.innerHeight - height - VIEWPORT_MARGIN;
+    setPosition({
+      left: Math.max(VIEWPORT_MARGIN, Math.min(x, maxLeft)),
+      top: Math.max(VIEWPORT_MARGIN, Math.min(y, maxTop)),
+    });
+  }, [x, y, isConfirmingClose]);
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent): void => {
+      if (!menuReference.current?.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    // Scrolling would leave the menu—rendered at a fixed viewport
+    // position—behind while the row it targets moves underneath it, so
+    // there'd be no way to tell which tab it still applies to. `scroll`
+    // events don't bubble, but the capturing phase still reaches `document`
+    // for a scroll on any descendant, which is what listening with
+    // `capture: true` here relies on.
+    const handleScroll = (): void => {
+      onClose();
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("scroll", handleScroll, { capture: true });
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("scroll", handleScroll, { capture: true });
+    };
+  }, [onClose]);
+
+  const handleSuspend = (): void => {
+    for (const id of suspendableIds) {
+      void chrome.tabs.discard(id);
+    }
+    onClose();
+  };
+
+  const handleReload = (): void => {
+    for (const id of targetIds) {
+      void chrome.tabs.reload(id);
+    }
+    onClose();
+  };
+
+  const handleConfirmClose = (): void => {
+    void chrome.tabs.remove(targetIds);
+    onClose();
+  };
+
+  return (
+    <div
+      ref={menuReference}
+      className="context-menu"
+      role="menu"
+      style={position}
+    >
+      {isConfirmingClose ? (
+        <div className="context-menu__confirm">
+          <p className="context-menu__confirm-text">
+            {targetIds.length > 1
+              ? `Close ${targetIds.length} tabs?`
+              : "Close this tab?"}
+          </p>
+          <div className="context-menu__confirm-actions">
+            <button
+              type="button"
+              className="context-menu__item"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="context-menu__item"
+              onClick={handleConfirmClose}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {suspendableIds.length > 0 && (
+            <button
+              type="button"
+              role="menuitem"
+              className="context-menu__item"
+              onClick={handleSuspend}
+            >
+              Suspend
+            </button>
+          )}
+          <button
+            type="button"
+            role="menuitem"
+            className="context-menu__item"
+            onClick={handleReload}
+          >
+            Reload
+          </button>
+          {!isEveryTargetPinned && (
+            <button
+              type="button"
+              role="menuitem"
+              className="context-menu__item"
+              onClick={() => setIsConfirmingClose(true)}
+            >
+              Close
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}

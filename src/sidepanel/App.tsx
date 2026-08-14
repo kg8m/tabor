@@ -1,6 +1,8 @@
+import { ContextMenu } from "./components/ContextMenu";
 import { PinnedTabsView } from "./components/PinnedTabsView";
 import { TreeView } from "./components/TreeView";
 import { useActiveTabId } from "./hooks/useActiveTabId";
+import { useContextMenu } from "./hooks/useContextMenu";
 import { useDragAndDrop } from "./hooks/useDragAndDrop";
 import { useScrollActiveIntoView } from "./hooks/useScrollActiveIntoView";
 import { useSelection } from "./hooks/useSelection";
@@ -13,6 +15,7 @@ export function App() {
   const activeTabId = useActiveTabId(windowId);
   const { selectedIds, handleNodeClick } = useSelection(tree);
   const dragAndDrop = useDragAndDrop(selectedIds);
+  const { menu, openMenu, closeMenu } = useContextMenu();
   useScrollActiveIntoView(activeTabId, tree);
 
   return (
@@ -21,15 +24,29 @@ export function App() {
         tree={tree}
         selectedIds={selectedIds}
         onNodeClick={handleNodeClick}
+        onNodeContextMenu={(id, event) => openMenu(id, event, selectedIds)}
         activeTabId={activeTabId}
       />
       <TreeView
         tree={tree}
         selectedIds={selectedIds}
         onNodeClick={handleNodeClick}
+        onNodeContextMenu={(id, event) => openMenu(id, event, selectedIds)}
         dragAndDrop={dragAndDrop}
         activeTabId={activeTabId}
       />
+      {menu && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          targetIds={menu.targetIds}
+          isEveryTargetPinned={menu.targetIds.every(
+            (id) => tree.nodes[id]?.pinned,
+          )}
+          activeTabId={activeTabId}
+          onClose={closeMenu}
+        />
+      )}
     </div>
   );
 }

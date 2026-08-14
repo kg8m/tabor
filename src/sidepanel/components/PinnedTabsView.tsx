@@ -7,6 +7,7 @@ interface PinnedTabsViewProps {
   tree: TreeState;
   selectedIds: Set<number>;
   onNodeClick: (id: number, event: MouseEvent) => void;
+  onNodeContextMenu: (id: number, event: MouseEvent) => void;
   activeTabId: number | undefined;
 }
 
@@ -19,6 +20,7 @@ export function PinnedTabsView({
   tree,
   selectedIds,
   onNodeClick,
+  onNodeContextMenu,
   activeTabId,
 }: PinnedTabsViewProps) {
   const pinnedNodes = getPinnedNodes(tree);
@@ -34,6 +36,7 @@ export function PinnedTabsView({
             node={node}
             selected={selectedIds.has(node.id)}
             onClick={(event) => onNodeClick(node.id, event)}
+            onContextMenu={(event) => onNodeContextMenu(node.id, event)}
             isActive={node.id === activeTabId}
           />
         </li>

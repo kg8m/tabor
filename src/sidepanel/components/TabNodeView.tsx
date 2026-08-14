@@ -9,6 +9,7 @@ interface TabNodeViewProps {
   hasChildren?: boolean;
   selected: boolean;
   onClick: (event: MouseEvent) => void;
+  onContextMenu: (event: MouseEvent) => void;
   isActive: boolean;
   // Omitted for rows that don't take part in drag-and-drop (pinned tabs,
   // which per spec have no parent/child relationships to reorder into).
@@ -25,6 +26,7 @@ export function TabNodeView({
   hasChildren = false,
   selected,
   onClick,
+  onContextMenu,
   isActive,
   dropIndicatorPosition = null,
   onDragStart,
@@ -82,6 +84,7 @@ export function TabNodeView({
       data-tab-id={node.id}
       draggable={onDragStart !== undefined}
       onClick={handleClick}
+      onContextMenu={onContextMenu}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}

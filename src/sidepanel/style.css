@@ -256,3 +256,49 @@ body {
 .tab-node__close:hover {
   background: color-mix(in srgb, currentColor 15%, transparent);
 }
+
+.context-menu {
+  position: fixed;
+  z-index: 1;
+  min-width: 140px;
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  background: var(--tabor-bg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.context-menu__item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.context-menu__item:hover {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.context-menu__confirm {
+  padding: 4px;
+}
+
+.context-menu__confirm-text {
+  margin: 2px 6px 8px;
+  white-space: nowrap;
+}
+
+.context-menu__confirm-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.context-menu__confirm-actions .context-menu__item {
+  text-align: center;
+}

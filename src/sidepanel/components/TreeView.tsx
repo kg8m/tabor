@@ -8,6 +8,7 @@ interface TreeViewProps {
   tree: TreeState;
   selectedIds: Set<number>;
   onNodeClick: (id: number, event: MouseEvent) => void;
+  onNodeContextMenu: (id: number, event: MouseEvent) => void;
   dragAndDrop: DragAndDrop;
   activeTabId: number | undefined;
 }
@@ -16,6 +17,7 @@ export function TreeView({
   tree,
   selectedIds,
   onNodeClick,
+  onNodeContextMenu,
   dragAndDrop,
   activeTabId,
 }: TreeViewProps) {
@@ -29,6 +31,7 @@ export function TreeView({
           ancestorIds={new Set()}
           selectedIds={selectedIds}
           onNodeClick={onNodeClick}
+          onNodeContextMenu={onNodeContextMenu}
           dragAndDrop={dragAndDrop}
           activeTabId={activeTabId}
         />
@@ -43,6 +46,7 @@ interface TreeNodeProps {
   ancestorIds: Set<number>;
   selectedIds: Set<number>;
   onNodeClick: (id: number, event: MouseEvent) => void;
+  onNodeContextMenu: (id: number, event: MouseEvent) => void;
   dragAndDrop: DragAndDrop;
   activeTabId: number | undefined;
 }
@@ -53,6 +57,7 @@ function TreeNode({
   ancestorIds,
   selectedIds,
   onNodeClick,
+  onNodeContextMenu,
   dragAndDrop,
   activeTabId,
 }: TreeNodeProps) {
@@ -76,6 +81,7 @@ function TreeNode({
         hasChildren={children.length > 0}
         selected={selectedIds.has(nodeId)}
         onClick={(event) => onNodeClick(nodeId, event)}
+        onContextMenu={(event) => onNodeContextMenu(nodeId, event)}
         dropIndicatorPosition={
           dropIndicator?.targetId === nodeId ? dropIndicator.position : null
         }
@@ -96,6 +102,7 @@ function TreeNode({
               ancestorIds={childAncestorIds}
               selectedIds={selectedIds}
               onNodeClick={onNodeClick}
+              onNodeContextMenu={onNodeContextMenu}
               dragAndDrop={dragAndDrop}
               activeTabId={activeTabId}
             />
