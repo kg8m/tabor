@@ -27,6 +27,33 @@ import {
 import { toActualTab } from "./tabs";
 
 /**
+ * Runs each queued task after the previous one settles, so that two events
+ * arriving close together (e.g. both firing right as the service worker
+ * wakes from being idle) can't run their tree-store read/update/save cycles
+ * concurrently and clobber each other's result with a stale one.
+ */
+const enqueue = (() => {
+  let queue: Promise<void> = Promise.resolve();
+
+  // Swallow a failure so it doesn't block the tasks queued after it; the
+  // caller of `enqueue` still sees the original error via `result` below.
+  async function settle(promise: Promise<void>): Promise<void> {
+    try {
+      await promise;
+    } catch {
+      // ignored, see above
+    }
+  }
+
+  return async (task: () => Promise<void>): Promise<void> => {
+    await settle(queue);
+    const result = task();
+    queue = settle(result);
+    return result;
+  };
+})();
+
+/**
  * Initialize a single new window with no history to reconcile against
  * (there's nothing saved yet under its brand-new window id).
  */
@@ -108,7 +135,32 @@ async function initializeAllWindows(): Promise<void> {
   );
 }
 
+/**
+ * The MV3 service worker can be killed and restarted at any time (e.g.
+ * after being idle), which wipes the in-memory store from `./store`. Each
+ * event handler calls this first so that, whichever event happens to wake
+ * the service worker up, the store gets reloaded from `chrome.storage`
+ * before that event is handled—otherwise it would build on an empty tree
+ * and overwrite the saved one.
+ */
+const ensureInitialized = (() => {
+  let initializationPromise: Promise<void> | undefined;
+  return async (): Promise<void> => {
+    initializationPromise ??= initializeAllWindows();
+    try {
+      await initializationPromise;
+    } catch (error) {
+      // Let the next call retry instead of caching a permanent failure.
+      initializationPromise = undefined;
+      console.error("Tabor: failed to initialize", error);
+      throw error;
+    }
+  };
+})();
+
 async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
+  await ensureInitialized();
+
   if (tab.id === undefined) {
     return;
   }
@@ -124,6 +176,8 @@ async function handleTabRemoved(
   tabId: number,
   info: chrome.tabs.OnRemovedInfo,
 ): Promise<void> {
+  await ensureInitialized();
+
   // The window itself is being torn down; `windows.onRemoved` will drop its
   // tree, so there's no need to reconcile it tab by tab here.
   if (info.isWindowClosing) {
@@ -140,6 +194,8 @@ async function handleTabMoved(
   tabId: number,
   info: chrome.tabs.OnMovedInfo,
 ): Promise<void> {
+  await ensureInitialized();
+
   const nativeTabs = await chrome.tabs.query({
     windowId: info.windowId,
     pinned: false,
@@ -158,6 +214,8 @@ async function handleTabAttached(
   tabId: number,
   info: chrome.tabs.OnAttachedInfo,
 ): Promise<void> {
+  await ensureInitialized();
+
   const tab = await chrome.tabs.get(tabId);
   const tree = getTree(info.newWindowId);
   const updated = addTab(tree, toActualTab(tab), null);
@@ -169,6 +227,8 @@ async function handleTabDetached(
   tabId: number,
   info: chrome.tabs.OnDetachedInfo,
 ): Promise<void> {
+  await ensureInitialized();
+
   const tree = getTree(info.oldWindowId);
   const updated = removeTab(tree, tabId);
   setTree(info.oldWindowId, updated);
@@ -203,6 +263,8 @@ async function handleTabUpdated(
   changeInfo: chrome.tabs.OnUpdatedInfo,
   tab: chrome.tabs.Tab,
 ): Promise<void> {
+  await ensureInitialized();
+
   const update = toTabUpdate(changeInfo);
   if (Object.keys(update).length === 0) {
     return;
@@ -214,12 +276,12 @@ async function handleTabUpdated(
   await saveTree(tab.windowId, updated);
 }
 
-// These listeners return the async handler's Promise directly (rather than
+// These listeners return the enqueued task's Promise directly (rather than
 // firing it and returning void) so the MV3 service worker stays alive until
 // the underlying chrome.tabs/chrome.storage calls actually finish.
 
-chrome.runtime.onStartup.addListener(initializeAllWindows);
-chrome.runtime.onInstalled.addListener(initializeAllWindows);
+chrome.runtime.onStartup.addListener(() => enqueue(ensureInitialized));
+chrome.runtime.onInstalled.addListener(() => enqueue(ensureInitialized));
 
 // Open the side panel when the toolbar action is clicked, since we don't
 // have a popup to show instead.
@@ -227,23 +289,41 @@ chrome.runtime.onInstalled.addListener(() => {
   void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 });
 
-chrome.windows.onCreated.addListener(async (window) => {
-  if (window.id !== undefined) {
-    await initializeWindow(window.id);
-  }
-});
+chrome.windows.onCreated.addListener((window) =>
+  enqueue(async () => {
+    await ensureInitialized();
+    if (window.id !== undefined) {
+      await initializeWindow(window.id);
+    }
+  }),
+);
 
 chrome.windows.onRemoved.addListener((windowId) => {
   deleteWindow(windowId);
 });
 
-chrome.tabs.onCreated.addListener(handleTabCreated);
-chrome.tabs.onRemoved.addListener(handleTabRemoved);
-chrome.tabs.onMoved.addListener(handleTabMoved);
-chrome.tabs.onAttached.addListener(handleTabAttached);
-chrome.tabs.onDetached.addListener(handleTabDetached);
-chrome.tabs.onUpdated.addListener(handleTabUpdated);
+chrome.tabs.onCreated.addListener((tab) =>
+  enqueue(() => handleTabCreated(tab)),
+);
+chrome.tabs.onRemoved.addListener((tabId, info) =>
+  enqueue(() => handleTabRemoved(tabId, info)),
+);
+chrome.tabs.onMoved.addListener((tabId, info) =>
+  enqueue(() => handleTabMoved(tabId, info)),
+);
+chrome.tabs.onAttached.addListener((tabId, info) =>
+  enqueue(() => handleTabAttached(tabId, info)),
+);
+chrome.tabs.onDetached.addListener((tabId, info) =>
+  enqueue(() => handleTabDetached(tabId, info)),
+);
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) =>
+  enqueue(() => handleTabUpdated(tabId, changeInfo, tab)),
+);
 
-chrome.tabs.onActivated.addListener((activeInfo) => {
-  setActiveTabId(activeInfo.windowId, activeInfo.tabId);
-});
+chrome.tabs.onActivated.addListener((activeInfo) =>
+  enqueue(async () => {
+    await ensureInitialized();
+    setActiveTabId(activeInfo.windowId, activeInfo.tabId);
+  }),
+);
