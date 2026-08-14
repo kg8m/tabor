@@ -43,11 +43,17 @@ export default defineConfig(
       "unicorn/no-null": "off",
       // `e` is used as a short-lived local variable name (e.g. a tree node
       // called "E" in tests), not as an abbreviation for "error"/"event".
-      "unicorn/name-replacements": ["error", { replacements: { e: false } }],
-      // React component files conventionally use PascalCase.
+      // `Props` is the standard React naming convention for component prop
+      // types, not an abbreviation to spell out.
+      "unicorn/name-replacements": [
+        "error",
+        { replacements: { e: false, props: false } },
+      ],
+      // React component files conventionally use PascalCase, and hooks use
+      // camelCase (e.g. `useWindowTree.ts`).
       "unicorn/filename-case": [
         "error",
-        { cases: { kebabCase: true, pascalCase: true } },
+        { cases: { kebabCase: true, pascalCase: true, camelCase: true } },
       ],
     },
   },

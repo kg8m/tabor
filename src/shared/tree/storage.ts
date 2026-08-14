@@ -2,7 +2,7 @@ import type { TreeState } from "./types";
 
 const KEY_PREFIX = "tabor:tree:";
 
-function getStorageKey(windowId: number): string {
+export function getStorageKey(windowId: number): string {
   return `${KEY_PREFIX}${windowId}`;
 }
 

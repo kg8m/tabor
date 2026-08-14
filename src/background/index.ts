@@ -221,6 +221,12 @@ async function handleTabUpdated(
 chrome.runtime.onStartup.addListener(initializeAllWindows);
 chrome.runtime.onInstalled.addListener(initializeAllWindows);
 
+// Open the side panel when the toolbar action is clicked, since we don't
+// have a popup to show instead.
+chrome.runtime.onInstalled.addListener(() => {
+  void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+});
+
 chrome.windows.onCreated.addListener(async (window) => {
   if (window.id !== undefined) {
     await initializeWindow(window.id);

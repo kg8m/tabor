@@ -1,3 +1,7 @@
+import { TreeView } from "./components/TreeView";
+import { useWindowTree } from "./hooks/useWindowTree";
+
 export function App() {
-  return <div>Tabor</div>;
+  const tree = useWindowTree();
+  return <TreeView tree={tree} />;
 }

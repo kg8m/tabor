@@ -1,0 +1,83 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+}
+
+.tree-view,
+.tree-view__children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tree-view__children {
+  padding-left: 16px;
+}
+
+.tab-node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.tab-node:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.tab-node--suspended {
+  opacity: 0.5;
+}
+
+.tab-node__favicon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.tab-node__spinner {
+  border: 2px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: tab-node-spin 0.8s linear infinite;
+}
+
+@keyframes tab-node-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.tab-node__title {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-node__close {
+  flex: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  visibility: hidden;
+}
+
+.tab-node:hover .tab-node__close {
+  visibility: visible;
+}
+
+.tab-node__close:hover {
+  background: color-mix(in srgb, currentColor 15%, transparent);
+}
