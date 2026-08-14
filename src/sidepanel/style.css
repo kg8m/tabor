@@ -1,6 +1,15 @@
 :root {
   --tabor-accent: #1a73e8;
   --tabor-bg: #ffffff;
+  --tabor-fg: #202124;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tabor-accent: #8ab4f8;
+    --tabor-bg: #202124;
+    --tabor-fg: #e8eaed;
+  }
 }
 
 * {
@@ -18,6 +27,7 @@ body {
   font-family: system-ui, sans-serif;
   font-size: 13px;
   background: var(--tabor-bg);
+  color: var(--tabor-fg);
 }
 
 .app {
