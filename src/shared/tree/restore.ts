@@ -117,7 +117,12 @@ export function restoreTree(
       id: actualId,
       url: actualTab.url,
       title: actualTab.title,
-      favIconUrl: actualTab.favIconUrl,
+      // A discarded tab's favicon isn't always populated yet by the time
+      // `chrome.tabs.query` returns it right after startup—Chrome hasn't
+      // finished loading it from session data—so falling back to the saved
+      // one (the same page, so the same icon) beats losing it until the tab
+      // is actually reloaded.
+      favIconUrl: actualTab.favIconUrl ?? node.favIconUrl,
       pinned: actualTab.pinned,
       loading: actualTab.loading,
       suspended: actualTab.suspended,

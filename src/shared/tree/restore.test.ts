@@ -123,6 +123,40 @@ describe("restoreTree", () => {
     expect(result.nodes[1]?.suspended).toBe(true);
   });
 
+  it("falls back to the saved favicon when the actual tab has none yet", () => {
+    const a = createNode({
+      id: 100,
+      url: "https://a.com",
+      favIconUrl: "https://a.com/favicon.ico",
+    });
+    const savedTree: TreeState = { nodes: { 100: a }, rootIds: [100] };
+
+    const result = restoreTree(savedTree, [
+      actualTab({ id: 1, url: "https://a.com", favIconUrl: undefined }),
+    ]);
+
+    expect(result.nodes[1]?.favIconUrl).toBe("https://a.com/favicon.ico");
+  });
+
+  it("prefers the actual tab's favicon over the saved one when it has one", () => {
+    const a = createNode({
+      id: 100,
+      url: "https://a.com",
+      favIconUrl: "https://a.com/old-favicon.ico",
+    });
+    const savedTree: TreeState = { nodes: { 100: a }, rootIds: [100] };
+
+    const result = restoreTree(savedTree, [
+      actualTab({
+        id: 1,
+        url: "https://a.com",
+        favIconUrl: "https://a.com/new-favicon.ico",
+      }),
+    ]);
+
+    expect(result.nodes[1]?.favIconUrl).toBe("https://a.com/new-favicon.ico");
+  });
+
   it("matches same-url saved nodes and actual tabs in encounter order", () => {
     // Saved: A(id=100, dup url) -> B(id=200, dup url)
     const a = createNode({
