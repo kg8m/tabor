@@ -1,5 +1,6 @@
 :root {
   --tabor-accent: #1a73e8;
+  --tabor-bg: #ffffff;
 }
 
 * {
@@ -16,6 +17,7 @@ body {
   margin: 0;
   font-family: system-ui, sans-serif;
   font-size: 13px;
+  background: var(--tabor-bg);
 }
 
 .app {
@@ -132,20 +134,17 @@ body {
   flex: none;
   width: 14px;
   height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: none;
   cursor: pointer;
   color: inherit;
-  font-size: 9px;
-  line-height: 16px;
   padding: 0;
 }
 
 .tab-node__pin {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
   cursor: default;
 }
 
@@ -175,23 +174,68 @@ body {
   white-space: nowrap;
 }
 
+/* Reserves room for `.tab-node__actions` only while it's actually shown, so
+   `text-overflow: ellipsis` truncates the title against the space really
+   available and shows "…" where needed—rather than the title claiming the
+   row's full width regardless and just having its last few characters
+   silently covered by the (unrelated, absolutely positioned) buttons. This
+   still doesn't move the buttons themselves or any other part of the row,
+   so it doesn't risk the hover-state flicker a layout change driven by the
+   buttons' own appearance could cause.
+   `.tab-node__actions` sits flush with `.tab-node`'s own right edge
+   (`right: 0` against its padding box), while `.tab-node__title`, as a
+   normal flex child, already sits `.tab-node`'s own 8px padding-right
+   inward from that edge. So the additional padding needed here is the
+   actions box's width *minus* that 8px, not its full width: two 20px
+   buttons (12px icon + 4px horizontal padding each side) side by side make
+   a 40px box, so 40 - 8 = 32px. */
+.tab-node:hover .tab-node__title {
+  padding-right: 32px;
+}
+
+/* Only the close button shows for a suspended or the active tab (see
+   `.tab-node__actions`' contents): one 20px button, so 20 - 8 = 12px. Same
+   specificity as the rule above, so this only wins by coming after it. */
+.tab-node--suspended:hover .tab-node__title,
+.tab-node--active:hover .tab-node__title {
+  padding-right: 12px;
+}
+
+/* Absolutely positioned so it takes no space in the row's flex layout: the
+   title always gets the row's full remaining width, rather than having
+   permanently reserved (but usually invisible) room carved out of it for
+   these buttons regardless of whether they're currently shown. An opaque
+   background (rather than the same transparent tint `.tab-node:hover`
+   uses) is needed here specifically to mask the title text that would
+   otherwise render underneath before being clipped. */
+.tab-node__actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  visibility: hidden;
+  background: color-mix(in srgb, currentColor 8%, var(--tabor-bg));
+  border-radius: 0 4px 4px 0;
+}
+
+.tab-node:hover .tab-node__actions {
+  visibility: visible;
+}
+
 .tab-node__suspend,
 .tab-node__close {
   flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: none;
   cursor: pointer;
   color: inherit;
-  font-size: 14px;
-  line-height: 1;
-  padding: 2px 4px;
+  padding: 4px;
   border-radius: 4px;
-  visibility: hidden;
-}
-
-.tab-node:hover .tab-node__suspend,
-.tab-node:hover .tab-node__close {
-  visibility: visible;
 }
 
 .tab-node__suspend:hover,

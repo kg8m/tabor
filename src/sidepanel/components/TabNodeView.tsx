@@ -2,6 +2,7 @@ import type { DragEvent, MouseEvent } from "react";
 import type { TaborMessage } from "../../shared/messages";
 import type { DropPosition } from "../../shared/tree/drop";
 import type { TabNode } from "../../shared/tree/types";
+import { ChevronIcon, CloseIcon, PauseIcon, PinIcon } from "./icons";
 
 interface TabNodeViewProps {
   node: TabNode;
@@ -95,7 +96,7 @@ export function TabNodeView({
           draggable={false}
           onClick={handleToggleCollapsed}
         >
-          {node.collapsed ? "▶" : "▼"}
+          <ChevronIcon collapsed={node.collapsed} />
         </button>
       ) : node.pinned ? (
         <span
@@ -103,7 +104,7 @@ export function TabNodeView({
           role="img"
           aria-label="Pinned"
         >
-          📌
+          <PinIcon />
         </span>
       ) : (
         <span className="tab-node__toggle" />
@@ -116,26 +117,28 @@ export function TabNodeView({
         <img className="tab-node__favicon" src={node.favIconUrl} alt="" />
       )}
       <span className="tab-node__title">{node.title}</span>
-      {!node.suspended && !isActive && (
+      <div className="tab-node__actions">
+        {!node.suspended && !isActive && (
+          <button
+            type="button"
+            className="tab-node__suspend"
+            aria-label="Suspend tab"
+            draggable={false}
+            onClick={handleSuspend}
+          >
+            <PauseIcon />
+          </button>
+        )}
         <button
           type="button"
-          className="tab-node__suspend"
-          aria-label="Suspend tab"
+          className="tab-node__close"
+          aria-label="Close tab"
           draggable={false}
-          onClick={handleSuspend}
+          onClick={handleClose}
         >
-          ⏸
+          <CloseIcon />
         </button>
-      )}
-      <button
-        type="button"
-        className="tab-node__close"
-        aria-label="Close tab"
-        draggable={false}
-        onClick={handleClose}
-      >
-        ×
-      </button>
+      </div>
     </div>
   );
 }
