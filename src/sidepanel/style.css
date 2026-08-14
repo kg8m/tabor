@@ -27,7 +27,25 @@ body {
 }
 
 .tree-view__children {
-  padding-left: 16px;
+  /* Aligns the guide line under the parent row's toggle/pin icon (which
+     sits at roughly half its 14px width past the row's 8px padding). */
+  margin-left: 15px;
+  padding-left: 9px;
+  border-left: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+}
+
+/* Only between top-level root groups (via the `.tree-view >` child
+   combinator)—never inside a subtree, where it would visually separate
+   closely related rows (siblings, or a parent from its own child) more
+   than a merely-nested pair some levels down. On the `<li>` rather than
+   `.tab-node` itself, since a `<li>`'s box naturally extends past its own
+   row to include any nested `.tree-view__children`: this renders after a
+   root's entire subtree, at that subtree's own unindented width, instead of
+   appearing right under an indented child row and looking like it belongs
+   to whatever shallower row happens to follow. */
+.tree-view > .tree-view__item:not(:last-child),
+.pinned-tabs__item:not(:last-child) {
+  border-bottom: 1px solid color-mix(in srgb, currentColor 8%, transparent);
 }
 
 .tab-node {
