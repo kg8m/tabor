@@ -49,10 +49,17 @@ export default defineConfig(
         "error",
         { cases: { kebabCase: true, pascalCase: true } },
       ],
-      // chrome.* event listeners are typed as returning `void`, but MV3
-      // service workers rely on listeners returning a Promise to stay alive
-      // until async work (e.g. chrome.storage writes) finishes. Passing an
-      // async function there is intentional, not a mistake.
+    },
+  },
+  {
+    // chrome.* event listeners are typed as returning `void`, but MV3
+    // service workers rely on listeners returning a Promise to stay alive
+    // until async work (e.g. chrome.storage writes) finishes. Passing an
+    // async function there is intentional, not a mistake—but only in this
+    // file, where those listeners are registered; elsewhere this rule
+    // should still catch a Promise passed where void was expected.
+    files: ["src/background/index.ts"],
+    rules: {
       "@typescript-eslint/no-misused-promises": [
         "error",
         { checksVoidReturn: { arguments: false } },
