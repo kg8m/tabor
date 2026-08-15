@@ -19,7 +19,7 @@ import {
   type DropTarget,
 } from "../shared/tree/mutations";
 import type { TaborMessage } from "../shared/messages";
-import { getNativeOrder } from "../shared/tree/queries";
+import { getNativeOrder, getPinnedNodes } from "../shared/tree/queries";
 import {
   createRestoreSession,
   matchStraggler,
@@ -661,9 +661,11 @@ async function handleToggleCollapsed(tabId: number): Promise<void> {
  * updates our own state—chrome.tabs.onMoved tells us about the opposite
  * direction (native move -> tree update), not this one.
  *
- * Pinned tabs are left out: they're independent of the tree (see `addTab`),
- * and Chrome keeps them pinned to the front regardless of the index passed
- * here.
+ * Pinned tabs are left out: they're independent of the tree (see `addTab`)
+ * and always occupy the window's frontmost slots, ahead of every id in
+ * `order`—so each target index is offset by how many of them there are,
+ * rather than assuming Chrome slots a non-pinned tab in after them on its
+ * own regardless of the index we ask for.
  */
 async function syncNativeOrder(
   tree: TreeState,
@@ -676,21 +678,37 @@ async function syncNativeOrder(
     return;
   }
 
+  const pinnedCount = getPinnedNodes(tree).length;
+
   pendingNativeOrderSync.set(windowId, {
     expiresAt: Date.now() + NATIVE_ORDER_SYNC_GUARD_MS,
   });
-  // Chunked out of caution rather than passed as one `order.length`-sized
-  // array: a single very large batch (e.g. after restoring a backup that
-  // reorders most of a heavily-tabbed window) coincided with a browser crash
-  // during testing, though it was never conclusively pinned on this call in
-  // particular. Each chunk moves only its own ids to their target slice of
-  // the order, leaving ids outside it (already placed by an earlier chunk,
-  // or not yet reached) alone—so chunking here doesn't change the final
-  // order, only how many tabs move in one call.
-  const CHUNK_SIZE = 20;
-  for (let start = 0; start < order.length; start += CHUNK_SIZE) {
-    const chunk = order.slice(start, start + CHUNK_SIZE);
-    await chrome.tabs.move(chunk, { windowId, index: start });
+  // Moved one at a time, not as a single `chrome.tabs.move(order, ...)`
+  // batch: given an array of ids, Chrome (like Firefox—see
+  // https://bugzilla.mozilla.org/show_bug.cgi?id=1323311) moves each one to
+  // `index`, `index + 1`, etc. in array order without accounting for how far
+  // its *own* current position already is from that target, so an id whose
+  // native position is far from where the rest of the array already sits
+  // (e.g. a brand new tab Chrome created at the far end of the tab strip)
+  // can land scattered away from its intended neighbors instead of next to
+  // them. Moving a single id at a time has no such array-relative ambiguity:
+  // each call unambiguously means "put this one tab at this index".
+  for (const [offset, id] of order.entries()) {
+    const index = pinnedCount + offset;
+    try {
+      await chrome.tabs.move(id, { windowId, index });
+    } catch (error) {
+      // The id no longer resolving to a real tab (e.g. the tree holding a
+      // stale id for a tab that's since closed or moved to another window)
+      // shouldn't stop the rest of `order` from reaching their own target
+      // index, which a thrown error here would otherwise skip entirely.
+      console.error("Tabor: failed to move a tab", {
+        windowId,
+        id,
+        index,
+        error,
+      });
+    }
   }
 }
 
