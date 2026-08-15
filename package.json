@@ -1,7 +1,7 @@
 {
   "name": "tabor",
   "version": "0.1.0",
-  "description": "Tree-style tab manager extension for Vivaldi",
+  "description": "Tree-style tab manager extension for Chrome and Vivaldi",
   "private": true,
   "type": "module",
   "engines": {

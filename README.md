@@ -1,7 +1,7 @@
 # Tabor
 
-A tree-style tab manager extension for Vivaldi. The name blends "Tab" and "Arbor": every tab is shown in a side panel as
-a node in a tree, tracking parent/child relationships between tabs.
+A tree-style tab manager extension for Chrome and Vivaldi. The name blends "Tab" and "Arbor": every tab is shown in a
+side panel as a node in a tree, tracking parent/child relationships between tabs.
 
 ## Features
 
@@ -21,8 +21,8 @@ a node in a tree, tracking parent/child relationships between tabs.
 
 1. `npm install`
 2. `npm run build`
-3. In Vivaldi, open `vivaldi://extensions`, enable Developer mode, and load the `dist/` directory as an unpacked
-   extension
+3. Open `chrome://extensions` (Vivaldi: `vivaldi://extensions`), enable Developer mode, and load the `dist/` directory
+   as an unpacked extension
 
 ## Development
 

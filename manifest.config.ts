@@ -4,7 +4,7 @@ export default defineManifest({
   manifest_version: 3,
   name: "Tabor",
   version: "0.1.0",
-  description: "Tree-style tab manager extension for Vivaldi",
+  description: "Tree-style tab manager extension for Chrome and Vivaldi",
   permissions: ["tabs", "storage", "sidePanel", "unlimitedStorage", "alarms"],
   icons: {
     16: "icons/icon16.png",
