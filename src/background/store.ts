@@ -40,6 +40,17 @@ export function setRestoreSession(
   restoreSessions.set(windowId, session);
 }
 
+/**
+ * Drops a window's restore session once it's no longer needed (see
+ * `initializeWindow`/`initializeAllWindows`), so a tab opened much later
+ * can't be mismatched against a leftover saved node that was never
+ * consumed—one whose URL just happens to match, from a saved tree that had
+ * more tabs with that URL than were actually open at startup.
+ */
+export function removeRestoreSession(windowId: number): void {
+  restoreSessions.delete(windowId);
+}
+
 export function deleteWindow(windowId: number): void {
   trees.delete(windowId);
   activeTabIds.delete(windowId);

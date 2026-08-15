@@ -47,6 +47,7 @@ import {
   getAllTrees,
   getRestoreSession,
   getTree,
+  removeRestoreSession,
   setActiveTabId,
   setRestoreSession,
   setTree,
@@ -183,7 +184,7 @@ async function initializeWindow(windowId: number): Promise<void> {
   }
   initializedWindowIds.add(windowId);
 
-  void restoreTracking.track();
+  const settled = restoreTracking.track();
   await waitForTabCreationToSettle();
   const queriedTabs = await chrome.tabs.query({ windowId });
   const tabs = queriedTabs.filter((tab) => !isTaborOwnTab(tab));
@@ -199,8 +200,15 @@ async function initializeWindow(windowId: number): Promise<void> {
 
   const activeTab = tabs.find((tab) => tab.active);
   if (activeTab?.id !== undefined) {
-    setActiveTabId(windowId, activeTab.id);
+    setAndPersistActiveTabId(windowId, activeTab.id);
   }
+
+  // Once tab creation has gone fully quiet, this window's restore session
+  // has caught every straggler it's going to—any tab created from here on
+  // is a genuinely new one, not a late arrival from session restore. Drop
+  // it so a tab opened much later can't be mismatched against one of its
+  // leftover saved nodes that was never consumed (see `removeRestoreSession`).
+  void settled.then(() => removeRestoreSession(windowId));
 }
 
 /**
@@ -226,7 +234,7 @@ async function initializeWindow(windowId: number): Promise<void> {
  * still ongoing.
  */
 async function initializeAllWindows(excludeTabId?: number): Promise<void> {
-  void restoreTracking.track();
+  const settled = restoreTracking.track();
   await waitForTabCreationToSettle();
   const windows = await chrome.windows.getAll();
   const windowIds = windows
@@ -288,6 +296,15 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
       }
     }),
   );
+
+  // See the matching comment in `initializeWindow`: once settled, none of
+  // these sessions can still be useful for catching a genuine straggler.
+  void settled.then(() => {
+    for (const actualWindow of actualWindows) {
+      removeRestoreSession(actualWindow.windowId);
+    }
+    return;
+  });
 
   // A saved window's data now lives under its matched actual window's id
   // (just saved above, under `actualWindow.windowId`)—including when that
