@@ -1,4 +1,8 @@
 import {
+  loadPersistedActiveTabId,
+  savePersistedActiveTabId,
+} from "./active-tab-storage";
+import {
   loadAllBackups,
   loadBackup,
   removeBackups,
@@ -49,6 +53,16 @@ import {
 } from "./store";
 import { toSelfHealingUpdate, toTabUpdate } from "./tab-update";
 import { isTaborOwnTab, toActualTab } from "../shared/tabs";
+
+/**
+ * Records a tab becoming active both in memory (for the rest of this
+ * service worker's lifetime) and in `chrome.storage.session` (for the next
+ * one, see `active-tab-storage.ts`).
+ */
+function setAndPersistActiveTabId(windowId: number, tabId: number): void {
+  setActiveTabId(windowId, tabId);
+  void savePersistedActiveTabId(windowId, tabId);
+}
 
 // TODO(debug): temporary instrumentation for two intermittent, hard-to-
 // reproduce bugs (a stuck loading spinner on an already-loaded tab; a
@@ -211,7 +225,7 @@ async function initializeWindow(windowId: number): Promise<void> {
  * treating it as an ordinary new tab either, for as long as tab creation is
  * still ongoing.
  */
-async function initializeAllWindows(): Promise<void> {
+async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   void restoreTracking.track();
   await waitForTabCreationToSettle();
   const windows = await chrome.windows.getAll();
@@ -225,7 +239,17 @@ async function initializeAllWindows(): Promise<void> {
       const queriedTabs = await chrome.tabs.query({ windowId });
       tabsByWindowId.set(
         windowId,
-        queriedTabs.filter((tab) => !isTaborOwnTab(tab)),
+        // `excludeTabId` leaves out whichever tab's own `onCreated` event is
+        // driving this call (see `handleTabCreated`): when the service
+        // worker had to wake up to deliver that very event, this query can
+        // otherwise already see that brand-new tab too, folding it into this
+        // startup-style reconciliation—as an unmatched, parentless root,
+        // since a genuinely new tab has nothing to match in the saved
+        // tree—instead of `handleTabCreated`'s own "parent = current tab"
+        // handling for it right after this resolves.
+        queriedTabs.filter(
+          (tab) => !isTaborOwnTab(tab) && tab.id !== excludeTabId,
+        ),
       );
     }),
   );
@@ -260,7 +284,7 @@ async function initializeAllWindows(): Promise<void> {
       const tabs = tabsByWindowId.get(actualWindow.windowId) ?? [];
       const activeTab = tabs.find((tab) => tab.active);
       if (activeTab?.id !== undefined) {
-        setActiveTabId(actualWindow.windowId, activeTab.id);
+        setAndPersistActiveTabId(actualWindow.windowId, activeTab.id);
       }
     }),
   );
@@ -279,6 +303,85 @@ async function initializeAllWindows(): Promise<void> {
   );
 }
 
+// Whether the one genuine, URL-matching startup reconciliation
+// (`initializeAllWindows`) has already happened this browser session.
+// `chrome.storage.session` is the right place to track it: unlike
+// `chrome.storage.local`, it's cleared when the browser itself restarts,
+// but—unlike an in-memory flag here—it survives the service worker being
+// killed and restarted for merely going idle, which happens constantly
+// during ordinary use and isn't a real restart at all.
+const SESSION_RECONCILED_KEY = "tabor:session:reconciled";
+
+async function hasReconciledThisBrowserSession(): Promise<boolean> {
+  const result = await chrome.storage.session.get(SESSION_RECONCILED_KEY);
+  return result[SESSION_RECONCILED_KEY] === true;
+}
+
+async function markReconciledThisBrowserSession(): Promise<void> {
+  await chrome.storage.session.set({ [SESSION_RECONCILED_KEY]: true });
+}
+
+/**
+ * Hydrates the in-memory store from `chrome.storage.local` as-is, without
+ * the URL-based reconciliation `initializeAllWindows` does. Used once this
+ * browser session's one genuine startup reconciliation has already
+ * happened (see `hasReconciledThisBrowserSession`): the service worker
+ * going idle and being killed, then waking back up for the next event,
+ * doesn't change any window's or tab's identity the way an actual browser
+ * restart does, so there's no need to re-match anything by URL—the
+ * persisted trees are already accurate as of the last save, and just need
+ * to be read back into memory.
+ *
+ * Doing this instead of `initializeAllWindows` also sidesteps
+ * `restoreTracking`: that call would otherwise mark tab creation as
+ * "restoring" for a good several hundred milliseconds after every single
+ * idle wake-up—including the wake-up caused by an entirely ordinary new
+ * tab's own `onCreated` event—which left `handleTabCreated` unable to tell
+ * that case apart from a genuine session-restore burst, and made it treat
+ * that one ordinary tab as parentless instead of a child of the current
+ * tab.
+ */
+async function reloadFromStorage(): Promise<void> {
+  const [savedTrees, windows] = await Promise.all([
+    loadAllTrees(),
+    chrome.windows.getAll(),
+  ]);
+  const windowIds = new Set(
+    windows
+      .map((window) => window.id)
+      .filter((id): id is number => id !== undefined),
+  );
+
+  await Promise.all(
+    Object.entries(savedTrees)
+      .map(([windowIdString, tree]) => [Number(windowIdString), tree] as const)
+      .filter(([windowId]) => windowIds.has(windowId))
+      .map(async ([windowId, tree]) => {
+        setTree(windowId, tree);
+        initializedWindowIds.add(windowId);
+
+        // The *persisted* active tab id, not a fresh `chrome.tabs.query`:
+        // whichever event just woke the service worker up may itself have
+        // already changed which tab is live-active (e.g. a new foreground
+        // tab is active from the moment it's created), which would make a
+        // live query racy—see `active-tab-storage.ts`.
+        const persistedActiveTabId = await loadPersistedActiveTabId(windowId);
+        if (persistedActiveTabId !== undefined) {
+          setActiveTabId(windowId, persistedActiveTabId);
+          return;
+        }
+
+        const [activeTab] = await chrome.tabs.query({
+          active: true,
+          windowId,
+        });
+        if (activeTab?.id !== undefined) {
+          setAndPersistActiveTabId(windowId, activeTab.id);
+        }
+      }),
+  );
+}
+
 /**
  * The MV3 service worker can be killed and restarted at any time (e.g.
  * after being idle), which wipes the in-memory store from `./store`. Each
@@ -289,8 +392,21 @@ async function initializeAllWindows(): Promise<void> {
  */
 const ensureInitialized = (() => {
   let initializationPromise: Promise<void> | undefined;
-  return async (): Promise<void> => {
-    initializationPromise ??= initializeAllWindows();
+  // `excludeTabId` only actually applies the first time this initializes
+  // (whichever call first sets `initializationPromise`), and only when that
+  // call ends up running the full `initializeAllWindows` reconciliation
+  // (see `reloadFromStorage` for why the other path doesn't need it at
+  // all). A later, already-in-flight or already-resolved call just awaits
+  // the same promise as before.
+  return async (excludeTabId?: number): Promise<void> => {
+    initializationPromise ??= (async () => {
+      if (await hasReconciledThisBrowserSession()) {
+        await reloadFromStorage();
+      } else {
+        await initializeAllWindows(excludeTabId);
+        await markReconciledThisBrowserSession();
+      }
+    })();
     try {
       await initializationPromise;
     } catch (error) {
@@ -303,7 +419,7 @@ const ensureInitialized = (() => {
 })();
 
 async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
-  await ensureInitialized();
+  await ensureInitialized(tab.id);
 
   if (tab.id === undefined || isTaborOwnTab(tab)) {
     return;
@@ -454,7 +570,7 @@ async function handleTabReplaced(
   await saveTree(tab.windowId, updated);
 
   if (getActiveTabId(tab.windowId) === removedTabId) {
-    setActiveTabId(tab.windowId, addedTabId);
+    setAndPersistActiveTabId(tab.windowId, addedTabId);
   }
 }
 
@@ -491,7 +607,7 @@ async function handleTabActivated(
 ): Promise<void> {
   await ensureInitialized();
 
-  setActiveTabId(activeInfo.windowId, activeInfo.tabId);
+  setAndPersistActiveTabId(activeInfo.windowId, activeInfo.tabId);
 
   const tab = await chrome.tabs.get(activeInfo.tabId);
   debugLog("onActivated", {
