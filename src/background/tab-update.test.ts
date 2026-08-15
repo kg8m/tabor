@@ -83,6 +83,17 @@ describe("toTabUpdate", () => {
     expect(update.favIconUrl).toBe("https://example.com/favicon.ico");
     expect(update.pinned).toBe(true);
   });
+
+  it("treats a file:// favIconUrl as no favicon", () => {
+    // The side panel is an extension page and isn't allowed to load
+    // `file://` resources, so keeping one would just log a console error.
+    const update = toTabUpdate(
+      { favIconUrl: "file:///Users/example/project/favicon.ico" },
+      tab(),
+    );
+
+    expect(update.favIconUrl).toBeUndefined();
+  });
 });
 
 describe("toSelfHealingUpdate", () => {

@@ -1,3 +1,4 @@
+import { normalizeFavIconUrl } from "../shared/tabs";
 import type { TabUpdate } from "../shared/tree/mutations";
 
 /**
@@ -44,9 +45,7 @@ export function toTabUpdate(
     update.title = changeInfo.title;
   }
   if (changeInfo.favIconUrl !== undefined) {
-    // See `toActualTab`'s matching comment: an empty string means the same
-    // thing as the field being absent.
-    update.favIconUrl = changeInfo.favIconUrl || undefined;
+    update.favIconUrl = normalizeFavIconUrl(changeInfo.favIconUrl);
   }
   if (changeInfo.status !== undefined) {
     update.loading = changeInfo.status === "loading";
