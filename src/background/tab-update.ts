@@ -44,7 +44,9 @@ export function toTabUpdate(
     update.title = changeInfo.title;
   }
   if (changeInfo.favIconUrl !== undefined) {
-    update.favIconUrl = changeInfo.favIconUrl;
+    // See `toActualTab`'s matching comment: an empty string means the same
+    // thing as the field being absent.
+    update.favIconUrl = changeInfo.favIconUrl || undefined;
   }
   if (changeInfo.status !== undefined) {
     update.loading = changeInfo.status === "loading";

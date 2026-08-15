@@ -13,7 +13,7 @@ import {
   matchWindows,
   type SavedWindow,
 } from "../../shared/tree/window-matching";
-import { CloseIcon } from "./icons";
+import { CloseIcon, DefaultFaviconIcon } from "./icons";
 
 interface BackupHistoryPanelProps {
   windowId: number | undefined;
@@ -235,14 +235,16 @@ function BackupPreviewNode({
   return (
     <li className="backup-history__preview-item">
       <div className="backup-history__preview-row">
-        {node.favIconUrl === undefined ? (
-          <span className="backup-history__preview-favicon" />
-        ) : (
+        {node.favIconUrl ? (
           <img
             className="backup-history__preview-favicon"
             src={node.favIconUrl}
             alt=""
           />
+        ) : (
+          <span className="backup-history__preview-favicon backup-history__preview-favicon--default">
+            <DefaultFaviconIcon />
+          </span>
         )}
         <span className="backup-history__preview-title">{node.title}</span>
       </div>

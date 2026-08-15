@@ -21,7 +21,10 @@ export function toActualTab(tab: chrome.tabs.Tab): ActualTab {
     id: tab.id ?? -1,
     url: tab.url ?? tab.pendingUrl ?? "",
     title: tab.title ?? "",
-    favIconUrl: tab.favIconUrl,
+    // Chrome sometimes reports a favicon that hasn't loaded yet as an empty
+    // string rather than omitting the field; treated the same as "none yet"
+    // (an `<img src="">` would otherwise re-request the current page).
+    favIconUrl: tab.favIconUrl || undefined,
     pinned: tab.pinned,
     loading: tab.status === "loading",
     suspended: tab.discarded,

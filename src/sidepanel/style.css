@@ -239,6 +239,15 @@ body {
   flex: none;
   width: 16px;
   height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Muted so the fallback glyph (see `DefaultFaviconIcon`) doesn't compete for
+   attention with rows that do have a real favicon or a loading spinner. */
+.tab-node__favicon--default {
+  opacity: 0.5;
 }
 
 .tab-node__spinner {
@@ -501,6 +510,13 @@ body {
   flex: none;
   width: 16px;
   height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.backup-history__preview-favicon--default {
+  opacity: 0.5;
 }
 
 .backup-history__preview-title {

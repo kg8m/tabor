@@ -2,7 +2,13 @@ import type { DragEvent, MouseEvent } from "react";
 import type { TaborMessage } from "../../shared/messages";
 import type { DropPosition } from "../../shared/tree/drop";
 import type { TabNode } from "../../shared/tree/types";
-import { ChevronIcon, CloseIcon, PauseIcon, PinIcon } from "./icons";
+import {
+  ChevronIcon,
+  CloseIcon,
+  DefaultFaviconIcon,
+  PauseIcon,
+  PinIcon,
+} from "./icons";
 
 interface TabNodeViewProps {
   node: TabNode;
@@ -114,10 +120,16 @@ export function TabNodeView({
       )}
       {node.loading ? (
         <span className="tab-node__favicon tab-node__spinner" />
-      ) : node.favIconUrl === undefined ? (
-        <span className="tab-node__favicon" />
-      ) : (
+      ) : node.favIconUrl ? (
         <img className="tab-node__favicon" src={node.favIconUrl} alt="" />
+      ) : (
+        // Falsy rather than `=== undefined`: a tree saved before favIconUrl
+        // started normalizing an empty string to `undefined` (see
+        // `toActualTab`) can still have one on disk, which would otherwise
+        // render as `<img src="">`.
+        <span className="tab-node__favicon tab-node__favicon--default">
+          <DefaultFaviconIcon />
+        </span>
       )}
       <span className="tab-node__title">{node.title}</span>
       <div className="tab-node__actions">

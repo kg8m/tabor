@@ -68,6 +68,28 @@ export function HistoryIcon() {
   );
 }
 
+/**
+ * Shown in place of a tab's own favicon when it doesn't have one (e.g.
+ * `chrome://` pages), rather than leaving that space blank: an empty tree
+ * row otherwise reads as if there's nothing there at all.
+ */
+export function DefaultFaviconIcon() {
+  return (
+    <IconBase
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.3}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 2h6l3 3v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" />
+      <path d="M10 2v3h3" />
+    </IconBase>
+  );
+}
+
 export function CloseIcon() {
   return (
     <IconBase
