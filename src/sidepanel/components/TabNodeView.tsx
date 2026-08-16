@@ -17,6 +17,7 @@ interface TabNodeViewProps {
   onClick: (event: MouseEvent) => void;
   onContextMenu: (event: MouseEvent) => void;
   isActive: boolean;
+  isContextMenuTarget: boolean;
   // Omitted for rows that don't take part in drag-and-drop (pinned tabs,
   // which per spec have no parent/child relationships to reorder into).
   dropIndicatorPosition?: DropPosition | null;
@@ -34,6 +35,7 @@ export function TabNodeView({
   onClick,
   onContextMenu,
   isActive,
+  isContextMenuTarget,
   dropIndicatorPosition = null,
   onDragStart,
   onDragOver,
@@ -79,6 +81,7 @@ export function TabNodeView({
     node.suspended && "tab-node--suspended",
     selected && "tab-node--selected",
     isActive && "tab-node--active",
+    isContextMenuTarget && "tab-node--context-target",
     dropIndicatorPosition && `tab-node--drop-${dropIndicatorPosition}`,
   ]
     .filter(Boolean)

@@ -24,6 +24,9 @@ export function App() {
   );
   const dragAndDrop = useDragAndDrop(selectedIds);
   const { menu, openMenu, closeMenu } = useContextMenu();
+  const contextMenuTargetIds = menu
+    ? new Set(menu.targetIds)
+    : new Set<number>();
   useScrollActiveIntoView(activeTabId, tree);
 
   // Escape only clears the selection when no context menu is open: the menu
@@ -74,6 +77,7 @@ export function App() {
         <PinnedTabsView
           tree={tree}
           selectedIds={selectedIds}
+          contextMenuTargetIds={contextMenuTargetIds}
           onNodeClick={handleNodeClick}
           onNodeContextMenu={(id, event) => openMenu(id, event, selectedIds)}
           activeTabId={activeTabId}
@@ -81,6 +85,7 @@ export function App() {
         <TreeView
           tree={tree}
           selectedIds={selectedIds}
+          contextMenuTargetIds={contextMenuTargetIds}
           onNodeClick={handleNodeClick}
           onNodeContextMenu={(id, event) => openMenu(id, event, selectedIds)}
           dragAndDrop={dragAndDrop}
