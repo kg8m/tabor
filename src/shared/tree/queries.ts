@@ -15,6 +15,31 @@ export function getChildren(tree: TreeState, id: number): TabNode[] {
     .filter((child): child is TabNode => child !== undefined);
 }
 
+/**
+ * All descendants of a node (children, grandchildren, etc.), not including
+ * the node itself. Guards against revisiting a node the same way
+ * `flattenDepthFirst` does.
+ */
+export function getDescendantIds(tree: TreeState, id: number): number[] {
+  const result: number[] = [];
+  const visited = new Set<number>();
+
+  const visit = (nodeId: number): void => {
+    if (visited.has(nodeId)) {
+      return;
+    }
+    visited.add(nodeId);
+
+    for (const child of getChildren(tree, nodeId)) {
+      result.push(child.id);
+      visit(child.id);
+    }
+  };
+
+  visit(id);
+  return result;
+}
+
 export function getRootNodes(tree: TreeState): TabNode[] {
   return tree.rootIds
     .map((id) => getNode(tree, id))

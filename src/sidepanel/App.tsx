@@ -11,6 +11,7 @@ import { useScrollActiveIntoView } from "./hooks/useScrollActiveIntoView";
 import { useSelection } from "./hooks/useSelection";
 import { useWindowId } from "./hooks/useWindowId";
 import { useWindowTree } from "./hooks/useWindowTree";
+import { getDescendantIds } from "../shared/tree/queries";
 
 export function App() {
   const windowId = useWindowId();
@@ -90,6 +91,14 @@ export function App() {
             x={menu.x}
             y={menu.y}
             targetIds={menu.targetIds}
+            treeIds={[
+              ...new Set(
+                menu.targetIds.flatMap((id) => [
+                  id,
+                  ...getDescendantIds(tree, id),
+                ]),
+              ),
+            ]}
             isEveryTargetPinned={menu.targetIds.every(
               (id) => tree.nodes[id]?.pinned,
             )}

@@ -7,6 +7,11 @@ interface ContextMenuProps {
   x: number;
   y: number;
   targetIds: number[];
+  /**
+   * `targetIds` plus all of their descendants (deduplicated). Equal to
+   * `targetIds` when none of the targets have children.
+   */
+  treeIds: number[];
   isEveryTargetPinned: boolean;
   activeTabId: number | undefined;
   onClose: () => void;
@@ -29,6 +34,7 @@ export function ContextMenu({
   x,
   y,
   targetIds,
+  treeIds,
   isEveryTargetPinned,
   activeTabId,
   onClose,
@@ -39,9 +45,16 @@ export function ContextMenu({
   // action isn't hidden just because the active tab happens to be one of
   // several targets: the others are still worth suspending.
   const suspendableIds = targetIds.filter((id) => id !== activeTabId);
+  const hasDescendants = treeIds.length > targetIds.length;
   const menuReference = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: y, left: x });
-  const [isConfirmingClose, setIsConfirmingClose] = useState(false);
+  // `"targets"` confirms closing just the right-clicked tab(s); `"tree"`
+  // confirms closing them together with all of their descendants. Tracked as
+  // which id list to close (rather than two separate booleans) since only
+  // one confirmation can be in progress at a time.
+  const [closeConfirmation, setCloseConfirmation] = useState<
+    "targets" | "tree" | null
+  >(null);
 
   // Clamps the anchor point so the menu never renders past the panel's own
   // edge (it otherwise wouldn't be able to shrink to fit and would just get
@@ -64,7 +77,7 @@ export function ContextMenu({
       left: Math.max(VIEWPORT_MARGIN, Math.min(x, maxLeft)),
       top: Math.max(VIEWPORT_MARGIN, Math.min(y, maxTop)),
     });
-  }, [x, y, isConfirmingClose]);
+  }, [x, y, closeConfirmation]);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent): void => {
@@ -112,7 +125,9 @@ export function ContextMenu({
   };
 
   const handleConfirmClose = (): void => {
-    void chrome.tabs.remove(targetIds);
+    void chrome.tabs.remove(
+      closeConfirmation === "tree" ? treeIds : targetIds,
+    );
     onClose();
   };
 
@@ -123,31 +138,7 @@ export function ContextMenu({
       role="menu"
       style={position}
     >
-      {isConfirmingClose ? (
-        <div className="context-menu__confirm">
-          <p className="context-menu__confirm-text">
-            {targetIds.length > 1
-              ? `Close ${targetIds.length} tabs?`
-              : "Close this tab?"}
-          </p>
-          <div className="context-menu__confirm-actions">
-            <button
-              type="button"
-              className="context-menu__item"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="context-menu__item"
-              onClick={handleConfirmClose}
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      ) : (
+      {closeConfirmation === null ? (
         <>
           {suspendableIds.length > 0 && (
             <button
@@ -172,12 +163,48 @@ export function ContextMenu({
               type="button"
               role="menuitem"
               className="context-menu__item"
-              onClick={() => setIsConfirmingClose(true)}
+              onClick={() => setCloseConfirmation("targets")}
             >
               Close
             </button>
           )}
+          {hasDescendants && (
+            <button
+              type="button"
+              role="menuitem"
+              className="context-menu__item"
+              onClick={() => setCloseConfirmation("tree")}
+            >
+              Close tree
+            </button>
+          )}
         </>
+      ) : (
+        <div className="context-menu__confirm">
+          <p className="context-menu__confirm-text">
+            {closeConfirmation === "tree"
+              ? `Close ${treeIds.length} tabs in this tree?`
+              : targetIds.length > 1
+                ? `Close ${targetIds.length} tabs?`
+                : "Close this tab?"}
+          </p>
+          <div className="context-menu__confirm-actions">
+            <button
+              type="button"
+              className="context-menu__item"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="context-menu__item"
+              onClick={handleConfirmClose}
+            >
+              Close
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
