@@ -3,6 +3,9 @@
 A tree-style tab manager extension for Chrome and Vivaldi. The name blends "Tab" and "Arbor": every tab is shown in a
 side panel as a node in a tree, tracking parent/child relationships between tabs.
 
+Chrome and Vivaldi are the only officially supported browsers, but it may also work on other Chromium-based browsers
+(Edge, Brave, Opera, etc.) since it only relies on standard Manifest V3 APIs.
+
 ## Features
 
 - Side panel tree view of every tab in the window, with favicon, title, loading/suspended state, and a close button per
