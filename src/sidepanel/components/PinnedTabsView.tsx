@@ -5,6 +5,7 @@ import { TabNodeView } from "./TabNodeView";
 
 interface PinnedTabsViewProps {
   tree: TreeState;
+  windowId: number | undefined;
   selectedIds: Set<number>;
   contextMenuTargetIds: Set<number>;
   onNodeClick: (id: number, event: MouseEvent) => void;
@@ -19,6 +20,7 @@ interface PinnedTabsViewProps {
  */
 export function PinnedTabsView({
   tree,
+  windowId,
   selectedIds,
   contextMenuTargetIds,
   onNodeClick,
@@ -36,6 +38,7 @@ export function PinnedTabsView({
         <li key={node.id} className="pinned-tabs__item">
           <TabNodeView
             node={node}
+            windowId={windowId}
             selected={selectedIds.has(node.id)}
             isContextMenuTarget={contextMenuTargetIds.has(node.id)}
             onClick={(event) => onNodeClick(node.id, event)}

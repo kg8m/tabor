@@ -76,6 +76,7 @@ export function App() {
       <div className="app" onClick={handleBackgroundClick}>
         <PinnedTabsView
           tree={tree}
+          windowId={windowId}
           selectedIds={selectedIds}
           contextMenuTargetIds={contextMenuTargetIds}
           onNodeClick={handleNodeClick}
@@ -84,6 +85,7 @@ export function App() {
         />
         <TreeView
           tree={tree}
+          windowId={windowId}
           selectedIds={selectedIds}
           contextMenuTargetIds={contextMenuTargetIds}
           onNodeClick={handleNodeClick}
@@ -95,6 +97,7 @@ export function App() {
           <ContextMenu
             x={menu.x}
             y={menu.y}
+            windowId={windowId}
             targetIds={menu.targetIds}
             treeIds={[
               ...new Set(

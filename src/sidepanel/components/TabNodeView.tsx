@@ -12,6 +12,7 @@ import {
 
 interface TabNodeViewProps {
   node: TabNode;
+  windowId: number | undefined;
   hasChildren?: boolean;
   selected: boolean;
   onClick: (event: MouseEvent) => void;
@@ -30,6 +31,7 @@ interface TabNodeViewProps {
 
 export function TabNodeView({
   node,
+  windowId,
   hasChildren = false,
   selected,
   onClick,
@@ -45,7 +47,17 @@ export function TabNodeView({
 }: TabNodeViewProps) {
   const handleClose = (event: MouseEvent) => {
     event.stopPropagation();
-    void chrome.tabs.remove(node.id);
+    void (async () => {
+      if (windowId !== undefined) {
+        const message: TaborMessage = {
+          type: "registerPendingClose",
+          windowId,
+          tabIds: [node.id],
+        };
+        await chrome.runtime.sendMessage(message);
+      }
+      await chrome.tabs.remove(node.id);
+    })();
   };
 
   // `chrome.tabs.discard` fires an onUpdated event with the tab's new

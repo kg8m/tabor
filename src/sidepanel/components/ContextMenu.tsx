@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { TaborMessage } from "../../shared/messages";
 
 // Keeps the menu from touching the panel's edge once clamped into view.
 const VIEWPORT_MARGIN = 4;
@@ -6,6 +7,7 @@ const VIEWPORT_MARGIN = 4;
 interface ContextMenuProps {
   x: number;
   y: number;
+  windowId: number | undefined;
   targetIds: number[];
   /**
    * `targetIds` plus all of their descendants (deduplicated). Equal to
@@ -33,6 +35,7 @@ interface ContextMenuProps {
 export function ContextMenu({
   x,
   y,
+  windowId,
   targetIds,
   treeIds,
   isEveryTargetPinned,
@@ -125,9 +128,18 @@ export function ContextMenu({
   };
 
   const handleConfirmClose = (): void => {
-    void chrome.tabs.remove(
-      closeConfirmation === "tree" ? treeIds : targetIds,
-    );
+    const idsToClose = closeConfirmation === "tree" ? treeIds : targetIds;
+    void (async () => {
+      if (windowId !== undefined) {
+        const message: TaborMessage = {
+          type: "registerPendingClose",
+          windowId,
+          tabIds: idsToClose,
+        };
+        await chrome.runtime.sendMessage(message);
+      }
+      await chrome.tabs.remove(idsToClose);
+    })();
     onClose();
   };
 

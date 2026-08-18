@@ -6,6 +6,7 @@ import { TabNodeView } from "./TabNodeView";
 
 interface TreeViewProps {
   tree: TreeState;
+  windowId: number | undefined;
   selectedIds: Set<number>;
   contextMenuTargetIds: Set<number>;
   onNodeClick: (id: number, event: MouseEvent) => void;
@@ -16,6 +17,7 @@ interface TreeViewProps {
 
 export function TreeView({
   tree,
+  windowId,
   selectedIds,
   contextMenuTargetIds,
   onNodeClick,
@@ -29,6 +31,7 @@ export function TreeView({
         <TreeNode
           key={node.id}
           tree={tree}
+          windowId={windowId}
           nodeId={node.id}
           ancestorIds={new Set()}
           selectedIds={selectedIds}
@@ -45,6 +48,7 @@ export function TreeView({
 
 interface TreeNodeProps {
   tree: TreeState;
+  windowId: number | undefined;
   nodeId: number;
   ancestorIds: Set<number>;
   selectedIds: Set<number>;
@@ -57,6 +61,7 @@ interface TreeNodeProps {
 
 function TreeNode({
   tree,
+  windowId,
   nodeId,
   ancestorIds,
   selectedIds,
@@ -83,6 +88,7 @@ function TreeNode({
     <li className="tree-view__item">
       <TabNodeView
         node={node}
+        windowId={windowId}
         hasChildren={children.length > 0}
         selected={selectedIds.has(nodeId)}
         isContextMenuTarget={contextMenuTargetIds.has(nodeId)}
@@ -110,6 +116,7 @@ function TreeNode({
               <TreeNode
                 key={child.id}
                 tree={tree}
+                windowId={windowId}
                 nodeId={child.id}
                 ancestorIds={childAncestorIds}
                 selectedIds={selectedIds}

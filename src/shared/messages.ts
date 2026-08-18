@@ -25,7 +25,20 @@ export interface RestoreBackupMessage {
   timestamp: number;
 }
 
+/**
+ * Declares tabs the side panel is about to close (see `pending-close.ts`),
+ * sent before the corresponding `chrome.tabs.remove` call so the background
+ * can resolve the next focus target as soon as they've all closed, instead
+ * of falling back to debouncing an unregistered close.
+ */
+export interface RegisterPendingCloseMessage {
+  type: "registerPendingClose";
+  windowId: number;
+  tabIds: number[];
+}
+
 export type TaborMessage =
   | ToggleCollapsedMessage
   | MoveNodeMessage
-  | RestoreBackupMessage;
+  | RestoreBackupMessage
+  | RegisterPendingCloseMessage;

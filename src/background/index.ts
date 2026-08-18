@@ -21,6 +21,12 @@ import {
 import type { TaborMessage } from "../shared/messages";
 import { getNativeOrder, getPinnedNodes } from "../shared/tree/queries";
 import {
+  clearPendingClose,
+  noteTabRemoved,
+  registerPendingClose,
+  settlePendingClose,
+} from "./pending-close";
+import {
   createRestoreSession,
   matchStraggler,
   restoreTree,
@@ -504,10 +510,14 @@ async function handleTabRemoved(
     return;
   }
 
+  noteTabRemoved(info.windowId, tabId);
+
   const tree = getTree(info.windowId);
   const updated = removeTab(tree, tabId);
   setTree(info.windowId, updated);
   await saveTree(info.windowId, updated);
+
+  settlePendingClose(info.windowId);
 }
 
 async function handleTabMoved(
@@ -854,6 +864,7 @@ chrome.windows.onCreated.addListener((window) =>
 chrome.windows.onRemoved.addListener((windowId) => {
   deleteWindow(windowId);
   initializedWindowIds.delete(windowId);
+  clearPendingClose(windowId);
 });
 
 chrome.tabs.onCreated.addListener((tab) =>
@@ -898,6 +909,10 @@ chrome.runtime.onMessage.addListener((message: TaborMessage) => {
       void enqueue(() =>
         handleRestoreBackup(message.windowId, message.timestamp),
       );
+      break;
+    }
+    case "registerPendingClose": {
+      registerPendingClose(message.windowId, message.tabIds);
       break;
     }
   }
