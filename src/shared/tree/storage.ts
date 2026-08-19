@@ -1,3 +1,4 @@
+import { normalizeTree } from "./normalize";
 import type { TreeState } from "./types";
 
 const KEY_PREFIX = "tabor:tree:";
@@ -18,7 +19,8 @@ export async function loadTree(
 ): Promise<TreeState | undefined> {
   const key = getStorageKey(windowId);
   const result = await chrome.storage.local.get(key);
-  return result[key] as TreeState | undefined;
+  const tree = result[key] as TreeState | undefined;
+  return tree === undefined ? undefined : normalizeTree(tree);
 }
 
 /**
@@ -44,7 +46,7 @@ export async function loadAllTrees(): Promise<Record<number, TreeState>> {
       continue;
     }
     const windowId = Number(key.slice(KEY_PREFIX.length));
-    trees[windowId] = value as TreeState;
+    trees[windowId] = normalizeTree(value as TreeState);
   }
 
   return trees;

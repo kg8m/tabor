@@ -1,3 +1,4 @@
+import { normalizeTree } from "./normalize";
 import type { TreeState } from "./types";
 
 const BACKUP_KEY_PREFIX = "tabor:backup:";
@@ -20,12 +21,23 @@ export async function saveBackup(
   });
 }
 
+function normalizeWindows(
+  windows: Record<number, TreeState>,
+): Record<number, TreeState> {
+  const normalized: Record<number, TreeState> = {};
+  for (const [windowId, tree] of Object.entries(windows)) {
+    normalized[Number(windowId)] = normalizeTree(tree);
+  }
+  return normalized;
+}
+
 export async function loadBackup(
   timestamp: number,
 ): Promise<Record<number, TreeState> | undefined> {
   const key = getBackupStorageKey(timestamp);
   const result = await chrome.storage.local.get(key);
-  return result[key] as Record<number, TreeState> | undefined;
+  const windows = result[key] as Record<number, TreeState> | undefined;
+  return windows === undefined ? undefined : normalizeWindows(windows);
 }
 
 export async function loadAllBackups(): Promise<BackupSnapshot[]> {
@@ -37,7 +49,10 @@ export async function loadAllBackups(): Promise<BackupSnapshot[]> {
       continue;
     }
     const timestamp = Number(key.slice(BACKUP_KEY_PREFIX.length));
-    backups.push({ timestamp, windows: value as Record<number, TreeState> });
+    backups.push({
+      timestamp,
+      windows: normalizeWindows(value as Record<number, TreeState>),
+    });
   }
 
   return backups;
