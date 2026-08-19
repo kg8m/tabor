@@ -10,6 +10,7 @@ export interface NewTabInput {
   pinned: boolean;
   loading: boolean;
   suspended: boolean;
+  audible: boolean;
 }
 
 /**
@@ -56,6 +57,7 @@ export function addTab(
     pinned: input.pinned,
     suspended: input.suspended,
     loading: input.loading,
+    audible: input.audible,
     collapsed: false,
     note: null,
   };
@@ -132,6 +134,7 @@ export type TabUpdate = Partial<
     | "favIconUrl"
     | "loading"
     | "suspended"
+    | "audible"
     | "pinned"
     | "collapsed"
     | "note"

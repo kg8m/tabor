@@ -131,6 +131,7 @@ export function restoreTree(
       pinned: actualTab.pinned,
       loading: actualTab.loading,
       suspended: actualTab.suspended,
+      audible: actualTab.audible,
       parentId:
         node.parentId === null
           ? null

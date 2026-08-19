@@ -31,6 +31,7 @@ describe("addTab", () => {
         pinned: false,
         loading: false,
         suspended: false,
+        audible: false,
       },
       1,
     );
@@ -53,12 +54,14 @@ describe("addTab", () => {
         pinned: false,
         loading: true,
         suspended: true,
+        audible: true,
       },
       null,
     );
 
     expect(result.nodes[1]?.loading).toBe(true);
     expect(result.nodes[1]?.suspended).toBe(true);
+    expect(result.nodes[1]?.audible).toBe(true);
   });
 
   it("adds as a root instead of becoming its own parent when parentId equals its own id", () => {
@@ -74,6 +77,7 @@ describe("addTab", () => {
         pinned: false,
         loading: false,
         suspended: false,
+        audible: false,
       },
       1,
     );
@@ -103,6 +107,7 @@ describe("addTab", () => {
         pinned: false,
         loading: false,
         suspended: false,
+        audible: false,
       },
       1,
     );
@@ -124,6 +129,7 @@ describe("addTab", () => {
         pinned: false,
         loading: false,
         suspended: false,
+        audible: false,
       },
       null,
     );
@@ -145,6 +151,7 @@ describe("addTab", () => {
         pinned: false,
         loading: false,
         suspended: false,
+        audible: false,
       },
       999,
     );
@@ -167,6 +174,7 @@ describe("addTab", () => {
         pinned: true,
         loading: false,
         suspended: false,
+        audible: false,
       },
       1,
     );
@@ -200,6 +208,7 @@ describe("addTab", () => {
         pinned: false,
         loading: false,
         suspended: false,
+        audible: false,
       },
       1,
     );
@@ -312,6 +321,15 @@ describe("updateTab", () => {
     expect(result.nodes[1]?.title).toBe("New title");
     expect(result.nodes[1]?.loading).toBe(false);
     expect(result.nodes[1]?.url).toBe(a.url);
+  });
+
+  it("updates audible", () => {
+    const a = createNode({ id: 1, audible: false });
+    const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
+
+    const result = updateTab(tree, 1, { audible: true });
+
+    expect(result.nodes[1]?.audible).toBe(true);
   });
 
   it("leaves the tab's position in the tree untouched", () => {

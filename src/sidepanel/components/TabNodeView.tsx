@@ -5,6 +5,7 @@ import type { DropPosition } from "../../shared/tree/drop";
 import type { TabNode } from "../../shared/tree/types";
 import type { NoteEditorAnchor } from "../hooks/useNoteEditor";
 import {
+  AudibleIcon,
   ChevronIcon,
   CloseIcon,
   DefaultFaviconIcon,
@@ -174,6 +175,15 @@ export function TabNodeView({
         </span>
       )}
       <span className="tab-node__title">{node.title}</span>
+      {node.audible && (
+        <span
+          className="tab-node__audible"
+          role="img"
+          aria-label="Playing audio"
+        >
+          <AudibleIcon />
+        </span>
+      )}
       {node.note === null ? (
         <span className="tab-node__note-spacer" aria-hidden="true" />
       ) : (

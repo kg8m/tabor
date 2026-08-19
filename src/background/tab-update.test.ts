@@ -118,4 +118,16 @@ describe("toSelfHealingUpdate", () => {
 
     expect(update.suspended).toBe(true);
   });
+
+  it("always reflects the live tab.audible", () => {
+    const update = toSelfHealingUpdate(tab({ audible: true }));
+
+    expect(update.audible).toBe(true);
+  });
+
+  it("treats a missing tab.audible as false", () => {
+    const update = toSelfHealingUpdate(tab());
+
+    expect(update.audible).toBe(false);
+  });
 });

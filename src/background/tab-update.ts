@@ -17,11 +17,15 @@ import type { TabUpdate } from "../shared/tree/mutations";
  * self-correct, without that self-healing creating the exact same kind of
  * stuck spinner it's meant to fix.
  *
- * `suspended` has no such asymmetry concern (there's no "stuck" failure mode
- * for it to guard against) and is simply read from the live `tab.discarded`.
+ * `suspended` and `audible` have no such asymmetry concern (there's no
+ * "stuck" failure mode for either to guard against) and are simply read from
+ * the live `tab.discarded`/`tab.audible`.
  */
 export function toSelfHealingUpdate(tab: chrome.tabs.Tab): TabUpdate {
-  const update: TabUpdate = { suspended: tab.discarded };
+  const update: TabUpdate = {
+    suspended: tab.discarded,
+    audible: tab.audible ?? false,
+  };
   if (tab.status === "complete") {
     update.loading = false;
   }

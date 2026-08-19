@@ -16,6 +16,7 @@ function actualTab(overrides: Partial<ActualTab> & { id: number }): ActualTab {
     pinned: false,
     loading: false,
     suspended: false,
+    audible: false,
     ...overrides,
   };
 }
@@ -145,6 +146,17 @@ describe("restoreTree", () => {
 
     expect(result.nodes[1]?.loading).toBe(false);
     expect(result.nodes[1]?.suspended).toBe(true);
+  });
+
+  it("reflects the actual tab's audible state, not the saved one", () => {
+    const a = createNode({ id: 100, url: "https://a.com", audible: false });
+    const savedTree: TreeState = { nodes: { 100: a }, rootIds: [100] };
+
+    const result = restoreTree(savedTree, [
+      actualTab({ id: 1, url: "https://a.com", audible: true }),
+    ]);
+
+    expect(result.nodes[1]?.audible).toBe(true);
   });
 
   it("falls back to the saved favicon when the actual tab has none yet", () => {

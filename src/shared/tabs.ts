@@ -45,5 +45,6 @@ export function toActualTab(tab: chrome.tabs.Tab): ActualTab {
     pinned: tab.pinned,
     loading: tab.status === "loading",
     suspended: tab.discarded,
+    audible: tab.audible ?? false,
   };
 }

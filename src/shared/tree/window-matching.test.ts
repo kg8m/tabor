@@ -29,6 +29,7 @@ function actualWindow(windowId: number, ...urls: string[]): ActualWindow {
       pinned: false,
       loading: false,
       suspended: false,
+      audible: false,
     })),
   };
 }

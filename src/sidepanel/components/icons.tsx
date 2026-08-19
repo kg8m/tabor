@@ -105,6 +105,24 @@ export function LeafIcon() {
   );
 }
 
+export function AudibleIcon() {
+  return (
+    <IconBase
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2 6h2.5L8 3v10L4.5 10H2z" fill="currentColor" stroke="none" />
+      <path d="M10.5 5.5a4 4 0 0 1 0 5" />
+      <path d="M12.3 3.7a6.5 6.5 0 0 1 0 8.6" />
+    </IconBase>
+  );
+}
+
 export function NoteIcon() {
   return (
     <IconBase

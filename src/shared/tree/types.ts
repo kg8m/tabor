@@ -8,6 +8,7 @@ export interface TabNode {
   pinned: boolean;
   suspended: boolean;
   loading: boolean;
+  audible: boolean;
   collapsed: boolean;
   note: string | null;
 }

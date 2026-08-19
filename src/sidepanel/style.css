@@ -279,6 +279,16 @@ body {
   }
 }
 
+.tab-node__audible {
+  flex: none;
+  width: 12px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: color-mix(in srgb, currentColor 65%, transparent);
+}
+
 .tab-node__title {
   flex: 1 1 auto;
   overflow: hidden;

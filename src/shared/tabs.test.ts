@@ -57,6 +57,18 @@ describe("toActualTab", () => {
 
     expect(actual.favIconUrl).toBe("https://example.com/favicon.ico");
   });
+
+  it("reflects an audible tab", () => {
+    const actual = toActualTab(tab({ audible: true }));
+
+    expect(actual.audible).toBe(true);
+  });
+
+  it("treats a missing audible as false", () => {
+    const actual = toActualTab(tab());
+
+    expect(actual.audible).toBe(false);
+  });
 });
 
 describe("isTaborOwnTab", () => {

@@ -12,6 +12,7 @@ export function createNode(
     pinned: false,
     suspended: false,
     loading: false,
+    audible: false,
     collapsed: false,
     note: null,
     ...overrides,
