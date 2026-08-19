@@ -49,7 +49,14 @@ export function toTabUpdate(
     update.title = changeInfo.title;
   }
   if (changeInfo.favIconUrl !== undefined) {
-    update.favIconUrl = normalizeFavIconUrl(changeInfo.favIconUrl);
+    const normalized = normalizeFavIconUrl(changeInfo.favIconUrl);
+    // Chrome can report an empty favIconUrl mid-discard (e.g. suspending a
+    // tab) with no accompanying navigation; treating that as "clear it" would
+    // wipe out a favicon that's still perfectly valid. Only clear when a URL
+    // change accompanies it—there, the old favicon really is stale.
+    if (normalized !== undefined || changeInfo.url !== undefined) {
+      update.favIconUrl = normalized;
+    }
   }
   if (changeInfo.status !== undefined) {
     update.loading = changeInfo.status === "loading";

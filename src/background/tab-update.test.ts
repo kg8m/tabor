@@ -94,6 +94,27 @@ describe("toTabUpdate", () => {
 
     expect(update.favIconUrl).toBeUndefined();
   });
+
+  it("keeps an empty favIconUrl update from clearing an existing favicon when there's no accompanying navigation", () => {
+    // Suspending a tab (chrome.tabs.discard) can fire onUpdated with an empty
+    // favIconUrl mid-discard, with no url change—that's not a real favicon
+    // loss and shouldn't wipe out the tree's existing value.
+    const update = toTabUpdate({ favIconUrl: "" }, tab({ discarded: true }));
+
+    expect(update).not.toHaveProperty("favIconUrl");
+  });
+
+  it("clears favIconUrl when an empty value arrives alongside a navigation", () => {
+    // A real navigation invalidates the previous page's favicon, so clearing
+    // it here (until the new one loads) is correct.
+    const update = toTabUpdate(
+      { url: "https://example.com/next", favIconUrl: "" },
+      tab(),
+    );
+
+    expect(update.favIconUrl).toBeUndefined();
+    expect(update).toHaveProperty("favIconUrl");
+  });
 });
 
 describe("toSelfHealingUpdate", () => {
