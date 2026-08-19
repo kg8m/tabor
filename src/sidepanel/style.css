@@ -514,7 +514,9 @@ body {
 }
 
 .context-menu__item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   width: 100%;
   padding: 6px 10px;
   border: none;
@@ -524,6 +526,10 @@ body {
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.context-menu__item svg {
+  flex: none;
 }
 
 .context-menu__item:hover {
@@ -545,7 +551,7 @@ body {
 }
 
 .context-menu__confirm-actions .context-menu__item {
-  text-align: center;
+  justify-content: center;
 }
 
 .backup-history {

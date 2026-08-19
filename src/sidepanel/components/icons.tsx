@@ -122,6 +122,23 @@ export function NoteIcon() {
   );
 }
 
+export function ReloadIcon() {
+  return (
+    <IconBase
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M13 8A5 5 0 1 1 11.5 4.5" />
+      <polyline points="13,2 13,5.5 9.5,5.5" />
+    </IconBase>
+  );
+}
+
 export function CloseIcon() {
   return (
     <IconBase

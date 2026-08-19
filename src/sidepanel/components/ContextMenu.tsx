@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { TaborMessage } from "../../shared/messages";
 import type { NoteEditorAnchor } from "../hooks/useNoteEditor";
+import { CloseIcon, NoteIcon, PauseIcon, ReloadIcon } from "./icons";
 
 // Keeps the menu from touching the panel's edge once clamped into view.
 const VIEWPORT_MARGIN = 4;
@@ -180,6 +181,7 @@ export function ContextMenu({
             className="context-menu__item"
             onClick={handleReload}
           >
+            <ReloadIcon />
             Reload
           </button>
           {suspendableIds.length > 0 && (
@@ -189,6 +191,7 @@ export function ContextMenu({
               className="context-menu__item"
               onClick={handleSuspend}
             >
+              <PauseIcon />
               Suspend
             </button>
           )}
@@ -199,6 +202,7 @@ export function ContextMenu({
               className="context-menu__item"
               onClick={handleSuspendTree}
             >
+              <PauseIcon />
               Suspend tree
             </button>
           )}
@@ -209,6 +213,7 @@ export function ContextMenu({
               className="context-menu__item"
               onClick={() => setCloseConfirmation("targets")}
             >
+              <CloseIcon />
               Close
             </button>
           )}
@@ -219,6 +224,7 @@ export function ContextMenu({
               className="context-menu__item"
               onClick={() => setCloseConfirmation("tree")}
             >
+              <CloseIcon />
               Close tree
             </button>
           )}
@@ -229,6 +235,7 @@ export function ContextMenu({
               className="context-menu__item"
               onClick={handleOpenNoteEditor}
             >
+              <NoteIcon />
               {targetNote === null ? "Add note" : "Edit note"}
             </button>
           )}
