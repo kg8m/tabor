@@ -17,7 +17,7 @@ import { getDescendantIds } from "../shared/tree/queries";
 export function App() {
   const windowId = useWindowId();
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const tree = useWindowTree(windowId);
+  const { tree, isLoading } = useWindowTree(windowId);
   const activeTabId = useActiveTabId(windowId);
   const { selectedIds, handleNodeClick, clearSelection } = useSelection(
     tree,
@@ -80,31 +80,44 @@ export function App() {
         </button>
       </header>
       <div className="app" onClick={handleBackgroundClick}>
-        <PinnedTabsView
-          tree={tree}
-          windowId={windowId}
-          selectedIds={selectedIds}
-          contextMenuTargetIds={contextMenuTargetIds}
-          onNodeClick={handleNodeClick}
-          onNodeContextMenu={(id, event) => openMenu(id, event, selectedIds)}
-          activeTabId={activeTabId}
-          noteEditor={noteEditor}
-          onOpenNoteEditor={openEditor}
-          onCloseNoteEditor={closeEditor}
-        />
-        <TreeView
-          tree={tree}
-          windowId={windowId}
-          selectedIds={selectedIds}
-          contextMenuTargetIds={contextMenuTargetIds}
-          onNodeClick={handleNodeClick}
-          onNodeContextMenu={(id, event) => openMenu(id, event, selectedIds)}
-          dragAndDrop={dragAndDrop}
-          activeTabId={activeTabId}
-          noteEditor={noteEditor}
-          onOpenNoteEditor={openEditor}
-          onCloseNoteEditor={closeEditor}
-        />
+        {isLoading ? (
+          <div className="app__loading">
+            <span className="app__loading-spinner" />
+            <p className="app__loading-text">Loading tabs…</p>
+          </div>
+        ) : (
+          <>
+            <PinnedTabsView
+              tree={tree}
+              windowId={windowId}
+              selectedIds={selectedIds}
+              contextMenuTargetIds={contextMenuTargetIds}
+              onNodeClick={handleNodeClick}
+              onNodeContextMenu={(id, event) =>
+                openMenu(id, event, selectedIds)
+              }
+              activeTabId={activeTabId}
+              noteEditor={noteEditor}
+              onOpenNoteEditor={openEditor}
+              onCloseNoteEditor={closeEditor}
+            />
+            <TreeView
+              tree={tree}
+              windowId={windowId}
+              selectedIds={selectedIds}
+              contextMenuTargetIds={contextMenuTargetIds}
+              onNodeClick={handleNodeClick}
+              onNodeContextMenu={(id, event) =>
+                openMenu(id, event, selectedIds)
+              }
+              dragAndDrop={dragAndDrop}
+              activeTabId={activeTabId}
+              noteEditor={noteEditor}
+              onOpenNoteEditor={openEditor}
+              onCloseNoteEditor={closeEditor}
+            />
+          </>
+        )}
         {menu && (
           <ContextMenu
             x={menu.x}
