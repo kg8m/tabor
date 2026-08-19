@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { TaborMessage } from "../../shared/messages";
 import type { DropPosition } from "../../shared/tree/drop";
 import type { TabNode } from "../../shared/tree/types";
+import { useOverflowDetection } from "../hooks/useOverflowDetection";
 import type { NoteEditorAnchor } from "../hooks/useNoteEditor";
 import {
   AudibleIcon,
@@ -59,6 +60,11 @@ export function TabNodeView({
   onDrop,
   onDragEnd,
 }: TabNodeViewProps) {
+  const { ref: titleReference, isOverflowing: isTitleOverflowing } =
+    useOverflowDetection<HTMLSpanElement>(node.title);
+  const { ref: noteReference, isOverflowing: isNoteOverflowing } =
+    useOverflowDetection<HTMLSpanElement>(node.note ?? "");
+
   const handleClose = (event: MouseEvent) => {
     event.stopPropagation();
     void (async () => {
@@ -174,7 +180,16 @@ export function TabNodeView({
           <DefaultFaviconIcon />
         </span>
       )}
-      <span className="tab-node__title">{node.title}</span>
+      <span
+        ref={titleReference}
+        className={
+          isTitleOverflowing
+            ? "tab-node__title tab-node__title--overflowing"
+            : "tab-node__title"
+        }
+      >
+        {node.title}
+      </span>
       {node.audible && (
         <span
           className="tab-node__audible"
@@ -187,7 +202,16 @@ export function TabNodeView({
       {node.note === null ? (
         <span className="tab-node__note-spacer" aria-hidden="true" />
       ) : (
-        <span className="tab-node__note-text">{node.note}</span>
+        <span
+          ref={noteReference}
+          className={
+            isNoteOverflowing
+              ? "tab-node__note-text tab-node__note-text--overflowing"
+              : "tab-node__note-text"
+          }
+        >
+          {node.note}
+        </span>
       )}
       {node.note !== null && (
         <span className="tab-node__note-icon-spacer" aria-hidden="true" />

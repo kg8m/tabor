@@ -292,7 +292,6 @@ body {
 .tab-node__title {
   flex: 1 1 auto;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   /* Pins the line box to the same height as the favicon/toggle regardless
      of script: a title containing e.g. Japanese falls back to whichever CJK
@@ -301,6 +300,24 @@ body {
      the Latin one's—inflating the row's height for that title alone if
      left to the browser's default. */
   line-height: 16px;
+}
+
+/* Fades the tail into transparency instead of `text-overflow: ellipsis`'s
+   abrupt "…". Applied only via `useOverflowDetection` (in `TabNodeView`)
+   actually detecting the text as wider than the box—rather than
+   unconditionally on `.tab-node__title` itself—because a mask is a static
+   gradient over the box's own edge, regardless of whether the content
+   inside actually reaches it: unconditional, it would fade a short title's
+   last character too whenever the box happens to hug the text tightly (e.g.
+   `.tab-node--has-note .tab-node__title` below, whose `flex-grow: 0` sizes
+   it to the title's own width instead of the row's leftover space). */
+.tab-node__title--overflowing {
+  mask-image: linear-gradient(to right, black calc(100% - 20px), transparent);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - 20px),
+    transparent
+  );
 }
 
 /* A note-having tab's title claims only its own natural width instead of
@@ -318,10 +335,11 @@ body {
 
 /* A note-less row's flex child right after the title, reserving room for
    `.tab-node__actions` (which now also holds the note button—see below)
-   only while it's actually shown, so `text-overflow: ellipsis` truncates
-   the title against the space really available—rather than it claiming the
-   row's full width regardless and just having its last few characters
-   silently covered by the (unrelated, absolutely positioned) actions box.
+   only while it's actually shown, so the title's fade-out mask (see
+   `.tab-node__title`) is measured against the space really available—rather
+   than it claiming the row's full width regardless and just having its
+   last few characters silently covered by the (unrelated, absolutely
+   positioned) actions box.
    This still doesn't move the actions box itself or any other part of the
    row, so it doesn't risk the hover-state flicker a layout change driven by
    its own appearance could cause. Fine to grow only on hover here: with no
@@ -355,8 +373,8 @@ body {
    non-growing, see above) title left on the table, so a short title still
    lets the note use most of the row; shrinks far more eagerly than the
    title (a much larger `flex-shrink`) once space actually runs short, so a
-   long title squeezes the note away first, down to nothing, before eating
-   into its own ellipsis.
+   long title squeezes the note away first, down to nothing, before its own
+   fade-out mask (see below) has to eat into it.
    Because the title no longer grows, changing `.tab-node__note-icon-spacer`
    below on hover/suspended/active never has anything for the title to grow
    into—so the note's own start, right after the title text, stays put no
@@ -371,11 +389,25 @@ body {
   flex: 1 999 auto;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 11px;
   line-height: 16px;
   opacity: 0.6;
+}
+
+/* Fades the tail into transparency instead of `text-overflow: ellipsis`'s
+   abrupt "…". Applied only via `useOverflowDetection` (in `TabNodeView`)
+   actually detecting the text as wider than the box—see
+   `.tab-node__title--overflowing` above for why an unconditional mask on
+   `.tab-node__note-text` itself would wrongly fade a short note's last
+   character too whenever the box happens to hug the text tightly. */
+.tab-node__note-text--overflowing {
+  mask-image: linear-gradient(to right, black calc(100% - 20px), transparent);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - 20px),
+    transparent
+  );
 }
 
 /* A flex item of its own, right after `.tab-node__note-text`, deliberately
