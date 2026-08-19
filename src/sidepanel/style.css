@@ -243,6 +243,14 @@ body {
   cursor: default;
 }
 
+/* Muted like `.tab-node__favicon--default`, so the leaf marker reads as a
+   quiet placeholder rather than competing with the chevron/pin icons for
+   attention. */
+.tab-node__leaf {
+  cursor: default;
+  opacity: 0.35;
+}
+
 .tab-node__favicon {
   flex: none;
   width: 16px;

@@ -6,6 +6,7 @@ import {
   ChevronIcon,
   CloseIcon,
   DefaultFaviconIcon,
+  LeafIcon,
   PauseIcon,
   PinIcon,
 } from "./icons";
@@ -131,7 +132,13 @@ export function TabNodeView({
           <PinIcon />
         </span>
       ) : (
-        <span className="tab-node__toggle" />
+        <span
+          className="tab-node__toggle tab-node__leaf"
+          role="img"
+          aria-label="No children"
+        >
+          <LeafIcon />
+        </span>
       )}
       {node.loading ? (
         <span className="tab-node__favicon tab-node__spinner" />

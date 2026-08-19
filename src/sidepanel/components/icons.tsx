@@ -90,6 +90,21 @@ export function DefaultFaviconIcon() {
   );
 }
 
+/**
+ * Shown in the toggle slot for a tab that has neither children nor a pin, so
+ * the slot never reads as merely empty—which, sitting directly under a
+ * sibling's chevron/pin icon at the same x position, could otherwise look
+ * like this row continues that icon (i.e. is its child) rather than being an
+ * unrelated leaf at the same level.
+ */
+export function LeafIcon() {
+  return (
+    <IconBase width="6" height="6" fill="currentColor">
+      <circle cx="8" cy="8" r="3" />
+    </IconBase>
+  );
+}
+
 export function CloseIcon() {
   return (
     <IconBase
