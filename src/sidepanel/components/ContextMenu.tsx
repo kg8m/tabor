@@ -55,6 +55,7 @@ export function ContextMenu({
   // action isn't hidden just because the active tab happens to be one of
   // several targets: the others are still worth suspending.
   const suspendableIds = targetIds.filter((id) => id !== activeTabId);
+  const suspendableTreeIds = treeIds.filter((id) => id !== activeTabId);
   const hasDescendants = treeIds.length > targetIds.length;
   const menuReference = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: y, left: x });
@@ -127,6 +128,13 @@ export function ContextMenu({
     onClose();
   };
 
+  const handleSuspendTree = (): void => {
+    for (const id of suspendableTreeIds) {
+      void chrome.tabs.discard(id);
+    }
+    onClose();
+  };
+
   const handleReload = (): void => {
     for (const id of targetIds) {
       void chrome.tabs.reload(id);
@@ -174,6 +182,16 @@ export function ContextMenu({
               onClick={handleSuspend}
             >
               Suspend
+            </button>
+          )}
+          {hasDescendants && suspendableTreeIds.length > 0 && (
+            <button
+              type="button"
+              role="menuitem"
+              className="context-menu__item"
+              onClick={handleSuspendTree}
+            >
+              Suspend tree
             </button>
           )}
           <button
