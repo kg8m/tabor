@@ -9,6 +9,7 @@ export interface TabNode {
   suspended: boolean;
   loading: boolean;
   collapsed: boolean;
+  note: string | null;
 }
 
 export interface TreeState {

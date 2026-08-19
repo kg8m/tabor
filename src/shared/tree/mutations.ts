@@ -57,6 +57,7 @@ export function addTab(
     suspended: input.suspended,
     loading: input.loading,
     collapsed: false,
+    note: null,
   };
 
   const nodes: Record<number, TabNode> = { ...tree.nodes, [node.id]: node };
@@ -133,6 +134,7 @@ export type TabUpdate = Partial<
     | "suspended"
     | "pinned"
     | "collapsed"
+    | "note"
   >
 >;
 

@@ -13,6 +13,7 @@ export function createNode(
     suspended: false,
     loading: false,
     collapsed: false,
+    note: null,
     ...overrides,
   };
 }

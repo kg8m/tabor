@@ -343,6 +343,17 @@ describe("updateTab", () => {
 
     expect(result.nodes[1]?.collapsed).toBe(true);
   });
+
+  it("can set and clear the note", () => {
+    const a = createNode({ id: 1, note: null });
+    const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
+
+    const withNote = updateTab(tree, 1, { note: "Remember this" });
+    expect(withNote.nodes[1]?.note).toBe("Remember this");
+
+    const cleared = updateTab(withNote, 1, { note: null });
+    expect(cleared.nodes[1]?.note).toBeNull();
+  });
 });
 
 describe("replaceTabId", () => {
