@@ -1,4 +1,5 @@
 import type { MouseEvent } from "react";
+import type { NoteEditorAnchor, NoteEditorState } from "../hooks/useNoteEditor";
 import { getPinnedNodes } from "../../shared/tree/queries";
 import type { TreeState } from "../../shared/tree/types";
 import { TabNodeView } from "./TabNodeView";
@@ -11,6 +12,9 @@ interface PinnedTabsViewProps {
   onNodeClick: (id: number, event: MouseEvent) => void;
   onNodeContextMenu: (id: number, event: MouseEvent) => void;
   activeTabId: number | undefined;
+  noteEditor: NoteEditorState | null;
+  onOpenNoteEditor: (id: number, anchor: NoteEditorAnchor) => void;
+  onCloseNoteEditor: () => void;
 }
 
 /**
@@ -26,6 +30,9 @@ export function PinnedTabsView({
   onNodeClick,
   onNodeContextMenu,
   activeTabId,
+  noteEditor,
+  onOpenNoteEditor,
+  onCloseNoteEditor,
 }: PinnedTabsViewProps) {
   const pinnedNodes = getPinnedNodes(tree);
   if (pinnedNodes.length === 0) {
@@ -44,6 +51,11 @@ export function PinnedTabsView({
             onClick={(event) => onNodeClick(node.id, event)}
             onContextMenu={(event) => onNodeContextMenu(node.id, event)}
             isActive={node.id === activeTabId}
+            editingNoteAnchor={
+              noteEditor?.tabId === node.id ? noteEditor.anchor : null
+            }
+            onOpenNoteEditor={(anchor) => onOpenNoteEditor(node.id, anchor)}
+            onCloseNoteEditor={onCloseNoteEditor}
           />
         </li>
       ))}

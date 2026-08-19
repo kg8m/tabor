@@ -7,6 +7,7 @@ import { TreeView } from "./components/TreeView";
 import { useActiveTabId } from "./hooks/useActiveTabId";
 import { useContextMenu } from "./hooks/useContextMenu";
 import { useDragAndDrop } from "./hooks/useDragAndDrop";
+import { useNoteEditor } from "./hooks/useNoteEditor";
 import { useScrollActiveIntoView } from "./hooks/useScrollActiveIntoView";
 import { useSelection } from "./hooks/useSelection";
 import { useWindowId } from "./hooks/useWindowId";
@@ -24,6 +25,7 @@ export function App() {
   );
   const dragAndDrop = useDragAndDrop(selectedIds);
   const { menu, openMenu, closeMenu } = useContextMenu();
+  const { editor: noteEditor, openEditor, closeEditor } = useNoteEditor();
   const contextMenuTargetIds = menu
     ? new Set(menu.targetIds)
     : new Set<number>();
@@ -82,6 +84,9 @@ export function App() {
           onNodeClick={handleNodeClick}
           onNodeContextMenu={(id, event) => openMenu(id, event, selectedIds)}
           activeTabId={activeTabId}
+          noteEditor={noteEditor}
+          onOpenNoteEditor={openEditor}
+          onCloseNoteEditor={closeEditor}
         />
         <TreeView
           tree={tree}
@@ -92,6 +97,9 @@ export function App() {
           onNodeContextMenu={(id, event) => openMenu(id, event, selectedIds)}
           dragAndDrop={dragAndDrop}
           activeTabId={activeTabId}
+          noteEditor={noteEditor}
+          onOpenNoteEditor={openEditor}
+          onCloseNoteEditor={closeEditor}
         />
         {menu && (
           <ContextMenu

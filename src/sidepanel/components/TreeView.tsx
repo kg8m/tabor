@@ -1,5 +1,6 @@
 import type { MouseEvent } from "react";
 import type { DragAndDrop } from "../hooks/useDragAndDrop";
+import type { NoteEditorAnchor, NoteEditorState } from "../hooks/useNoteEditor";
 import { getChildren, getUnpinnedRootNodes } from "../../shared/tree/queries";
 import type { TreeState } from "../../shared/tree/types";
 import { TabNodeView } from "./TabNodeView";
@@ -13,6 +14,9 @@ interface TreeViewProps {
   onNodeContextMenu: (id: number, event: MouseEvent) => void;
   dragAndDrop: DragAndDrop;
   activeTabId: number | undefined;
+  noteEditor: NoteEditorState | null;
+  onOpenNoteEditor: (id: number, anchor: NoteEditorAnchor) => void;
+  onCloseNoteEditor: () => void;
 }
 
 export function TreeView({
@@ -24,6 +28,9 @@ export function TreeView({
   onNodeContextMenu,
   dragAndDrop,
   activeTabId,
+  noteEditor,
+  onOpenNoteEditor,
+  onCloseNoteEditor,
 }: TreeViewProps) {
   return (
     <ul className="tree-view">
@@ -40,6 +47,9 @@ export function TreeView({
           onNodeContextMenu={onNodeContextMenu}
           dragAndDrop={dragAndDrop}
           activeTabId={activeTabId}
+          noteEditor={noteEditor}
+          onOpenNoteEditor={onOpenNoteEditor}
+          onCloseNoteEditor={onCloseNoteEditor}
         />
       ))}
     </ul>
@@ -57,6 +67,9 @@ interface TreeNodeProps {
   onNodeContextMenu: (id: number, event: MouseEvent) => void;
   dragAndDrop: DragAndDrop;
   activeTabId: number | undefined;
+  noteEditor: NoteEditorState | null;
+  onOpenNoteEditor: (id: number, anchor: NoteEditorAnchor) => void;
+  onCloseNoteEditor: () => void;
 }
 
 function TreeNode({
@@ -70,6 +83,9 @@ function TreeNode({
   onNodeContextMenu,
   dragAndDrop,
   activeTabId,
+  noteEditor,
+  onOpenNoteEditor,
+  onCloseNoteEditor,
 }: TreeNodeProps) {
   const node = tree.nodes[nodeId];
   // If the tree data were ever corrupted into a cycle, a node could end up
@@ -94,6 +110,11 @@ function TreeNode({
         isContextMenuTarget={contextMenuTargetIds.has(nodeId)}
         onClick={(event) => onNodeClick(nodeId, event)}
         onContextMenu={(event) => onNodeContextMenu(nodeId, event)}
+        editingNoteAnchor={
+          noteEditor?.tabId === nodeId ? noteEditor.anchor : null
+        }
+        onOpenNoteEditor={(anchor) => onOpenNoteEditor(nodeId, anchor)}
+        onCloseNoteEditor={onCloseNoteEditor}
         dropIndicatorPosition={
           dropIndicator?.targetId === nodeId ? dropIndicator.position : null
         }
@@ -125,6 +146,9 @@ function TreeNode({
                 onNodeContextMenu={onNodeContextMenu}
                 dragAndDrop={dragAndDrop}
                 activeTabId={activeTabId}
+                noteEditor={noteEditor}
+                onOpenNoteEditor={onOpenNoteEditor}
+                onCloseNoteEditor={onCloseNoteEditor}
               />
             ))}
           </ul>

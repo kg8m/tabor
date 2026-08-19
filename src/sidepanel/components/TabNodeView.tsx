@@ -1,15 +1,19 @@
 import type { DragEvent, MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import type { TaborMessage } from "../../shared/messages";
 import type { DropPosition } from "../../shared/tree/drop";
 import type { TabNode } from "../../shared/tree/types";
+import type { NoteEditorAnchor } from "../hooks/useNoteEditor";
 import {
   ChevronIcon,
   CloseIcon,
   DefaultFaviconIcon,
   LeafIcon,
+  NoteIcon,
   PauseIcon,
   PinIcon,
 } from "./icons";
+import { NoteEditor } from "./NoteEditor";
 
 interface TabNodeViewProps {
   node: TabNode;
@@ -20,6 +24,11 @@ interface TabNodeViewProps {
   onContextMenu: (event: MouseEvent) => void;
   isActive: boolean;
   isContextMenuTarget: boolean;
+  // Non-null only for the one row whose note editor is currently open,
+  // carrying where to anchor it (see `NoteEditor`).
+  editingNoteAnchor: NoteEditorAnchor | null;
+  onOpenNoteEditor: (anchor: NoteEditorAnchor) => void;
+  onCloseNoteEditor: () => void;
   // Omitted for rows that don't take part in drag-and-drop (pinned tabs,
   // which per spec have no parent/child relationships to reorder into).
   dropIndicatorPosition?: DropPosition | null;
@@ -39,6 +48,9 @@ export function TabNodeView({
   onContextMenu,
   isActive,
   isContextMenuTarget,
+  editingNoteAnchor,
+  onOpenNoteEditor,
+  onCloseNoteEditor,
   dropIndicatorPosition = null,
   onDragStart,
   onDragOver,
@@ -89,12 +101,19 @@ export function TabNodeView({
     }
   };
 
+  const handleOpenNoteEditor = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    onOpenNoteEditor({ x: rect.left, y: rect.bottom });
+  };
+
   const className = [
     "tab-node",
     node.suspended && "tab-node--suspended",
     selected && "tab-node--selected",
     isActive && "tab-node--active",
     isContextMenuTarget && "tab-node--context-target",
+    node.note !== null && "tab-node--has-note",
     dropIndicatorPosition && `tab-node--drop-${dropIndicatorPosition}`,
   ]
     .filter(Boolean)
@@ -104,6 +123,7 @@ export function TabNodeView({
     <div
       className={className}
       data-tab-id={node.id}
+      title={node.note ?? undefined}
       draggable={onDragStart !== undefined}
       onClick={handleClick}
       onContextMenu={onContextMenu}
@@ -154,6 +174,29 @@ export function TabNodeView({
         </span>
       )}
       <span className="tab-node__title">{node.title}</span>
+      {node.note === null ? (
+        <span className="tab-node__note-spacer" aria-hidden="true" />
+      ) : (
+        <span className="tab-node__note-text">{node.note}</span>
+      )}
+      {node.note !== null && (
+        <span className="tab-node__note-icon-spacer" aria-hidden="true" />
+      )}
+      {editingNoteAnchor &&
+        // Portaled to `document.body` rather than rendered in place: this
+        // row can carry `opacity` (e.g. `.tab-node--suspended`), which would
+        // otherwise wash out the popover too, `position: fixed` or not—
+        // opacity applies to a whole subtree's compositing, independent of
+        // how any of its descendants are positioned.
+        createPortal(
+          <NoteEditor
+            tabId={node.id}
+            anchor={editingNoteAnchor}
+            initialNote={node.note}
+            onClose={onCloseNoteEditor}
+          />,
+          document.body,
+        )}
       <div className="tab-node__actions">
         {!node.suspended && !isActive && (
           <button
@@ -174,6 +217,18 @@ export function TabNodeView({
           onClick={handleClose}
         >
           <CloseIcon />
+        </button>
+        <button
+          type="button"
+          className={
+            "tab-node__note-button" +
+            (node.note === null ? "" : " tab-node__note-button--has-note")
+          }
+          aria-label={node.note === null ? "Add note" : "Edit note"}
+          draggable={false}
+          onClick={handleOpenNoteEditor}
+        >
+          <NoteIcon />
         </button>
       </div>
     </div>

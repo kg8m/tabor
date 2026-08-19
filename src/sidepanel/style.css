@@ -293,31 +293,109 @@ body {
   line-height: 16px;
 }
 
-/* Reserves room for `.tab-node__actions` only while it's actually shown, so
-   `text-overflow: ellipsis` truncates the title against the space really
-   available and shows "…" where needed—rather than the title claiming the
-   row's full width regardless and just having its last few characters
-   silently covered by the (unrelated, absolutely positioned) buttons. This
-   still doesn't move the buttons themselves or any other part of the row,
-   so it doesn't risk the hover-state flicker a layout change driven by the
-   buttons' own appearance could cause.
-   `.tab-node__actions` sits flush with `.tab-node`'s own right edge
-   (`right: 0` against its padding box), while `.tab-node__title`, as a
-   normal flex child, already sits `.tab-node`'s own 8px padding-right
-   inward from that edge. So the additional padding needed here is the
-   actions box's width *minus* that 8px, not its full width: two 20px
-   buttons (12px icon + 4px horizontal padding each side) side by side make
-   a 40px box, so 40 - 8 = 32px. */
-.tab-node:hover .tab-node__title {
-  padding-right: 32px;
+/* A note-having tab's title claims only its own natural width instead of
+   growing into the row's remaining space (`.tab-node__note-wrapper` right
+   after it does that growing instead, below)—so the note starts right where
+   the title text actually ends, not wherever the title's *flex box* happens
+   to end after soaking up leftover space it had nothing to show in. Also
+   what makes `.tab-node__note-wrapper`'s own width state-independent (see
+   its comment): with the title no longer competing for growth, changing how
+   much of that wrapper's width its icon spacer claims never has anything
+   left over for the title to grow into. */
+.tab-node--has-note .tab-node__title {
+  flex-grow: 0;
 }
 
-/* Only the close button shows for a suspended or the active tab (see
-   `.tab-node__actions`' contents): one 20px button, so 20 - 8 = 12px. Same
-   specificity as the rule above, so this only wins by coming after it. */
-.tab-node--suspended:hover .tab-node__title,
-.tab-node--active:hover .tab-node__title {
-  padding-right: 12px;
+/* A note-less row's flex child right after the title, reserving room for
+   `.tab-node__actions` (which now also holds the note button—see below)
+   only while it's actually shown, so `text-overflow: ellipsis` truncates
+   the title against the space really available—rather than it claiming the
+   row's full width regardless and just having its last few characters
+   silently covered by the (unrelated, absolutely positioned) actions box.
+   This still doesn't move the actions box itself or any other part of the
+   row, so it doesn't risk the hover-state flicker a layout change driven by
+   its own appearance could cause. Fine to grow only on hover here: with no
+   note text to its left, there's nothing whose *start* would shift—only the
+   title's own end moves, exactly like this item's other edge.
+   `.tab-node__actions` sits flush with `.tab-node`'s own right edge
+   (`right: 0` against its padding box), while this, as a normal flex child,
+   already sits `.tab-node`'s own 8px padding-right inward from that edge.
+   So the width needed here is the actions box's width *minus* that 8px, not
+   its full width: three 20px buttons (12px icon + 4px horizontal padding
+   each side) side by side make a 60px box, so 60 - 8 = 52px (see below for
+   the narrower 32px case). */
+.tab-node__note-spacer {
+  flex: none;
+  width: 0;
+}
+
+.tab-node:hover .tab-node__note-spacer {
+  width: 52px;
+}
+
+/* Only the close and note buttons show for a suspended or the active tab
+   (see `.tab-node__actions`' contents): two 20px buttons, so 40 - 8 = 32px. */
+.tab-node--suspended:hover .tab-node__note-spacer,
+.tab-node--active:hover .tab-node__note-spacer {
+  width: 32px;
+}
+
+/* A note-having row's flex child right after the title, in place of
+   `.tab-node__note-spacer` above. Grows into whatever space the (now
+   non-growing, see above) title left on the table, so a short title still
+   lets the note use most of the row; shrinks far more eagerly than the
+   title (a much larger `flex-shrink`) once space actually runs short, so a
+   long title squeezes the note away first, down to nothing, before eating
+   into its own ellipsis.
+   Because the title no longer grows, changing `.tab-node__note-icon-spacer`
+   below on hover/suspended/active never has anything for the title to grow
+   into—so the note's own start, right after the title text, stays put no
+   matter how many icons are currently showing.
+   Slightly smaller and dimmer than the title, so the note reads as
+   secondary, at-a-glance-distinguishable annotation rather than a second
+   title. Line-height matches the title's own for the same reason theirs is
+   pinned (see `.tab-node__title`)—plus, without it, the two would each fall
+   back to their own font-size-relative default and no longer share a
+   baseline, visibly offsetting the note from the title next to it. */
+.tab-node__note-text {
+  flex: 1 999 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  line-height: 16px;
+  opacity: 0.6;
+}
+
+/* A flex item of its own, right after `.tab-node__note-text`, deliberately
+   `flex: none` (never shrinks) rather than bundled inside a shared
+   shrinkable box with the note text: a long-enough title needs to squeeze
+   the note text away down to nothing (see above) without this reserved
+   room for `.tab-node__actions` disappearing along with it—otherwise the
+   title, freed from competing with the note text, would keep growing right
+   into where the (still hidden, but about to appear on hover) note button
+   sits.
+   Claims however much of the row the actions box's buttons actually need
+   right now, leaving the rest to the note text next to it—so the note text
+   visibly shrinks (or grows back) exactly in step with how many icons are
+   currently showing. Safe to vary with hover/suspended/active here, unlike
+   `.tab-node__note-spacer` before the title stopped growing: this only ever
+   trades space with the note text next to it, never with the title.
+   12px unhovered: just the note button's own 20px, 12 = 20 - 8 (see
+   `.tab-node__note-spacer` above for where that 8px comes from). */
+.tab-node__note-icon-spacer {
+  flex: none;
+  width: 12px;
+}
+
+.tab-node:hover .tab-node__note-icon-spacer {
+  width: 52px;
+}
+
+.tab-node--suspended:hover .tab-node__note-icon-spacer,
+.tab-node--active:hover .tab-node__note-icon-spacer {
+  width: 32px;
 }
 
 /* Absolutely positioned so it takes no space in the row's flex layout: the
@@ -344,7 +422,8 @@ body {
 }
 
 .tab-node__suspend,
-.tab-node__close {
+.tab-node__close,
+.tab-node__note-button {
   flex: none;
   display: flex;
   align-items: center;
@@ -358,7 +437,68 @@ body {
 }
 
 .tab-node__suspend:hover,
-.tab-node__close:hover {
+.tab-node__close:hover,
+.tab-node__note-button:hover {
+  background: color-mix(in srgb, currentColor 15%, transparent);
+}
+
+/* The note button sits last (rightmost) in `.tab-node__actions`, past the
+   close button—rather than sharing a fixed offset from the row's edge on
+   its own—so its position always tracks `.tab-node__actions`' own actual
+   width instead of assuming a particular button count. Kept visible even
+   while `.tab-node__actions` itself is hidden (`visibility` inherits, but a
+   descendant can still opt back in) whenever there's a note to show,
+   regardless of hover. */
+.tab-node__note-button--has-note {
+  visibility: visible;
+}
+
+.note-editor {
+  position: fixed;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 280px;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  background: var(--tabor-bg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.note-editor__input {
+  padding: 4px 6px;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 4px;
+  background: var(--tabor-bg);
+  color: inherit;
+  font: inherit;
+}
+
+.note-editor__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.note-editor__cancel,
+.note-editor__save {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.note-editor__save {
+  background: var(--tabor-accent);
+  color: var(--tabor-bg);
+}
+
+.note-editor__cancel:hover {
   background: color-mix(in srgb, currentColor 15%, transparent);
 }
 
