@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { TaborMessage } from "../../shared/messages";
+import type { NoteEditorAnchor } from "../hooks/useNoteEditor";
 
 // Keeps the menu from touching the panel's edge once clamped into view.
 const VIEWPORT_MARGIN = 4;
@@ -16,6 +17,10 @@ interface ContextMenuProps {
   treeIds: number[];
   isEveryTargetPinned: boolean;
   activeTabId: number | undefined;
+  // Only meaningful (non-`undefined`) when `targetIds.length === 1`, per
+  // spec—the note item itself is hidden for a multi-tab selection.
+  targetNote: string | null | undefined;
+  onOpenNoteEditor: (anchor: NoteEditorAnchor) => void;
   onClose: () => void;
 }
 
@@ -40,6 +45,8 @@ export function ContextMenu({
   treeIds,
   isEveryTargetPinned,
   activeTabId,
+  targetNote,
+  onOpenNoteEditor,
   onClose,
 }: ContextMenuProps) {
   // Discarding the active tab is a no-op—Chrome has to reload it right away
@@ -127,6 +134,13 @@ export function ContextMenu({
     onClose();
   };
 
+  // Anchored at the menu's own (already viewport-clamped) position, same as
+  // a row's own note button anchors off of its own position.
+  const handleOpenNoteEditor = (): void => {
+    onOpenNoteEditor({ x: position.left, y: position.top });
+    onClose();
+  };
+
   const handleConfirmClose = (): void => {
     const idsToClose = closeConfirmation === "tree" ? treeIds : targetIds;
     void (async () => {
@@ -170,6 +184,16 @@ export function ContextMenu({
           >
             Reload
           </button>
+          {targetNote !== undefined && (
+            <button
+              type="button"
+              role="menuitem"
+              className="context-menu__item"
+              onClick={handleOpenNoteEditor}
+            >
+              {targetNote === null ? "Add note" : "Edit note"}
+            </button>
+          )}
           {!isEveryTargetPinned && (
             <button
               type="button"

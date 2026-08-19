@@ -29,6 +29,10 @@ export function App() {
   const contextMenuTargetIds = menu
     ? new Set(menu.targetIds)
     : new Set<number>();
+  // The context menu's own note item only applies to a single-tab
+  // selection, so this is `undefined` for a multi-selection.
+  const contextMenuSingleTargetId =
+    menu?.targetIds.length === 1 ? menu.targetIds[0] : undefined;
   useScrollActiveIntoView(activeTabId, tree);
 
   // Escape only clears the selection when no context menu is open: the menu
@@ -119,6 +123,16 @@ export function App() {
               (id) => tree.nodes[id]?.pinned,
             )}
             activeTabId={activeTabId}
+            targetNote={
+              contextMenuSingleTargetId === undefined
+                ? undefined
+                : tree.nodes[contextMenuSingleTargetId]?.note
+            }
+            onOpenNoteEditor={(anchor) => {
+              if (contextMenuSingleTargetId !== undefined) {
+                openEditor(contextMenuSingleTargetId, anchor);
+              }
+            }}
             onClose={closeMenu}
           />
         )}
