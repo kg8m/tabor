@@ -174,6 +174,14 @@ export function ContextMenu({
     >
       {closeConfirmation === null ? (
         <>
+          <button
+            type="button"
+            role="menuitem"
+            className="context-menu__item"
+            onClick={handleReload}
+          >
+            Reload
+          </button>
           {suspendableIds.length > 0 && (
             <button
               type="button"
@@ -194,24 +202,6 @@ export function ContextMenu({
               Suspend tree
             </button>
           )}
-          <button
-            type="button"
-            role="menuitem"
-            className="context-menu__item"
-            onClick={handleReload}
-          >
-            Reload
-          </button>
-          {targetNote !== undefined && (
-            <button
-              type="button"
-              role="menuitem"
-              className="context-menu__item"
-              onClick={handleOpenNoteEditor}
-            >
-              {targetNote === null ? "Add note" : "Edit note"}
-            </button>
-          )}
           {!isEveryTargetPinned && (
             <button
               type="button"
@@ -230,6 +220,16 @@ export function ContextMenu({
               onClick={() => setCloseConfirmation("tree")}
             >
               Close tree
+            </button>
+          )}
+          {targetNote !== undefined && (
+            <button
+              type="button"
+              role="menuitem"
+              className="context-menu__item"
+              onClick={handleOpenNoteEditor}
+            >
+              {targetNote === null ? "Add note" : "Edit note"}
             </button>
           )}
         </>
