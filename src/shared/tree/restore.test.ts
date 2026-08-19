@@ -90,6 +90,30 @@ describe("restoreTree", () => {
     expect(result.nodes[3]?.parentId).toBeNull();
   });
 
+  it("positions an unmatched actual tab at its real native index among matched tabs, not always last", () => {
+    // Saved: A(id=100), X(id=101), two unrelated root tabs.
+    // Actual: A, then an unmatched tab (e.g. Chrome's "What's New" tab
+    // after an update), then X—i.e. the unmatched tab sits in the middle
+    // of the tab strip, not at the end.
+    const a = createNode({ id: 100, url: "https://a.com" });
+    const x = createNode({ id: 101, url: "https://x.com" });
+    const savedTree: TreeState = {
+      nodes: { 100: a, 101: x },
+      rootIds: [100, 101],
+    };
+
+    const actualTabs = [
+      actualTab({ id: 1, url: "https://a.com" }),
+      actualTab({ id: 2, url: "https://whats-new.com" }),
+      actualTab({ id: 3, url: "https://x.com" }),
+    ];
+
+    const result = restoreTree(savedTree, actualTabs);
+
+    expect(result.rootIds).toEqual([1, 2, 3]);
+    expect(result.nodes[2]?.parentId).toBeNull();
+  });
+
   it("keeps collapsed state from the saved tree for matched nodes", () => {
     const a = createNode({ id: 100, url: "https://a.com", collapsed: true });
     const savedTree: TreeState = { nodes: { 100: a }, rootIds: [100] };

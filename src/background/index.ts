@@ -470,10 +470,29 @@ async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
     // found, one Chrome is still busy creating as part of that same restore
     // (see `restoreTracking`), where falling through to "parent =
     // whatever's active" below risks stacking a pile of unrelated restored
-    // tabs under it. Its native position is left alone either way, rather
-    // than reshuffling a window that may still be mid-restore.
+    // tabs under it.
     const parentId = straggler ? straggler.parentId : null;
-    const updated = addTab(tree, actualTab, parentId);
+    let updated = addTab(tree, actualTab, parentId);
+
+    if (!straggler && !actualTab.pinned) {
+      // A genuinely new tab with no saved match (e.g. a browser-injected
+      // page like Chrome's "What's New" tab after an update) still has a
+      // real native position among the tabs restored so far. `addTab` just
+      // appends it as the last root, which is wrong whenever it actually
+      // sits in the middle of the tab strip. Reuse `reorderFromNativeMove`'s
+      // placement logic to correct that purely in the tree data—this
+      // deliberately doesn't call `syncNativeOrder` (see below), since the
+      // window may still be mid-restore and this shouldn't reshuffle it.
+      const nativeTabs = await chrome.tabs.query({
+        windowId: tab.windowId,
+        pinned: false,
+      });
+      const newOrder = nativeTabs
+        .map((nativeTab) => nativeTab.id)
+        .filter((id): id is number => id !== undefined);
+      updated = reorderFromNativeMove(updated, actualTab.id, newOrder);
+    }
+
     setTree(tab.windowId, updated);
     await saveTree(tab.windowId, updated);
     return;

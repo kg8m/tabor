@@ -1,4 +1,9 @@
-import { addTab, removeTab, type NewTabInput } from "./mutations";
+import {
+  addTab,
+  reorderFromNativeMove,
+  removeTab,
+  type NewTabInput,
+} from "./mutations";
 import { flattenDepthFirst } from "./queries";
 import type { TabNode, TreeState } from "./types";
 
@@ -140,9 +145,34 @@ export function restoreTree(
     .map((id) => savedIdToActualId.get(id))
     .filter((id): id is number => id !== undefined);
 
+  // The native order actual tabs are already in (`chrome.tabs.query`
+  // returns them in tab-strip order), restricted to non-pinned tabs—the
+  // same convention `reorderFromNativeMove`'s callers use elsewhere (see
+  // `handleTabMoved`). Used below to place each unmatched tab where it
+  // actually sits in the tab strip, rather than always at the very end.
+  const nonPinnedNativeOrder = actualTabs
+    .filter((tab) => !tab.pinned)
+    .map((tab) => tab.id);
+
   let result: TreeState = { nodes, rootIds };
   for (const actualTab of unmatchedActualTabs) {
     result = addTab(result, actualTab, null);
+
+    // `addTab` always appends as the last root, which is wrong whenever an
+    // unmatched tab (e.g. a browser-injected page like Chrome's "What's
+    // New" tab after an update) actually sits among tabs that did match
+    // the saved tree. Reuse `reorderFromNativeMove`'s placement logic,
+    // driven by this same tab's real position in `actualTabs`, to correct
+    // that. Every tab that precedes it in `nonPinnedNativeOrder` is
+    // already in `result.nodes` by this point—either matched above, or
+    // added and repositioned by an earlier iteration of this same loop.
+    if (!actualTab.pinned) {
+      result = reorderFromNativeMove(
+        result,
+        actualTab.id,
+        nonPinnedNativeOrder,
+      );
+    }
   }
 
   return result;
