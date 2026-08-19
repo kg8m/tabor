@@ -37,8 +37,18 @@ export interface RegisterPendingCloseMessage {
   tabIds: number[];
 }
 
+/**
+ * Set or clear a tab's note (`null` clears it).
+ */
+export interface UpdateNoteMessage {
+  type: "updateNote";
+  tabId: number;
+  note: string | null;
+}
+
 export type TaborMessage =
   | ToggleCollapsedMessage
   | MoveNodeMessage
   | RestoreBackupMessage
-  | RegisterPendingCloseMessage;
+  | RegisterPendingCloseMessage
+  | UpdateNoteMessage;

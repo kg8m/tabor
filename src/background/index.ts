@@ -665,6 +665,24 @@ async function handleToggleCollapsed(tabId: number): Promise<void> {
   await saveTree(tab.windowId, updated);
 }
 
+async function handleUpdateNote(
+  tabId: number,
+  note: string | null,
+): Promise<void> {
+  await ensureInitialized();
+
+  const tab = await chrome.tabs.get(tabId);
+  const tree = getTree(tab.windowId);
+  const node = tree.nodes[tabId];
+  if (node === undefined) {
+    return;
+  }
+
+  const updated = updateTab(tree, tabId, { note });
+  setTree(tab.windowId, updated);
+  await saveTree(tab.windowId, updated);
+}
+
 /**
  * Move the window's non-pinned tabs to match the tree's depth-first order.
  * Used after a side-panel drag-and-drop changes the tree, since that only
@@ -913,6 +931,10 @@ chrome.runtime.onMessage.addListener((message: TaborMessage) => {
     }
     case "registerPendingClose": {
       registerPendingClose(message.windowId, message.tabIds);
+      break;
+    }
+    case "updateNote": {
+      void enqueue(() => handleUpdateNote(message.tabId, message.note));
       break;
     }
   }
