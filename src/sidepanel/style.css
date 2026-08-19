@@ -650,8 +650,13 @@ body {
 }
 
 .backup-history__preview-children {
-  margin-left: 15px;
-  padding-left: 5px;
+  /* `margin-left` centers the guide line under the parent row's favicon
+     (16px wide, starting at the row's own left edge since this row has no
+     toggle/pin icon like `.tab-node` does). `padding-left`, combined with
+     the border and margin above, keeps the overall indent at 21px, matching
+     the pre-fix visual spacing. */
+  margin-left: 8px;
+  padding-left: 12px;
   border-left: 1px solid color-mix(in srgb, currentColor 15%, transparent);
 }
 
