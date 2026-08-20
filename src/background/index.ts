@@ -457,6 +457,46 @@ const ensureInitialized = (() => {
   };
 })();
 
+// Whether the profile's normal windows (not counting e.g. an installed PWA's
+// own app-type window in the same profile) have dropped to zero since the
+// last time one was open. Set by `chrome.windows.onRemoved` below and
+// consumed by `chrome.windows.onCreated`: closing every normal window
+// doesn't necessarily end the browser process—an installed PWA sharing the
+// profile, or simply not quitting the browser app on macOS after its last
+// window closes, both keep it running—so the saved trees for those closed
+// windows are still sitting in `chrome.storage.local` under now-gone window
+// ids when the next one opens, exactly as they would be at a real
+// `runtime.onStartup`.
+//
+// Backed by `chrome.storage.session`, not a plain in-memory variable: the
+// service worker can be killed for going idle (routinely, after ~30
+// seconds) at any point between the last normal window closing and the next
+// one opening, which would silently wipe an in-memory flag before it ever
+// got consumed—see `SESSION_RECONCILED_KEY` above for the same reasoning.
+//
+// Deliberately kept independent of `hasReconciledThisBrowserSession`'s own
+// flag, rather than reusing or clearing it directly: any other event
+// arriving in the meantime (e.g. the PWA's own tab updating its title or
+// favicon) also calls `ensureInitialized`, and if that flag were cleared
+// here instead, such an unrelated event could run `initializeAllWindows`
+// first—matching only that PWA window against every saved tree and then, in
+// its own stale-window cleanup, permanently deleting every real window's
+// saved tree before the user gets a chance to reopen it.
+const NORMAL_WINDOWS_GAP_KEY = "tabor:session:normalWindowsGapPending";
+
+async function isNormalWindowsGapPending(): Promise<boolean> {
+  const result = await chrome.storage.session.get(NORMAL_WINDOWS_GAP_KEY);
+  return result[NORMAL_WINDOWS_GAP_KEY] === true;
+}
+
+async function markNormalWindowsGapPending(): Promise<void> {
+  await chrome.storage.session.set({ [NORMAL_WINDOWS_GAP_KEY]: true });
+}
+
+async function clearNormalWindowsGapPending(): Promise<void> {
+  await chrome.storage.session.remove(NORMAL_WINDOWS_GAP_KEY);
+}
+
 async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
   await ensureInitialized(tab.id);
 
@@ -908,17 +948,40 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.windows.onCreated.addListener((window) =>
   enqueue(async () => {
     await ensureInitialized();
-    if (window.id !== undefined) {
+
+    if (window.id === undefined) {
+      return;
+    }
+
+    // Ending a normal-windows gap (see `isNormalWindowsGapPending`):
+    // reconcile this window—and any sibling windows already open by the
+    // time this runs—against every saved tree by URL the same way a real
+    // browser startup would, instead of `initializeWindow`'s history-less
+    // path.
+    const isGapPending = await isNormalWindowsGapPending();
+    if (isGapPending && window.type === "normal") {
+      await clearNormalWindowsGapPending();
+      await initializeAllWindows();
+    } else {
       await initializeWindow(window.id);
     }
   }),
 );
 
-chrome.windows.onRemoved.addListener((windowId) => {
-  deleteWindow(windowId);
-  initializedWindowIds.delete(windowId);
-  clearPendingClose(windowId);
-});
+chrome.windows.onRemoved.addListener((windowId) =>
+  enqueue(async () => {
+    deleteWindow(windowId);
+    initializedWindowIds.delete(windowId);
+    clearPendingClose(windowId);
+
+    const remainingNormalWindows = await chrome.windows.getAll({
+      windowTypes: ["normal"],
+    });
+    if (remainingNormalWindows.length === 0) {
+      await markNormalWindowsGapPending();
+    }
+  }),
+);
 
 chrome.tabs.onCreated.addListener((tab) =>
   enqueue(() => handleTabCreated(tab)),
