@@ -85,23 +85,39 @@ function debugLog(event: string, data: Record<string, unknown>): void {
  * arriving close together (e.g. both firing right as the service worker
  * wakes from being idle) can't run their tree-store read/update/save cycles
  * concurrently and clobber each other's result with a stale one.
+ *
+ * Deliberately NOT an `async` function: an `await settle(queue)` before
+ * chaining onto `queue` would leave a window, between that `await` and the
+ * following `queue = ...` reassignment, where a burst of calls arriving
+ * synchronously (e.g. the dozens of tab events Chrome fires back-to-back
+ * while tearing down a window with many tabs) all read the same
+ * not-yet-updated `queue` and end up chained onto *that* instead of onto
+ * each other—so their bodies run concurrently instead of in the intended
+ * order, racing on the same window's tree. Reassigning `queue` synchronously,
+ * in the same tick as the call that reads it, closes that window: whichever
+ * calls happen to arrive together are still chained one after another
+ * because each sees the previous one's reassignment before returning.
  */
 const enqueue = (() => {
   let queue: Promise<void> = Promise.resolve();
 
   // Swallow a failure so it doesn't block the tasks queued after it; the
-  // caller of `enqueue` still sees the original error via `result` below.
-  async function settle(promise: Promise<void>): Promise<void> {
-    try {
-      await promise;
-    } catch {
-      // ignored, see above
-    }
+  // caller of `enqueue` still sees the original error via the returned
+  // promise below. `queue` itself must always be a promise that resolves
+  // (never rejects)—otherwise a later `.then(task)` chained onto it would
+  // skip that `task` entirely instead of still running it.
+  // Deliberately plain `.catch()`/`.then()` below, not `await`: this must
+  // reassign `queue` synchronously (see the comment above `enqueue`), and
+  // `await` here would reintroduce exactly the race this function exists to
+  // prevent.
+  function settle(promise: Promise<void>): Promise<void> {
+    // eslint-disable-next-line unicorn/prefer-await
+    return promise.catch(() => {});
   }
 
-  return async (task: () => Promise<void>): Promise<void> => {
-    await settle(queue);
-    const result = task();
+  return (task: () => Promise<void>): Promise<void> => {
+    // eslint-disable-next-line unicorn/prefer-await -- see `settle` above
+    const result = queue.then(task);
     queue = settle(result);
     return result;
   };
