@@ -16,6 +16,11 @@ export interface DragAndDrop {
   onDragLeave: (id: number) => void;
   onDrop: (id: number, event: DragEvent) => void;
   onDragEnd: () => void;
+  // For the empty space below the last row (e.g. when there are too few
+  // tabs to fill the panel): dropping there always means "move to the end",
+  // regardless of where within that space the pointer lands.
+  onContainerDragOver: (lastVisibleId: number | null, event: DragEvent) => void;
+  onContainerDrop: (lastVisibleId: number | null, event: DragEvent) => void;
 }
 
 /**
@@ -48,6 +53,10 @@ export function useDragAndDrop(selectedIds: Set<number>): DragAndDrop {
 
     // Allow dropping here, and only here—browsers otherwise reject the drop.
     event.preventDefault();
+    // Stops this from also bubbling up into the container's own
+    // onDragOver (see `onContainerDragOver`), which would otherwise
+    // immediately overwrite the drop indicator this just set.
+    event.stopPropagation();
     event.dataTransfer.dropEffect = "move";
 
     const rect = event.currentTarget.getBoundingClientRect();
@@ -59,21 +68,30 @@ export function useDragAndDrop(selectedIds: Set<number>): DragAndDrop {
     setDropIndicator((current) => (current?.targetId === id ? null : current));
   };
 
+  const sendMoveMessage = (targetId: number, position: DropPosition): void => {
+    if (draggedId === null) {
+      return;
+    }
+
+    const tabIds =
+      selectedIds.has(draggedId) && selectedIds.size > 1
+        ? [...selectedIds]
+        : [draggedId];
+
+    const message: TaborMessage = {
+      type: "moveNode",
+      tabIds,
+      target: { targetId, position },
+    };
+    void chrome.runtime.sendMessage(message);
+  };
+
   const onDrop = (id: number, event: DragEvent): void => {
     event.preventDefault();
+    event.stopPropagation();
 
     if (draggedId !== null && dropIndicator?.targetId === id) {
-      const tabIds =
-        selectedIds.has(draggedId) && selectedIds.size > 1
-          ? [...selectedIds]
-          : [draggedId];
-
-      const message: TaborMessage = {
-        type: "moveNode",
-        tabIds,
-        target: { targetId: id, position: dropIndicator.position },
-      };
-      void chrome.runtime.sendMessage(message);
+      sendMoveMessage(id, dropIndicator.position);
     }
 
     setDraggedId(null);
@@ -85,6 +103,42 @@ export function useDragAndDrop(selectedIds: Set<number>): DragAndDrop {
     setDropIndicator(null);
   };
 
+  const onContainerDragOver = (
+    lastVisibleId: number | null,
+    event: DragEvent,
+  ): void => {
+    if (
+      draggedId === null ||
+      lastVisibleId === null ||
+      draggedId === lastVisibleId
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setDropIndicator({ targetId: lastVisibleId, position: "after" });
+  };
+
+  const onContainerDrop = (
+    lastVisibleId: number | null,
+    event: DragEvent,
+  ): void => {
+    event.preventDefault();
+
+    if (
+      draggedId !== null &&
+      lastVisibleId !== null &&
+      dropIndicator?.targetId === lastVisibleId &&
+      dropIndicator.position === "after"
+    ) {
+      sendMoveMessage(lastVisibleId, "after");
+    }
+
+    setDraggedId(null);
+    setDropIndicator(null);
+  };
+
   return {
     dropIndicator,
     onDragStart,
@@ -92,5 +146,7 @@ export function useDragAndDrop(selectedIds: Set<number>): DragAndDrop {
     onDragLeave,
     onDrop,
     onDragEnd,
+    onContainerDragOver,
+    onContainerDrop,
   };
 }

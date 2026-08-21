@@ -79,6 +79,12 @@ body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* Lets `.tree-view` below stretch to fill any leftover height (see its own
+     `flex: 1`)—needed so dragging into the empty space below the last row,
+     when there are too few tabs to fill the panel, lands on `.tree-view`
+     itself rather than on nothing. */
+  display: flex;
+  flex-direction: column;
 }
 
 .app__loading {
@@ -112,7 +118,15 @@ body {
   padding: 0;
 }
 
+.tree-view {
+  /* Stretches to fill any leftover height in `.app` below the last row (see
+     `.app`'s own comment), so dropping in that empty space—when there are
+     too few tabs to fill the panel—lands on `.tree-view` itself. */
+  flex: 1;
+}
+
 .pinned-tabs {
+  flex-shrink: 0;
   border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
   padding-bottom: 4px;
   margin-bottom: 4px;

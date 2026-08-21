@@ -1,7 +1,11 @@
 import type { MouseEvent } from "react";
 import type { DragAndDrop } from "../hooks/useDragAndDrop";
 import type { NoteEditorAnchor, NoteEditorState } from "../hooks/useNoteEditor";
-import { getChildren, getUnpinnedRootNodes } from "../../shared/tree/queries";
+import {
+  getChildren,
+  getUnpinnedRootNodes,
+  getVisibleOrder,
+} from "../../shared/tree/queries";
 import type { TreeState } from "../../shared/tree/types";
 import { TabNodeView } from "./TabNodeView";
 
@@ -32,8 +36,26 @@ export function TreeView({
   onOpenNoteEditor,
   onCloseNoteEditor,
 }: TreeViewProps) {
+  // The last visible (unpinned) row, so a drop in the empty space below it—
+  // e.g. when there are too few tabs to fill the panel—resolves to "move to
+  // the end" instead of being silently ignored.
+  // `.filter(…).at(-1)` rather than `.findLast(…)`: the latter needs an
+  // ES2023 lib, one newer than this project's ES2022 target.
+  /* eslint-disable unicorn/prefer-array-find */
+  const lastVisibleId =
+    getVisibleOrder(tree)
+      .filter((node) => !node.pinned)
+      .at(-1)?.id ?? null;
+  /* eslint-enable unicorn/prefer-array-find */
+
   return (
-    <ul className="tree-view">
+    <ul
+      className="tree-view"
+      onDragOver={(event) =>
+        dragAndDrop.onContainerDragOver(lastVisibleId, event)
+      }
+      onDrop={(event) => dragAndDrop.onContainerDrop(lastVisibleId, event)}
+    >
       {getUnpinnedRootNodes(tree).map((node) => (
         <TreeNode
           key={node.id}
