@@ -240,6 +240,39 @@ const restoreTracking = (() => {
   };
 })();
 
+const TAB_URL_RESOLVE_RETRY_MS = 200;
+const TAB_URL_RESOLVE_MAX_ATTEMPTS = 5;
+
+/**
+ * `chrome.tabs.query` right after a large session restore can return tabs
+ * whose `url`/`pendingUrl` are still both empty—Chrome creates the tab
+ * objects (satisfying `waitForTabCreationToSettle`) before it's finished
+ * populating each one's destination, especially when many of them are kept
+ * discarded/unloaded rather than all loading at once. Matching a window
+ * while any of its tabs are in that state makes every saved-tree candidate
+ * score zero overlap, which `matchWindows` can't tell apart from a
+ * genuinely different set of tabs—so this retries the query a few times,
+ * giving Chrome a moment to fill those in, rather than risk treating a
+ * real match as none at all (and, following that, the saved tree being
+ * deleted as stale).
+ */
+async function queryTabsWithResolvedUrls(
+  windowId: number,
+): Promise<chrome.tabs.Tab[]> {
+  for (let attempt = 0; ; attempt++) {
+    const tabs = await chrome.tabs.query({ windowId });
+    const hasUnresolvedTab = tabs.some(
+      (tab) => !isTaborOwnTab(tab) && !tab.url && !tab.pendingUrl,
+    );
+    if (!hasUnresolvedTab || attempt >= TAB_URL_RESOLVE_MAX_ATTEMPTS) {
+      return tabs;
+    }
+    await new Promise((resolve) => {
+      setTimeout(resolve, TAB_URL_RESOLVE_RETRY_MS);
+    });
+  }
+}
+
 /**
  * Initialize a single new window with no history to reconcile against
  * (there's nothing saved yet under its brand-new window id). Waits for its
@@ -324,7 +357,7 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   const tabsByWindowId = new Map<number, chrome.tabs.Tab[]>();
   await Promise.all(
     windowIds.map(async (windowId) => {
-      const queriedTabs = await chrome.tabs.query({ windowId });
+      const queriedTabs = await queryTabsWithResolvedUrls(windowId);
       tabsByWindowId.set(
         windowId,
         // `excludeTabId` leaves out whichever tab's own `onCreated` event is
