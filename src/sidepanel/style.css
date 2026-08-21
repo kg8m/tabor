@@ -181,7 +181,7 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
+  padding: 4px 4px 4px 8px;
   border-radius: 4px;
   /* Matches the native tab strip's own cursor (a plain arrow, not a hand)
      rather than leaving this unset, which would otherwise fall back to the
@@ -384,25 +384,32 @@ body {
    title's own end moves, exactly like this item's other edge.
    `.tab-node__actions` sits flush with `.tab-node`'s own right edge
    (`right: 0` against its padding box), while this, as a normal flex child,
-   already sits `.tab-node`'s own 8px padding-right inward from that edge.
-   So the width needed here is the actions box's width *minus* that 8px, not
+   already sits `.tab-node`'s own 4px padding-right inward from that edge.
+   So the width needed here is the actions box's width *minus* that 4px, not
    its full width: three 20px buttons (12px icon + 4px horizontal padding
-   each side) side by side make a 60px box, so 60 - 8 = 52px (see below for
-   the narrower 32px case). */
+   each side) side by side make a 60px box, so 60 - 4 = 56px (see below for
+   the narrower 36px case).
+   This item also costs the row's own `gap: 6px` on its left (`.tab-node`'s
+   `gap` applies between every flex child regardless of that child's own
+   width), on top of the width set above—space the title/actions math never
+   accounts for. A permanent negative `margin-left` cancels exactly that gap
+   in every state (idle and hovered alike), so this item's width alone
+   matches the actions box math above with nothing extra in between. */
 .tab-node__note-spacer {
   flex: none;
   width: 0;
+  margin-left: -6px;
 }
 
 .tab-node:hover .tab-node__note-spacer {
-  width: 52px;
+  width: 56px;
 }
 
 /* Only the close and note buttons show for a suspended or the active tab
-   (see `.tab-node__actions`' contents): two 20px buttons, so 40 - 8 = 32px. */
+   (see `.tab-node__actions`' contents): two 20px buttons, so 40 - 4 = 36px. */
 .tab-node--suspended:hover .tab-node__note-spacer,
 .tab-node--active:hover .tab-node__note-spacer {
-  width: 32px;
+  width: 36px;
 }
 
 /* A note-having row's flex child right after the title, in place of
@@ -461,20 +468,23 @@ body {
    currently showing. Safe to vary with hover/suspended/active here, unlike
    `.tab-node__note-spacer` before the title stopped growing: this only ever
    trades space with the note text next to it, never with the title.
-   12px unhovered: just the note button's own 20px, 12 = 20 - 8 (see
-   `.tab-node__note-spacer` above for where that 8px comes from). */
+   16px unhovered: just the note button's own 20px, 16 = 20 - 4 (see
+   `.tab-node__note-spacer` above for where that 4px comes from). Also
+   permanently cancels the row's own `gap: 6px` on its left the same way
+   `.tab-node__note-spacer` does—see that rule's comment for why. */
 .tab-node__note-icon-spacer {
   flex: none;
-  width: 12px;
+  width: 16px;
+  margin-left: -6px;
 }
 
 .tab-node:hover .tab-node__note-icon-spacer {
-  width: 52px;
+  width: 56px;
 }
 
 .tab-node--suspended:hover .tab-node__note-icon-spacer,
 .tab-node--active:hover .tab-node__note-icon-spacer {
-  width: 32px;
+  width: 36px;
 }
 
 /* Absolutely positioned so it takes no space in the row's flex layout: the
