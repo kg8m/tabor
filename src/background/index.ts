@@ -76,8 +76,62 @@ function setAndPersistActiveTabId(windowId: number, tabId: number): void {
 // missing active-tab indicator after closing the active tab). Remove once
 // root-caused. Prefixed and timestamped so its output can be correlated
 // with the side panel's own `[Tabor:sidepanel]` logs (a separate console).
-function debugLog(event: string, data: Record<string, unknown>): void {
-  console.log(`[Tabor:background] ${event}`, { ...data, at: Date.now() });
+const DEBUG_LOG_KEY_PREFIX = "tabor:debug:";
+const DEBUG_LOG_RETENTION_MS = 12 * 60 * 60 * 1000;
+
+const debugLog = (() => {
+  let counter = 0;
+
+  return (event: string, data: Record<string, unknown>): void => {
+    // `JSON.stringify` here (rather than logging the object directly) so a
+    // copy-paste of the console output carries the actual field values—an
+    // inline console object otherwise collapses to a bare "Object" once
+    // pasted as plain text outside DevTools.
+    console.log(
+      `[Tabor:background] ${event}`,
+      JSON.stringify({ ...data, at: Date.now() }),
+    );
+
+    // Also persisted to `chrome.storage.local`, so it can be retrieved after
+    // the fact even if nobody had the service worker's inspector open while
+    // it happened—attaching that inspector itself keeps the service worker
+    // alive, which can mask a bug that only shows up when it's genuinely
+    // killed for going idle and restarted later. Each entry gets its own
+    // unique key (timestamp + counter) rather than appending to one shared
+    // array, so concurrent `debugLog` calls can't race on a read-modify-write
+    // and silently drop entries—the same kind of race `enqueue` had.
+    // Pruned by `pruneOldDebugLogs` (see below) so these don't accumulate
+    // forever.
+    const key = `${DEBUG_LOG_KEY_PREFIX}${Date.now()}-${counter}`;
+    counter += 1;
+    void chrome.storage.local.set({
+      [key]: { event, ...data, at: Date.now() },
+    });
+  };
+})();
+
+// TODO(debug): removes `debugLog`'s persisted entries once they're older
+// than `DEBUG_LOG_RETENTION_MS`, so leaving this instrumentation running for
+// an extended stretch (waiting on an intermittent bug to recur) doesn't grow
+// `chrome.storage.local` without bound. Half a day is plenty: whatever
+// triggers a bug worth digging into is almost always something done not
+// long before it's noticed. Piggybacks on the existing 5-minute backup
+// alarm (see `handleBackupAlarm`) instead of a dedicated one.
+async function pruneOldDebugLogs(): Promise<void> {
+  const all = await chrome.storage.local.get(null);
+  const cutoff = Date.now() - DEBUG_LOG_RETENTION_MS;
+  const staleKeys = Object.keys(all).filter((key) => {
+    if (!key.startsWith(DEBUG_LOG_KEY_PREFIX)) {
+      return false;
+    }
+    const timestamp = Number(
+      key.slice(DEBUG_LOG_KEY_PREFIX.length).split("-", 1)[0],
+    );
+    return !Number.isNaN(timestamp) && timestamp < cutoff;
+  });
+  if (staleKeys.length > 0) {
+    await chrome.storage.local.remove(staleKeys);
+  }
 }
 
 /**
@@ -213,6 +267,10 @@ async function initializeWindow(windowId: number): Promise<void> {
   const actualTabs = tabs.map((tab) => toActualTab(tab));
 
   const savedTree = (await loadTree(windowId)) ?? { nodes: {}, rootIds: [] };
+  debugLog("initializeWindow", {
+    windowId,
+    savedNodeCount: Object.keys(savedTree.nodes).length,
+  });
   const session = createRestoreSession(savedTree);
   const tree = restoreTree(savedTree, actualTabs, session);
 
@@ -299,12 +357,31 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
     matches.map((match) => [match.actualWindowId, match]),
   );
 
+  debugLog("initializeAllWindows", {
+    actualWindowIds: windowIds,
+    savedWindowIds: savedWindows.map((window) => window.windowId),
+    matches: matches.map((match) => ({
+      actualWindowId: match.actualWindowId,
+      savedWindowId: match.savedWindowId,
+    })),
+  });
+
   await Promise.all(
     actualWindows.map(async (actualWindow) => {
       const savedTree = matchByActualWindowId.get(actualWindow.windowId)
         ?.savedTree ?? { nodes: {}, rootIds: [] };
       const session = createRestoreSession(savedTree);
       const tree = restoreTree(savedTree, actualWindow.tabs, session);
+
+      debugLog("initializeAllWindows:restored", {
+        actualWindowId: actualWindow.windowId,
+        savedNodeCount: Object.keys(savedTree.nodes).length,
+        restoredNodeCount: Object.keys(tree.nodes).length,
+        restoredChildIdCount: Object.values(tree.nodes).reduce(
+          (total, node) => total + node.childIds.length,
+          0,
+        ),
+      });
 
       setTree(actualWindow.windowId, tree);
       setRestoreSession(actualWindow.windowId, session);
@@ -439,7 +516,9 @@ const ensureInitialized = (() => {
   // the same promise as before.
   return async (excludeTabId?: number): Promise<void> => {
     initializationPromise ??= (async () => {
-      if (await hasReconciledThisBrowserSession()) {
+      const isReconciled = await hasReconciledThisBrowserSession();
+      debugLog("ensureInitialized", { isReconciled, excludeTabId });
+      if (isReconciled) {
         await reloadFromStorage();
       } else {
         await initializeAllWindows(excludeTabId);
@@ -889,6 +968,7 @@ const BACKUP_INTERVAL_MINUTES = 5;
  */
 async function handleBackupAlarm(): Promise<void> {
   await ensureInitialized();
+  await pruneOldDebugLogs();
 
   const windows = getAllTrees();
   if (Object.keys(windows).length === 0) {
@@ -936,7 +1016,12 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 // firing it and returning void) so the MV3 service worker stays alive until
 // the underlying chrome.tabs/chrome.storage calls actually finish.
 
-chrome.runtime.onStartup.addListener(() => enqueue(ensureInitialized));
+chrome.runtime.onStartup.addListener(() =>
+  enqueue(async () => {
+    debugLog("runtime.onStartup", {});
+    await ensureInitialized();
+  }),
+);
 chrome.runtime.onInstalled.addListener(() => enqueue(ensureInitialized));
 
 // Open the side panel when the toolbar action is clicked, since we don't
@@ -959,6 +1044,11 @@ chrome.windows.onCreated.addListener((window) =>
     // browser startup would, instead of `initializeWindow`'s history-less
     // path.
     const isGapPending = await isNormalWindowsGapPending();
+    debugLog("windows.onCreated", {
+      windowId: window.id,
+      windowType: window.type,
+      isGapPending,
+    });
     if (isGapPending && window.type === "normal") {
       await clearNormalWindowsGapPending();
       await initializeAllWindows();
@@ -976,6 +1066,10 @@ chrome.windows.onRemoved.addListener((windowId) =>
 
     const remainingNormalWindows = await chrome.windows.getAll({
       windowTypes: ["normal"],
+    });
+    debugLog("windows.onRemoved", {
+      windowId,
+      remainingNormalWindows: remainingNormalWindows.length,
     });
     if (remainingNormalWindows.length === 0) {
       await markNormalWindowsGapPending();
