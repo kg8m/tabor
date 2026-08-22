@@ -44,13 +44,24 @@ describe("pickFocusTarget", () => {
     expect(pickFocusTarget(tree, 3, new Set())).toBe(4);
   });
 
-  it("focuses the preceding sibling directly when it has no descendants", () => {
+  it("prefers the following sibling even when the preceding sibling has no descendants", () => {
     const a = createNode({ id: 1 });
     const c = createNode({ id: 2 });
     const d = createNode({ id: 3 });
     const tree: TreeState = {
       nodes: { 1: a, 2: c, 3: d },
       rootIds: [1, 2, 3],
+    };
+
+    expect(pickFocusTarget(tree, 2, new Set())).toBe(3);
+  });
+
+  it("falls back to the preceding sibling when it has no descendants and there's no following sibling", () => {
+    const a = createNode({ id: 1 });
+    const c = createNode({ id: 2 });
+    const tree: TreeState = {
+      nodes: { 1: a, 2: c },
+      rootIds: [1, 2],
     };
 
     expect(pickFocusTarget(tree, 2, new Set())).toBe(1);
@@ -137,10 +148,9 @@ describe("pickFocusTarget", () => {
     const a = createNode({ id: 1, pinned: true });
     const b = createNode({ id: 2, pinned: true });
     const c = createNode({ id: 3, pinned: false });
-    const d = createNode({ id: 4, pinned: false });
     const tree: TreeState = {
-      nodes: { 1: a, 2: b, 3: c, 4: d },
-      rootIds: [1, 2, 3, 4],
+      nodes: { 1: a, 2: b, 3: c },
+      rootIds: [1, 2, 3],
     };
 
     expect(pickFocusTarget(tree, 3, new Set())).toBe(2);
@@ -150,20 +160,21 @@ describe("pickFocusTarget", () => {
     // Pinned tabs are always displayed above the regular tree (their own
     // section), but `rootIds` doesn't guarantee they actually sort first —
     // here the closed tab is literally the first entry in `rootIds`, with
-    // both pinned tabs coming right after it.
+    // both pinned tabs coming right after it. With no following sibling to
+    // prefer, its preceding sibling by display order is the pinned tab b,
+    // not nothing (which raw `rootIds` order would suggest).
     const closed = createNode({ id: 1, pinned: false });
     const a = createNode({ id: 2, pinned: true });
     const b = createNode({ id: 3, pinned: true });
-    const d = createNode({ id: 4, pinned: false });
     const tree: TreeState = {
-      nodes: { 1: closed, 2: a, 3: b, 4: d },
-      rootIds: [1, 2, 3, 4],
+      nodes: { 1: closed, 2: a, 3: b },
+      rootIds: [1, 2, 3],
     };
 
     expect(pickFocusTarget(tree, 1, new Set())).toBe(3);
   });
 
-  it("focuses the preceding pinned sibling directly, instead of skipping to the next sibling", () => {
+  it("prefers the following sibling over a childless preceding pinned sibling", () => {
     const pinned = createNode({ id: 1, pinned: true });
     const closed = createNode({ id: 2, pinned: false });
     const next = createNode({ id: 3, pinned: false });
@@ -172,6 +183,6 @@ describe("pickFocusTarget", () => {
       rootIds: [1, 2, 3],
     };
 
-    expect(pickFocusTarget(tree, 2, new Set())).toBe(1);
+    expect(pickFocusTarget(tree, 2, new Set())).toBe(3);
   });
 });

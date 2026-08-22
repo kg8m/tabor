@@ -58,10 +58,11 @@ function siblingIdsOf(tree: TreeState, node: TabNode): number[] {
  * 1. The nearest surviving descendant (depth-first) within the closed tab's
  *    own subtree.
  * 2. Among real siblings (same parent — pinned tabs are always roots, so a
- *    pinned tab and an unpinned root count as siblings too): the immediately
- *    preceding sibling if it has no children of its own (i.e. it IS the
- *    depth-first predecessor); otherwise the nearest following sibling, or
- *    failing that, the nearest surviving depth-first predecessor overall.
+ *    pinned tab and an unpinned root count as siblings too): the nearest
+ *    following sibling; failing that, the immediately preceding sibling if
+ *    it has no children of its own (i.e. it IS the depth-first
+ *    predecessor); failing that, the nearest surviving depth-first
+ *    predecessor overall.
  * 3. The nearest surviving ancestor.
  * 4. `undefined` if nothing survives.
  */
@@ -91,15 +92,6 @@ export function pickFocusTarget(
 
   if (siblingIds.length > 1) {
     const index = siblingIds.indexOf(closedId);
-    const previousId = siblingIds[index - 1];
-
-    if (
-      previousId !== undefined &&
-      getNode(tree, previousId)?.childIds.length === 0 &&
-      isSurvivor(previousId)
-    ) {
-      return previousId;
-    }
 
     for (
       let siblingIndex = index + 1;
@@ -110,6 +102,16 @@ export function pickFocusTarget(
       if (siblingId !== undefined && isSurvivor(siblingId)) {
         return siblingId;
       }
+    }
+
+    const previousId = siblingIds[index - 1];
+
+    if (
+      previousId !== undefined &&
+      getNode(tree, previousId)?.childIds.length === 0 &&
+      isSurvivor(previousId)
+    ) {
+      return previousId;
     }
 
     for (
