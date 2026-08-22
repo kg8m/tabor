@@ -187,6 +187,7 @@ export function TabNodeView({
             ? "tab-node__title tab-node__title--overflowing"
             : "tab-node__title"
         }
+        title={isTitleOverflowing ? node.title : undefined}
       >
         {node.title}
       </span>
