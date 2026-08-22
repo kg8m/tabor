@@ -5,6 +5,7 @@ const EMPTY_TREE: TreeState = { nodes: {}, rootIds: [] };
 
 const trees = new Map<number, TreeState>();
 const activeTabIds = new Map<number, number>();
+const previousActiveTabIds = new Map<number, number>();
 const restoreSessions = new Map<number, RestoreSession>();
 
 export function getTree(windowId: number): TreeState {
@@ -23,7 +24,24 @@ export function getActiveTabId(windowId: number): number | undefined {
   return activeTabIds.get(windowId);
 }
 
+/**
+ * The tab that was active immediately before the current one—closing the
+ * active tab natively (not through Tabor's own UI) fires `tabs.onActivated`
+ * for Chrome's own replacement pick *before* `tabs.onRemoved` for the closed
+ * tab, so by the time `onRemoved` runs, `getActiveTabId` already reflects
+ * the replacement rather than the tab that just closed. `noteTabRemoved`
+ * (`pending-close.ts`) falls back to this to recover which tab was actually
+ * active when the close happened.
+ */
+export function getPreviousActiveTabId(windowId: number): number | undefined {
+  return previousActiveTabIds.get(windowId);
+}
+
 export function setActiveTabId(windowId: number, tabId: number): void {
+  const current = activeTabIds.get(windowId);
+  if (current !== undefined) {
+    previousActiveTabIds.set(windowId, current);
+  }
   activeTabIds.set(windowId, tabId);
 }
 
@@ -54,5 +72,6 @@ export function removeRestoreSession(windowId: number): void {
 export function deleteWindow(windowId: number): void {
   trees.delete(windowId);
   activeTabIds.delete(windowId);
+  previousActiveTabIds.delete(windowId);
   restoreSessions.delete(windowId);
 }

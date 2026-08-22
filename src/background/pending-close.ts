@@ -1,6 +1,6 @@
 import { pickFocusTarget } from "../shared/tree/focus-target";
 import type { TreeState } from "../shared/tree/types";
-import { getActiveTabId, getTree } from "./store";
+import { getActiveTabId, getPreviousActiveTabId, getTree } from "./store";
 
 // How long to wait, after the last unregistered `onRemoved` for a window, for
 // more to arrive before deciding the focus target — covers a close initiated
@@ -28,18 +28,7 @@ interface PendingBatch {
 
 const pendingBatches = new Map<number, PendingBatch>();
 
-// TODO(debug): temporary instrumentation to root-cause an intermittent report
-// that closing the active tab from outside Tabor (e.g. another extension
-// calling chrome.tabs.remove) sometimes ends up focusing the wrong tab.
-// Remove once root-caused.
-function debugLog(event: string, data: Record<string, unknown>): void {
-  console.log(
-    `[Tabor:pending-close] ${event}`,
-    JSON.stringify({ ...data, at: Date.now() }),
-  );
-}
-
-async function flush(windowId: number): Promise<void> {
+function flush(windowId: number): void {
   const batch = pendingBatches.get(windowId);
   if (batch === undefined) {
     return;
@@ -47,24 +36,12 @@ async function flush(windowId: number): Promise<void> {
   pendingBatches.delete(windowId);
   clearTimeout(batch.timer);
 
-  const beforeUpdate = await chrome.tabs.query({ active: true, windowId });
-  debugLog("flush", {
-    windowId,
-    activeIdAtStart: batch.activeIdAtStart,
-    seenIds: [...batch.seenIds],
-    actualActiveTabIdBeforeUpdate: beforeUpdate[0]?.id,
-  });
-
   // Nothing to correct if the tab that was active when the batch started
   // isn't one of the ones actually closed.
   if (
     batch.activeIdAtStart === undefined ||
     !batch.seenIds.has(batch.activeIdAtStart)
   ) {
-    debugLog("flush: bailing, active-at-start tab wasn't closed", {
-      windowId,
-      activeIdAtStart: batch.activeIdAtStart,
-    });
     return;
   }
 
@@ -73,37 +50,9 @@ async function flush(windowId: number): Promise<void> {
     batch.activeIdAtStart,
     batch.seenIds,
   );
-  debugLog("flush: computed target", { windowId, target });
-  if (target === undefined) {
-    return;
+  if (target !== undefined) {
+    void chrome.tabs.update(target, { active: true });
   }
-
-  try {
-    await chrome.tabs.update(target, { active: true });
-    debugLog("flush: chrome.tabs.update succeeded", { windowId, target });
-  } catch (error) {
-    debugLog("flush: chrome.tabs.update threw", {
-      windowId,
-      target,
-      error: String(error),
-    });
-    return;
-  }
-
-  // Check back shortly after: did our own activation actually stick, or did
-  // something else (Chrome's own default reassignment, another extension)
-  // change it again right after?
-  setTimeout(() => {
-    void (async () => {
-      const after = await chrome.tabs.query({ active: true, windowId });
-      debugLog("flush: active tab, some time after our update", {
-        windowId,
-        target,
-        actualActiveTabIdAfterDelay: after[0]?.id,
-        matchesTarget: after[0]?.id === target,
-      });
-    })();
-  }, 300);
 }
 
 /**
@@ -135,10 +84,31 @@ export function registerPendingClose(windowId: number, tabIds: number[]): void {
     snapshot: getTree(windowId),
     activeIdAtStart: getActiveTabId(windowId),
     timer: setTimeout(
-      () => void flush(windowId),
+      () => flush(windowId),
       REGISTERED_BATCH_SAFETY_TIMEOUT_MS,
     ),
   });
+}
+
+/**
+ * The active tab as it stood right before `tabId`'s close, for a close
+ * Tabor didn't see coming (no `registerPendingClose`). Closing the active
+ * tab natively fires `tabs.onActivated` for Chrome's own replacement pick
+ * before `tabs.onRemoved` for the closed tab, so `getActiveTabId` alone
+ * would already reflect the replacement rather than `tabId` itself in that
+ * case—fall back to the previously-active tab when that's what happened.
+ */
+function activeTabIdBeforeClose(
+  windowId: number,
+  tabId: number,
+): number | undefined {
+  const current = getActiveTabId(windowId);
+  if (current === tabId) {
+    return current;
+  }
+
+  const previous = getPreviousActiveTabId(windowId);
+  return previous === tabId ? previous : current;
 }
 
 /**
@@ -154,8 +124,8 @@ export function noteTabRemoved(windowId: number, tabId: number): void {
       expectedIds: null,
       seenIds: new Set(),
       snapshot: getTree(windowId),
-      activeIdAtStart: getActiveTabId(windowId),
-      timer: setTimeout(() => void flush(windowId), NATIVE_BATCH_DEBOUNCE_MS),
+      activeIdAtStart: activeTabIdBeforeClose(windowId, tabId),
+      timer: setTimeout(() => flush(windowId), NATIVE_BATCH_DEBOUNCE_MS),
     };
     pendingBatches.set(windowId, batch);
   }
@@ -175,10 +145,7 @@ export function settlePendingClose(windowId: number): void {
 
   if (batch.expectedIds === null) {
     clearTimeout(batch.timer);
-    batch.timer = setTimeout(
-      () => void flush(windowId),
-      NATIVE_BATCH_DEBOUNCE_MS,
-    );
+    batch.timer = setTimeout(() => flush(windowId), NATIVE_BATCH_DEBOUNCE_MS);
     return;
   }
 
@@ -186,7 +153,7 @@ export function settlePendingClose(windowId: number): void {
     batch.seenIds.has(id),
   );
   if (hasSeenAllExpected) {
-    void flush(windowId);
+    flush(windowId);
   }
 }
 
