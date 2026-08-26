@@ -47,16 +47,19 @@ export function useDragAndDrop(selectedIds: Set<number>): DragAndDrop {
   };
 
   const onDragOver = (id: number, event: DragEvent): void => {
+    // Always stop this from bubbling into the container's own onDragOver
+    // (see `onContainerDragOver`)—a hover over any row, valid drop target or
+    // not (e.g. hovering the very row being dragged), should never be
+    // reinterpreted as the "empty space below the tree" gesture.
+    event.stopPropagation();
+
     if (draggedId === null || draggedId === id) {
+      setDropIndicator(null);
       return;
     }
 
     // Allow dropping here, and only here—browsers otherwise reject the drop.
     event.preventDefault();
-    // Stops this from also bubbling up into the container's own
-    // onDragOver (see `onContainerDragOver`), which would otherwise
-    // immediately overwrite the drop indicator this just set.
-    event.stopPropagation();
     event.dataTransfer.dropEffect = "move";
 
     const rect = event.currentTarget.getBoundingClientRect();
