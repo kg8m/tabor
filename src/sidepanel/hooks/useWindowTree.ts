@@ -4,6 +4,10 @@ import type { TreeState } from "../../shared/tree/types";
 
 const EMPTY_TREE: TreeState = { nodes: {}, rootIds: [] };
 
+/**
+ * The live tree for a window, and whether it's still loading (see
+ * `isLoading`).
+ */
 export interface WindowTree {
   tree: TreeState;
   // True until this window's tree is actually found in storage. A window

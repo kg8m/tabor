@@ -1,15 +1,24 @@
 import { useState } from "react";
 
+/**
+ * The screen position to anchor the note-editing popover at.
+ */
 export interface NoteEditorAnchor {
   x: number;
   y: number;
 }
 
+/**
+ * Which tab's note-editing popover is open, and where to anchor it.
+ */
 export interface NoteEditorState {
   tabId: number;
   anchor: NoteEditorAnchor;
 }
 
+/**
+ * The note-editor state and controls returned by `useNoteEditor`.
+ */
 export interface NoteEditorControls {
   editor: NoteEditorState | null;
   openEditor: (tabId: number, anchor: NoteEditorAnchor) => void;

@@ -6,14 +6,22 @@ import type { TreeState } from "../../shared/tree/types";
 
 const DRAG_DATA_TYPE = "application/x-tabor-tab-id";
 
-// A "node" indicator marks a specific row's top/bottom/middle, per
-// `resolveDropPosition`. An "end" indicator instead represents the empty
-// space below the whole tree (see `onContainerDragOver`)—it isn't anchored
-// to any one row, since a drop there always makes the dragged tab a new
-// top-level tab regardless of which row happens to render last.
+/**
+ * Where the currently dragged tab would land if dropped right now, or
+ * `null` if nowhere valid.
+ *
+ * A "node" indicator marks a specific row's top/bottom/middle, per
+ * `resolveDropPosition`. An "end" indicator instead represents the empty
+ * space below the whole tree (see `onContainerDragOver`)—it isn't anchored
+ * to any one row, since a drop there always makes the dragged tab a new
+ * top-level tab regardless of which row happens to render last.
+ */
 export type DropIndicator =
   { kind: "node"; targetId: number; position: DropPosition } | { kind: "end" };
 
+/**
+ * The drag-and-drop state and handlers returned by `useDragAndDrop`.
+ */
 export interface DragAndDrop {
   dropIndicator: DropIndicator | null;
   onDragStart: (id: number, event: DragEvent) => void;

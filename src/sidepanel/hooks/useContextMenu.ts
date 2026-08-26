@@ -1,11 +1,17 @@
 import { useState, type MouseEvent } from "react";
 
+/**
+ * Where the open context menu is anchored, and which tabs it acts on.
+ */
 export interface ContextMenuState {
   x: number;
   y: number;
   targetIds: number[];
 }
 
+/**
+ * The context menu state and controls returned by `useContextMenu`.
+ */
 export interface ContextMenuControls {
   menu: ContextMenuState | null;
   openMenu: (

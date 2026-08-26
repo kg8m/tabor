@@ -2,6 +2,9 @@ import { useState, type MouseEvent } from "react";
 import { getVisibleOrder } from "../../shared/tree/queries";
 import type { TreeState } from "../../shared/tree/types";
 
+/**
+ * The multi-selection state and handlers returned by `useSelection`.
+ */
 export interface Selection {
   selectedIds: Set<number>;
   handleNodeClick: (id: number, event: MouseEvent) => void;
