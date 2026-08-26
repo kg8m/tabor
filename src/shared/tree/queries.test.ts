@@ -8,6 +8,7 @@ import {
   getRootNodes,
   getUnpinnedRootNodes,
   getVisibleOrder,
+  isSelfOrDescendant,
 } from "./queries";
 import { createNode } from "./test-helpers";
 import type { TreeState } from "./types";
@@ -56,6 +57,39 @@ describe("getChildren", () => {
   it("returns an empty array for an unknown id", () => {
     const tree = createSampleTree();
     expect(getChildren(tree, 999)).toEqual([]);
+  });
+});
+
+describe("isSelfOrDescendant", () => {
+  it("returns true when id is the ancestorId itself", () => {
+    const tree = createSampleTree();
+    expect(isSelfOrDescendant(tree, 2, 2)).toBe(true);
+  });
+
+  it("returns true for a direct child", () => {
+    const tree = createSampleTree();
+    expect(isSelfOrDescendant(tree, 2, 3)).toBe(true);
+  });
+
+  it("returns true for a deeper descendant", () => {
+    const tree = createSampleTree();
+    expect(isSelfOrDescendant(tree, 1, 3)).toBe(true);
+  });
+
+  it("returns false for a node that isn't a descendant", () => {
+    const tree = createSampleTree();
+    expect(isSelfOrDescendant(tree, 2, 4)).toBe(false);
+    expect(isSelfOrDescendant(tree, 3, 1)).toBe(false);
+    expect(isSelfOrDescendant(tree, 1, 5)).toBe(false);
+  });
+
+  it("doesn't loop forever if the data is corrupted into a cycle", () => {
+    // A -> B -> A (each is the other's parent and child).
+    const a = createNode({ id: 1, parentId: 2, childIds: [2] });
+    const b = createNode({ id: 2, parentId: 1, childIds: [1] });
+    const tree: TreeState = { nodes: { 1: a, 2: b }, rootIds: [] };
+
+    expect(isSelfOrDescendant(tree, 3, 1)).toBe(false);
   });
 });
 

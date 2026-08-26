@@ -1,6 +1,8 @@
 import { useState, type DragEvent } from "react";
 import type { TaborMessage } from "../../shared/messages";
 import { resolveDropPosition, type DropPosition } from "../../shared/tree/drop";
+import { isSelfOrDescendant } from "../../shared/tree/queries";
+import type { TreeState } from "../../shared/tree/types";
 
 const DRAG_DATA_TYPE = "application/x-tabor-tab-id";
 
@@ -34,7 +36,10 @@ export interface DragAndDrop {
  * `DataTransfer` during `dragover`, since browsers don't expose the dragged
  * data until the actual `drop`.
  */
-export function useDragAndDrop(selectedIds: Set<number>): DragAndDrop {
+export function useDragAndDrop(
+  selectedIds: Set<number>,
+  tree: TreeState,
+): DragAndDrop {
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(
     null,
@@ -53,7 +58,11 @@ export function useDragAndDrop(selectedIds: Set<number>): DragAndDrop {
     // reinterpreted as the "empty space below the tree" gesture.
     event.stopPropagation();
 
-    if (draggedId === null || draggedId === id) {
+    // Also covers `draggedId === id`: dropping a node onto itself or one of
+    // its own descendants would create a cycle, which `moveNode` already
+    // refuses—reject it here too so the indicator never implies a drop that
+    // wouldn't actually do anything.
+    if (draggedId === null || isSelfOrDescendant(tree, draggedId, id)) {
       setDropIndicator(null);
       return;
     }

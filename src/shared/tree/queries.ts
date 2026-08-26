@@ -40,6 +40,33 @@ export function getDescendantIds(tree: TreeState, id: number): number[] {
   return result;
 }
 
+/**
+ * Whether `id` is `ancestorId` itself or one of its descendants, walking up
+ * `parentId` links. Bails out safely (returns `false`) if it revisits a node,
+ * rather than looping forever on an already-corrupt, cyclic tree.
+ */
+export function isSelfOrDescendant(
+  tree: TreeState,
+  ancestorId: number,
+  id: number,
+): boolean {
+  const visited = new Set<number>();
+  let current: number | undefined = id;
+
+  while (current !== undefined) {
+    if (current === ancestorId) {
+      return true;
+    }
+    if (visited.has(current)) {
+      return false;
+    }
+    visited.add(current);
+    current = tree.nodes[current]?.parentId ?? undefined;
+  }
+
+  return false;
+}
+
 export function getRootNodes(tree: TreeState): TabNode[] {
   return tree.rootIds
     .map((id) => getNode(tree, id))

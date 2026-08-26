@@ -1,5 +1,5 @@
 import type { DropPosition } from "./drop";
-import { flattenDepthFirst } from "./queries";
+import { flattenDepthFirst, isSelfOrDescendant } from "./queries";
 import type { TabNode, TreeState } from "./types";
 
 export interface NewTabInput {
@@ -271,33 +271,6 @@ function attachAt(
   nodes[parent.id] = { ...parent, childIds };
 
   return { nodes, rootIds: tree.rootIds };
-}
-
-/**
- * Whether `id` is `ancestorId` itself or one of its descendants, walking up
- * `parentId` links. Bails out safely (returns `false`) if it revisits a node,
- * rather than looping forever on an already-corrupt, cyclic tree.
- */
-function isSelfOrDescendant(
-  tree: TreeState,
-  ancestorId: number,
-  id: number,
-): boolean {
-  const visited = new Set<number>();
-  let current: number | undefined = id;
-
-  while (current !== undefined) {
-    if (current === ancestorId) {
-      return true;
-    }
-    if (visited.has(current)) {
-      return false;
-    }
-    visited.add(current);
-    current = tree.nodes[current]?.parentId ?? undefined;
-  }
-
-  return false;
 }
 
 /**

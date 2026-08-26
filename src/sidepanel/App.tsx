@@ -23,7 +23,7 @@ export function App() {
     tree,
     activeTabId,
   );
-  const dragAndDrop = useDragAndDrop(selectedIds);
+  const dragAndDrop = useDragAndDrop(selectedIds, tree);
   const { menu, openMenu, closeMenu } = useContextMenu();
   const { editor: noteEditor, openEditor, closeEditor } = useNoteEditor();
   const contextMenuTargetIds = menu
