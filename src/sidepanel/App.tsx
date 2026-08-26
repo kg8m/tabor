@@ -14,6 +14,10 @@ import { useWindowId } from "./hooks/useWindowId";
 import { useWindowTree } from "./hooks/useWindowTree";
 import { getDescendantIds } from "../shared/tree/queries";
 
+/**
+ * The side panel's root component: wires the tree, selection, drag-and-drop,
+ * and the context menu/note-editor popovers together.
+ */
 export function App() {
   const windowId = useWindowId();
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);

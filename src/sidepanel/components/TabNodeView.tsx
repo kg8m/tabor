@@ -41,6 +41,11 @@ interface TabNodeViewProps {
   onDragEnd?: () => void;
 }
 
+/**
+ * A single tab row in the tree, with its favicon/title, drag-and-drop
+ * handlers, and the pin/pause/audible/note/collapse affordances shown per
+ * its state.
+ */
 export function TabNodeView({
   node,
   windowId,

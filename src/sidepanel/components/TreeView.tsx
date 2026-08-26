@@ -19,6 +19,10 @@ interface TreeViewProps {
   onCloseNoteEditor: () => void;
 }
 
+/**
+ * Renders every unpinned root node (and its descendants) as the tree,
+ * delegating each row's own rendering to `TabNodeView`.
+ */
 export function TreeView({
   tree,
   windowId,

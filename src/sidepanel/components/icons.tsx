@@ -18,6 +18,10 @@ function IconBase(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/**
+ * The expand/collapse toggle for a node with children; rotated per
+ * `collapsed`.
+ */
 export function ChevronIcon({ collapsed }: { collapsed: boolean }) {
   return (
     <IconBase
@@ -33,6 +37,9 @@ export function ChevronIcon({ collapsed }: { collapsed: boolean }) {
   );
 }
 
+/**
+ * Marks a pinned tab.
+ */
 export function PinIcon() {
   return (
     <IconBase width="12" height="12" fill="currentColor">
@@ -41,6 +48,9 @@ export function PinIcon() {
   );
 }
 
+/**
+ * Marks a suspended (discarded) tab.
+ */
 export function PauseIcon() {
   return (
     <IconBase width="12" height="12" fill="currentColor">
@@ -50,6 +60,9 @@ export function PauseIcon() {
   );
 }
 
+/**
+ * Opens the backup history panel.
+ */
 export function HistoryIcon() {
   return (
     <IconBase
@@ -105,6 +118,9 @@ export function LeafIcon() {
   );
 }
 
+/**
+ * Marks a tab currently playing audio.
+ */
 export function AudibleIcon() {
   return (
     <IconBase
@@ -123,6 +139,9 @@ export function AudibleIcon() {
   );
 }
 
+/**
+ * Opens or indicates a tab's note.
+ */
 export function NoteIcon() {
   return (
     <IconBase
@@ -140,6 +159,9 @@ export function NoteIcon() {
   );
 }
 
+/**
+ * Reloads a tab.
+ */
 export function ReloadIcon() {
   return (
     <IconBase
@@ -157,6 +179,9 @@ export function ReloadIcon() {
   );
 }
 
+/**
+ * Closes a tab.
+ */
 export function CloseIcon() {
   return (
     <IconBase
