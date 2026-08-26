@@ -2,6 +2,10 @@ import type { DropPosition } from "./drop";
 import { flattenDepthFirst, isSelfOrDescendant } from "./queries";
 import type { TabNode, TreeState } from "./types";
 
+/**
+ * The subset of a newly created tab's data needed to add it to the
+ * tree—see `addTab`.
+ */
 export interface NewTabInput {
   id: number;
   url: string;
@@ -126,6 +130,11 @@ export function removeTab(tree: TreeState, id: number): TreeState {
   return { nodes, rootIds: tree.rootIds };
 }
 
+/**
+ * The tab properties `updateTab` can change—everything except tree
+ * position, which the move functions (`moveNode`/`moveNodes`/
+ * `reorderFromNativeMove`) handle separately.
+ */
 export type TabUpdate = Partial<
   Pick<
     TabNode,
@@ -348,6 +357,9 @@ export function reorderFromNativeMove(
   );
 }
 
+/**
+ * Where a drag-and-drop move should land—see `moveNode`.
+ */
 export interface DropTarget {
   targetId: number;
   position: DropPosition;

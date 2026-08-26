@@ -3,6 +3,9 @@ import type { TreeState } from "./types";
 
 const BACKUP_KEY_PREFIX = "tabor:backup:";
 
+/**
+ * One point-in-time backup: every window's tree as it stood at `timestamp`.
+ */
 export interface BackupSnapshot {
   timestamp: number;
   windows: Record<number, TreeState>;
@@ -12,6 +15,10 @@ function getBackupStorageKey(timestamp: number): string {
   return `${BACKUP_KEY_PREFIX}${timestamp}`;
 }
 
+/**
+ * Persist a full-state snapshot, keyed by `timestamp` (see
+ * `selectBackupTimestampsToKeep` for how backups are later thinned out).
+ */
 export async function saveBackup(
   timestamp: number,
   windows: Record<number, TreeState>,
@@ -31,6 +38,10 @@ function normalizeWindows(
   return normalized;
 }
 
+/**
+ * Load the snapshot saved at `timestamp`, or `undefined` if none exists
+ * (e.g. it's already been thinned out).
+ */
 export async function loadBackup(
   timestamp: number,
 ): Promise<Record<number, TreeState> | undefined> {
@@ -40,6 +51,9 @@ export async function loadBackup(
   return windows === undefined ? undefined : normalizeWindows(windows);
 }
 
+/**
+ * Load every backup snapshot currently in storage, in no particular order.
+ */
 export async function loadAllBackups(): Promise<BackupSnapshot[]> {
   const all = await chrome.storage.local.get(null);
   const backups: BackupSnapshot[] = [];
@@ -58,6 +72,9 @@ export async function loadAllBackups(): Promise<BackupSnapshot[]> {
   return backups;
 }
 
+/**
+ * Delete the backups saved at the given timestamps.
+ */
 export async function removeBackups(timestamps: number[]): Promise<void> {
   await chrome.storage.local.remove(
     timestamps.map((timestamp) => getBackupStorageKey(timestamp)),

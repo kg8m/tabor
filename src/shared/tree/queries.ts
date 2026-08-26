@@ -1,9 +1,16 @@
 import type { TabNode, TreeState } from "./types";
 
+/**
+ * Look up a node by id, or `undefined` if it's not (or no longer) in the
+ * tree.
+ */
 export function getNode(tree: TreeState, id: number): TabNode | undefined {
   return tree.nodes[id];
 }
 
+/**
+ * A node's direct children, in sibling order.
+ */
 export function getChildren(tree: TreeState, id: number): TabNode[] {
   const node = getNode(tree, id);
   if (node === undefined) {
@@ -67,6 +74,9 @@ export function isSelfOrDescendant(
   return false;
 }
 
+/**
+ * Every root-level node (pinned and unpinned), in display order.
+ */
 export function getRootNodes(tree: TreeState): TabNode[] {
   return tree.rootIds
     .map((id) => getNode(tree, id))

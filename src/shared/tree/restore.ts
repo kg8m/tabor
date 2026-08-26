@@ -7,6 +7,11 @@ import {
 import { flattenDepthFirst } from "./queries";
 import type { TabNode, TreeState } from "./types";
 
+/**
+ * A tab actually open right now, as opposed to one being newly created—an
+ * alias for `NewTabInput` since restoring needs the same fields, just
+ * sourced from `chrome.tabs.query` instead of an `onCreated` event.
+ */
 export type ActualTab = NewTabInput;
 
 /**
@@ -33,6 +38,10 @@ function buildLeftoverByUrl(savedTree: TreeState): Map<string, TabNode[]> {
   return leftoverByUrl;
 }
 
+/**
+ * Start a fresh `RestoreSession` for `savedTree`, consumed by `restoreTree`
+ * and, for stragglers arriving afterward, `matchStraggler`.
+ */
 export function createRestoreSession(savedTree: TreeState): RestoreSession {
   return {
     leftoverByUrl: buildLeftoverByUrl(savedTree),

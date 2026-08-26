@@ -1,3 +1,7 @@
+/**
+ * Where a drag-and-drop drop lands relative to the target row—see
+ * `resolveDropPosition`.
+ */
 export type DropPosition = "before" | "after" | "child";
 
 /**

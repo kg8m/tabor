@@ -3,10 +3,16 @@ import type { TreeState } from "./types";
 
 const KEY_PREFIX = "tabor:tree:";
 
+/**
+ * The `chrome.storage.local` key a window's tree is saved under.
+ */
 export function getStorageKey(windowId: number): string {
   return `${KEY_PREFIX}${windowId}`;
 }
 
+/**
+ * Persist a window's tree.
+ */
 export async function saveTree(
   windowId: number,
   tree: TreeState,
@@ -14,6 +20,9 @@ export async function saveTree(
   await chrome.storage.local.set({ [getStorageKey(windowId)]: tree });
 }
 
+/**
+ * Load a window's saved tree, or `undefined` if none exists.
+ */
 export async function loadTree(
   windowId: number,
 ): Promise<TreeState | undefined> {

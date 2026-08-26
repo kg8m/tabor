@@ -2,16 +2,27 @@ import type { ActualTab } from "./restore";
 import { flattenDepthFirst } from "./queries";
 import type { TreeState } from "./types";
 
+/**
+ * A window's saved tree, keyed by the window id it was saved under before
+ * the browser restarted.
+ */
 export interface SavedWindow {
   windowId: number;
   tree: TreeState;
 }
 
+/**
+ * A window actually open right now, with the tabs it currently contains.
+ */
 export interface ActualWindow {
   windowId: number;
   tabs: ActualTab[];
 }
 
+/**
+ * The saved tree resolved for one actual window by `matchWindows`, along
+ * with which saved window (if any) it was matched to.
+ */
 export interface WindowMatch {
   actualWindowId: number;
   savedWindowId: number | undefined;
