@@ -28,6 +28,10 @@ export async function savePersistedActiveTabId(
   });
 }
 
+/**
+ * Load the active tab id persisted by `savePersistedActiveTabId`, or
+ * `undefined` if none was saved.
+ */
 export async function loadPersistedActiveTabId(
   windowId: number,
 ): Promise<number | undefined> {

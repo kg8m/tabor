@@ -1,3 +1,7 @@
+/**
+ * Tuning knobs for `waitForTabCreationToSettle`/
+ * `waitForTabCreationToFullySettle`.
+ */
 export interface SettleOptions {
   quietMs?: number;
   maxWaitMs?: number;

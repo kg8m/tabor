@@ -8,18 +8,31 @@ const activeTabIds = new Map<number, number>();
 const previousActiveTabIds = new Map<number, number>();
 const restoreSessions = new Map<number, RestoreSession>();
 
+/**
+ * The in-memory tree for a window, or an empty tree if none has been set yet.
+ */
 export function getTree(windowId: number): TreeState {
   return trees.get(windowId) ?? EMPTY_TREE;
 }
 
+/**
+ * Replace the in-memory tree for a window.
+ */
 export function setTree(windowId: number, tree: TreeState): void {
   trees.set(windowId, tree);
 }
 
+/**
+ * Every window's in-memory tree, keyed by window id.
+ */
 export function getAllTrees(): Record<number, TreeState> {
   return Object.fromEntries(trees);
 }
 
+/**
+ * The tab currently marked active in a window, or `undefined` if not yet
+ * known.
+ */
 export function getActiveTabId(windowId: number): number | undefined {
   return activeTabIds.get(windowId);
 }
@@ -37,6 +50,10 @@ export function getPreviousActiveTabId(windowId: number): number | undefined {
   return previousActiveTabIds.get(windowId);
 }
 
+/**
+ * Record which tab is now active in a window, remembering the previous one
+ * for `getPreviousActiveTabId`.
+ */
 export function setActiveTabId(windowId: number, tabId: number): void {
   const current = activeTabIds.get(windowId);
   if (current !== undefined) {
@@ -45,12 +62,18 @@ export function setActiveTabId(windowId: number, tabId: number): void {
   activeTabIds.set(windowId, tabId);
 }
 
+/**
+ * The in-progress `RestoreSession` for a window, if one is active.
+ */
 export function getRestoreSession(
   windowId: number,
 ): RestoreSession | undefined {
   return restoreSessions.get(windowId);
 }
 
+/**
+ * Record the in-progress `RestoreSession` for a window.
+ */
 export function setRestoreSession(
   windowId: number,
   session: RestoreSession,
@@ -69,6 +92,9 @@ export function removeRestoreSession(windowId: number): void {
   restoreSessions.delete(windowId);
 }
 
+/**
+ * Drop all in-memory state for a window, e.g. once it's confirmed closed.
+ */
 export function deleteWindow(windowId: number): void {
   trees.delete(windowId);
   activeTabIds.delete(windowId);
