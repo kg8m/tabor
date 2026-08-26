@@ -6,10 +6,13 @@ import type { TreeState } from "../../shared/tree/types";
 
 const DRAG_DATA_TYPE = "application/x-tabor-tab-id";
 
-export interface DropIndicator {
-  targetId: number;
-  position: DropPosition;
-}
+// A "node" indicator marks a specific row's top/bottom/middle, per
+// `resolveDropPosition`. An "end" indicator instead represents the empty
+// space below the whole tree (see `onContainerDragOver`)—it isn't anchored
+// to any one row, since a drop there always makes the dragged tab a new
+// top-level tab regardless of which row happens to render last.
+export type DropIndicator =
+  { kind: "node"; targetId: number; position: DropPosition } | { kind: "end" };
 
 export interface DragAndDrop {
   dropIndicator: DropIndicator | null;
@@ -18,11 +21,14 @@ export interface DragAndDrop {
   onDragLeave: (id: number) => void;
   onDrop: (id: number, event: DragEvent) => void;
   onDragEnd: () => void;
-  // For the empty space below the last row (e.g. when there are too few
-  // tabs to fill the panel): dropping there always means "move to the end",
-  // regardless of where within that space the pointer lands.
-  onContainerDragOver: (lastVisibleId: number | null, event: DragEvent) => void;
-  onContainerDrop: (lastVisibleId: number | null, event: DragEvent) => void;
+  // For the empty space below the tree (e.g. when there are too few tabs to
+  // fill the panel): dropping there always means "become a new last
+  // top-level tab", regardless of where within that space the pointer
+  // lands. `lastRootId` (the last top-level/unpinned-root tab) is both the
+  // move target and what's compared against the dragged tab to no-op when
+  // it's already there.
+  onContainerDragOver: (lastRootId: number | null, event: DragEvent) => void;
+  onContainerDrop: (lastRootId: number | null, event: DragEvent) => void;
 }
 
 /**
@@ -73,11 +79,13 @@ export function useDragAndDrop(
 
     const rect = event.currentTarget.getBoundingClientRect();
     const position = resolveDropPosition(event.clientY - rect.top, rect.height);
-    setDropIndicator({ targetId: id, position });
+    setDropIndicator({ kind: "node", targetId: id, position });
   };
 
   const onDragLeave = (id: number): void => {
-    setDropIndicator((current) => (current?.targetId === id ? null : current));
+    setDropIndicator((current) =>
+      current?.kind === "node" && current.targetId === id ? null : current,
+    );
   };
 
   const sendMoveMessage = (targetId: number, position: DropPosition): void => {
@@ -102,7 +110,11 @@ export function useDragAndDrop(
     event.preventDefault();
     event.stopPropagation();
 
-    if (draggedId !== null && dropIndicator?.targetId === id) {
+    if (
+      draggedId !== null &&
+      dropIndicator?.kind === "node" &&
+      dropIndicator.targetId === id
+    ) {
       sendMoveMessage(id, dropIndicator.position);
     }
 
@@ -116,35 +128,31 @@ export function useDragAndDrop(
   };
 
   const onContainerDragOver = (
-    lastVisibleId: number | null,
+    lastRootId: number | null,
     event: DragEvent,
   ): void => {
-    if (
-      draggedId === null ||
-      lastVisibleId === null ||
-      draggedId === lastVisibleId
-    ) {
+    if (draggedId === null || lastRootId === null || draggedId === lastRootId) {
+      setDropIndicator(null);
       return;
     }
 
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
-    setDropIndicator({ targetId: lastVisibleId, position: "after" });
+    setDropIndicator({ kind: "end" });
   };
 
   const onContainerDrop = (
-    lastVisibleId: number | null,
+    lastRootId: number | null,
     event: DragEvent,
   ): void => {
     event.preventDefault();
 
     if (
       draggedId !== null &&
-      lastVisibleId !== null &&
-      dropIndicator?.targetId === lastVisibleId &&
-      dropIndicator.position === "after"
+      lastRootId !== null &&
+      dropIndicator?.kind === "end"
     ) {
-      sendMoveMessage(lastVisibleId, "after");
+      sendMoveMessage(lastRootId, "after");
     }
 
     setDraggedId(null);

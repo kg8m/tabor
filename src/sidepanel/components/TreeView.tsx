@@ -1,11 +1,7 @@
 import type { MouseEvent } from "react";
 import type { DragAndDrop } from "../hooks/useDragAndDrop";
 import type { NoteEditorAnchor, NoteEditorState } from "../hooks/useNoteEditor";
-import {
-  getChildren,
-  getUnpinnedRootNodes,
-  getVisibleOrder,
-} from "../../shared/tree/queries";
+import { getChildren, getUnpinnedRootNodes } from "../../shared/tree/queries";
 import type { TreeState } from "../../shared/tree/types";
 import { TabNodeView } from "./TabNodeView";
 
@@ -36,27 +32,20 @@ export function TreeView({
   onOpenNoteEditor,
   onCloseNoteEditor,
 }: TreeViewProps) {
-  // The last visible (unpinned) row, so a drop in the empty space below it—
-  // e.g. when there are too few tabs to fill the panel—resolves to "move to
-  // the end" instead of being silently ignored.
-  // `.filter(…).at(-1)` rather than `.findLast(…)`: the latter needs an
-  // ES2023 lib, one newer than this project's ES2022 target.
-  /* eslint-disable unicorn/prefer-array-find */
-  const lastVisibleId =
-    getVisibleOrder(tree)
-      .filter((node) => !node.pinned)
-      .at(-1)?.id ?? null;
-  /* eslint-enable unicorn/prefer-array-find */
+  const unpinnedRootNodes = getUnpinnedRootNodes(tree);
+  // The last top-level (unpinned root) tab, so a drop in the empty space
+  // below the tree—e.g. when there are too few tabs to fill the panel—
+  // always resolves to "become a new last top-level tab" instead of being
+  // silently ignored.
+  const lastRootId = unpinnedRootNodes.at(-1)?.id ?? null;
 
   return (
     <ul
       className="tree-view"
-      onDragOver={(event) =>
-        dragAndDrop.onContainerDragOver(lastVisibleId, event)
-      }
-      onDrop={(event) => dragAndDrop.onContainerDrop(lastVisibleId, event)}
+      onDragOver={(event) => dragAndDrop.onContainerDragOver(lastRootId, event)}
+      onDrop={(event) => dragAndDrop.onContainerDrop(lastRootId, event)}
     >
-      {getUnpinnedRootNodes(tree).map((node) => (
+      {unpinnedRootNodes.map((node) => (
         <TreeNode
           key={node.id}
           tree={tree}
@@ -74,6 +63,9 @@ export function TreeView({
           onCloseNoteEditor={onCloseNoteEditor}
         />
       ))}
+      {dragAndDrop.dropIndicator?.kind === "end" && (
+        <li className="tree-view__end-indicator" aria-hidden="true" />
+      )}
     </ul>
   );
 }
@@ -138,7 +130,9 @@ function TreeNode({
         onOpenNoteEditor={(anchor) => onOpenNoteEditor(nodeId, anchor)}
         onCloseNoteEditor={onCloseNoteEditor}
         dropIndicatorPosition={
-          dropIndicator?.targetId === nodeId ? dropIndicator.position : null
+          dropIndicator?.kind === "node" && dropIndicator.targetId === nodeId
+            ? dropIndicator.position
+            : null
         }
         onDragStart={(event) => dragAndDrop.onDragStart(nodeId, event)}
         onDragOver={(event) => dragAndDrop.onDragOver(nodeId, event)}
