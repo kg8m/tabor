@@ -81,7 +81,7 @@ export default defineConfig(
       // Only exported functions/interfaces/type aliases need a JSDoc block;
       // internal helpers can stay self-explanatory from their name/types.
       "jsdoc/require-jsdoc": [
-        "warn",
+        "error",
         {
           publicOnly: true,
           require: { FunctionDeclaration: true },
@@ -92,7 +92,7 @@ export default defineConfig(
       // isn't an empty/near-empty one—interfaces/type aliases need it added
       // explicitly since they aren't function-like by default.
       "jsdoc/require-description": [
-        "warn",
+        "error",
         { contexts: ["TSInterfaceDeclaration", "TSTypeAliasDeclaration"] },
       ],
       // Catches descriptions that just restate the identifier name (e.g.
