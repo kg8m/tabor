@@ -2,6 +2,7 @@ import { defineConfig } from "eslint/config";
 import js from "@eslint/js";
 import eslintConfigPrettier from "eslint-config-prettier";
 import importX from "eslint-plugin-import-x";
+import jsdoc from "eslint-plugin-jsdoc";
 import pluginPromise from "eslint-plugin-promise";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
@@ -19,6 +20,7 @@ export default defineConfig(
       importX.flatConfigs.typescript,
       unicorn.configs.recommended,
       pluginPromise.configs["flat/recommended"],
+      jsdoc.configs["flat/recommended-typescript"],
     ],
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
@@ -55,6 +57,63 @@ export default defineConfig(
         "error",
         { cases: { kebabCase: true, pascalCase: true, camelCase: true } },
       ],
+    },
+  },
+  {
+    // This project writes JSDoc as prose explaining *why*, not `@param`/
+    // `@returns` tags—TypeScript's own type annotations already say *what*
+    // (see e.g. `addTab` in `src/shared/tree/mutations.ts`). The tag-presence
+    // rules below would otherwise flag every existing comment as incomplete,
+    // so they're turned off; `require-jsdoc`/`require-description` are what
+    // actually enforce "every exported function/type has an explanation".
+    files: ["**/*.{ts,tsx}"],
+    ignores: [
+      "**/*.test.{ts,tsx}",
+      "src/vitest.setup.ts",
+      "src/shared/tree/test-helpers.ts",
+    ],
+    rules: {
+      "jsdoc/require-param": "off",
+      "jsdoc/require-param-description": "off",
+      "jsdoc/require-returns": "off",
+      "jsdoc/require-returns-description": "off",
+
+      // Only exported functions/interfaces/type aliases need a JSDoc block;
+      // internal helpers can stay self-explanatory from their name/types.
+      "jsdoc/require-jsdoc": [
+        "warn",
+        {
+          publicOnly: true,
+          require: { FunctionDeclaration: true },
+          contexts: ["TSInterfaceDeclaration", "TSTypeAliasDeclaration"],
+        },
+      ],
+      // `require-jsdoc` only checks presence of a block; this checks it
+      // isn't an empty/near-empty one—interfaces/type aliases need it added
+      // explicitly since they aren't function-like by default.
+      "jsdoc/require-description": [
+        "warn",
+        { contexts: ["TSInterfaceDeclaration", "TSTypeAliasDeclaration"] },
+      ],
+      // Catches descriptions that just restate the identifier name (e.g.
+      // "Gets the value." on `getValue`) instead of explaining intent.
+      "jsdoc/informative-docs": "warn",
+    },
+  },
+  {
+    // The block above only narrows the strict `publicOnly`/description rules
+    // it defines itself—`jsdoc/require-jsdoc` from `recommended-typescript`
+    // (in the main block's `extends`) still applies here with its default,
+    // non-`publicOnly` settings, since that main block has no `ignores`.
+    // Test code isn't held to the same documentation bar as the rest of the
+    // codebase, so turn it off outright rather than fighting the default.
+    files: [
+      "**/*.test.{ts,tsx}",
+      "src/vitest.setup.ts",
+      "src/shared/tree/test-helpers.ts",
+    ],
+    rules: {
+      "jsdoc/require-jsdoc": "off",
     },
   },
   {
