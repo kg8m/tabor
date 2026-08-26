@@ -11,6 +11,10 @@ export interface ToggleCollapsedMessage {
   tabId: number;
 }
 
+/**
+ * Move one or more tabs (a single-node drag, or a multi-selection dragged
+ * together) to a new position—see `moveNode`/`moveNodes`.
+ */
 export interface MoveNodeMessage {
   type: "moveNode";
   // A single tab id for a single-node drag, or several for dragging a
@@ -19,6 +23,9 @@ export interface MoveNodeMessage {
   target: DropTarget;
 }
 
+/**
+ * Restore a window's tree to a previously saved backup snapshot.
+ */
 export interface RestoreBackupMessage {
   type: "restoreBackup";
   windowId: number;
@@ -46,6 +53,11 @@ export interface UpdateNoteMessage {
   note: string | null;
 }
 
+/**
+ * The discriminated union of every message the side panel can send the
+ * background service worker (see `chrome.runtime.onMessage` in
+ * `src/background/index.ts`).
+ */
 export type TaborMessage =
   | ToggleCollapsedMessage
   | MoveNodeMessage

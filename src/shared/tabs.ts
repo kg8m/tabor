@@ -9,6 +9,10 @@ export const TABOR_SIDE_PANEL_URL = chrome.runtime.getURL(
   "src/sidepanel/index.html",
 );
 
+/**
+ * Whether `tab` is Tabor's own side panel document rather than a tab it
+ * should track—see `TABOR_SIDE_PANEL_URL`.
+ */
 export function isTaborOwnTab(tab: chrome.tabs.Tab): boolean {
   return tab.url === TABOR_SIDE_PANEL_URL;
 }
