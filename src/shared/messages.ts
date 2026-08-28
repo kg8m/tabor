@@ -54,6 +54,18 @@ export interface UpdateNoteMessage {
 }
 
 /**
+ * Declares tabs the side panel is about to move together to another window
+ * (see `ContextMenu`'s "Move tab(s)/tree(s) to window"), sent before the
+ * corresponding `chrome.tabs.move`/`chrome.windows.create` calls—see
+ * `pending-tree-move.ts`.
+ */
+export interface RegisterPendingTreeMoveMessage {
+  type: "registerPendingTreeMove";
+  windowId: number;
+  tabIds: number[];
+}
+
+/**
  * The discriminated union of every message the side panel can send the
  * background service worker (see `chrome.runtime.onMessage` in
  * `src/background/index.ts`).
@@ -63,4 +75,5 @@ export type TaborMessage =
   | MoveNodeMessage
   | RestoreBackupMessage
   | RegisterPendingCloseMessage
-  | UpdateNoteMessage;
+  | UpdateNoteMessage
+  | RegisterPendingTreeMoveMessage;

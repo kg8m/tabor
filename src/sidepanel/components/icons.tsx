@@ -180,6 +180,78 @@ export function ReloadIcon() {
 }
 
 /**
+ * Moves a tab to another window—an open-cornered box with an arrow escaping
+ * it, rather than a separate window glyph plus arrow: overlapping shapes
+ * that small (12x12) read as clutter rather than two distinct parts.
+ */
+export function MoveToWindowIcon() {
+  return (
+    <IconBase
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12.5 8v5.5a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1H8" />
+      <path d="M9.5 1.5h5v5" />
+      <path d="M14.3 1.7 7.5 8.5" />
+    </IconBase>
+  );
+}
+
+/**
+ * Opens a brand new window—the same open-cornered box as `MoveToWindowIcon`,
+ * cut a bit further open than that one so the plus sign has clear room
+ * around it, with a plus sign centered in that space.
+ */
+export function NewWindowIcon() {
+  return (
+    <IconBase
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12.5 9.5v4a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1H6.5" />
+      <path d="M12 1.5v5" />
+      <path d="M9.5 4h5" />
+    </IconBase>
+  );
+}
+
+/**
+ * Moves a tab into an existing window—the same box as `NewWindowIcon` (cut
+ * open further than `MoveToWindowIcon`'s, for clearance), with an arrowhead
+ * in the corner instead of a plus. The two wings meet the shaft at the same
+ * tip (not offset from it) and stay within the shaft's own 90°-ish approach
+ * angle—otherwise the three lines fan out close to evenly and read as a "Y"
+ * rather than an arrowhead.
+ */
+export function MoveIntoWindowIcon() {
+  return (
+    <IconBase
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12.5 9.5v4a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1H6.5" />
+      <path d="M14.5 1 9 6.5" />
+      <path d="M9 1.5v5h5" />
+    </IconBase>
+  );
+}
+
+/**
  * Closes a tab.
  */
 export function CloseIcon() {

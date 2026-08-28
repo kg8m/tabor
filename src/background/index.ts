@@ -27,6 +27,10 @@ import {
   settlePendingClose,
 } from "./pending-close";
 import {
+  noteTreeMoveAttached,
+  registerPendingTreeMove,
+} from "./pending-tree-move";
+import {
   createRestoreSession,
   matchStraggler,
   restoreTree,
@@ -744,6 +748,17 @@ async function handleTabAttached(
   const updated = addTab(tree, toActualTab(tab), null);
   setTree(info.newWindowId, updated);
   await saveTree(info.newWindowId, updated);
+
+  // Part of a "move tab(s)/tree(s) to window" batch (see
+  // `pending-tree-move.ts`)—once every tab in it has landed here as a root,
+  // reconstruct their original relative parent/child structure instead of
+  // leaving them all flattened.
+  const reparented = noteTreeMoveAttached(tabId, info.newWindowId);
+  if (reparented !== undefined) {
+    setTree(info.newWindowId, reparented);
+    await saveTree(info.newWindowId, reparented);
+    await syncNativeOrder(reparented, info.newWindowId);
+  }
 }
 
 async function handleTabDetached(
@@ -1160,6 +1175,10 @@ chrome.runtime.onMessage.addListener((message: TaborMessage) => {
     }
     case "updateNote": {
       void enqueue(() => handleUpdateNote(message.tabId, message.note));
+      break;
+    }
+    case "registerPendingTreeMove": {
+      registerPendingTreeMove(getTree(message.windowId), message.tabIds);
       break;
     }
   }
