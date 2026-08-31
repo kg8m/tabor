@@ -8,12 +8,11 @@ function timestampAgeMinutesAgo(minutes: number): number {
   return NOW - minutes * MINUTE;
 }
 
-// MIN_KEEP_COUNT tops up the kept set with the most recent
-// not-otherwise-kept backups whenever bucket-thinning leaves fewer than
-// that many—which would otherwise rescue exactly the backups the
-// per-bucket thinning tests below mean to prove get dropped. Padding the
-// input with enough always-kept (sub-5-minute) filler that the pre-top-up
-// kept count already reaches MIN_KEEP_COUNT keeps the floor out of the way.
+// Below MIN_KEEP_COUNT total backups, selectBackupTimestampsToKeep skips
+// thinning entirely and keeps everything—which would defeat the per-bucket
+// thinning tests below before they even reach the logic they mean to
+// exercise. Padding the input with enough always-kept (sub-5-minute) filler
+// pushes the total past MIN_KEEP_COUNT so thinning actually runs.
 function fillerTimestamps(count: number): number[] {
   return Array.from({ length: count }, (_, index) =>
     timestampAgeMinutesAgo(index * 0.01),
@@ -100,13 +99,14 @@ describe("selectBackupTimestampsToKeep", () => {
     expect(new Set(kept)).toEqual(new Set([older, newer]));
   });
 
-  it("tops the shortfall up from backups a plain bucket thinning pass dropped, not just from aged-out bucket survivors", () => {
-    // Simulates a long idle stretch: these 9 timestamps were already
+  it("keeps a long-idle sparse history in full, since it never exceeds MIN_KEEP_COUNT", () => {
+    // Simulates a long idle stretch: these 7 timestamps were already
     // thinned down to a sparse spread while backups were being taken
     // regularly (see the "one backup per bucket" test above), then nothing
     // ran for a long time. Viewed from far enough in the future, a plain
-    // bucket-thinning pass over them collapses almost all of them into a
-    // single wide bucket—the failure mode this test guards against.
+    // bucket-thinning pass over them would collapse almost all of them into
+    // a single wide bucket—but since there are only 7 of them, the
+    // MIN_KEEP_COUNT floor keeps all of them regardless of thinning.
     const recentA = timestampAgeMinutesAgo(1);
     const recentB = timestampAgeMinutesAgo(2);
     const bucket5to10Kept = timestampAgeMinutesAgo(8);
@@ -128,6 +128,28 @@ describe("selectBackupTimestampsToKeep", () => {
     const kept = selectBackupTimestampsToKeep(alreadyThinned, muchLaterNow);
 
     expect(new Set(kept)).toEqual(new Set(alreadyThinned));
+  });
+
+  it("does not pad the shortfall out with a bucket's ordinary rejects, only with aged-out bucket survivors", () => {
+    // 19 closely-spaced backups plus their bucket's one survivor push the
+    // total past MIN_KEEP_COUNT, so thinning actually runs and drops the 19.
+    // A single 40-day-old backup is the only other bucket survivor, and it's
+    // aged past MAX_AGE_MINUTES. The shortfall this leaves (nowhere near
+    // MIN_KEEP_COUNT) must be topped up only from that aged-out survivor—
+    // never from the 19 ordinary rejects thinning already dropped, even
+    // though that's the only way to actually reach MIN_KEEP_COUNT.
+    const bucket5to10Kept = timestampAgeMinutesAgo(8);
+    const ordinaryRejects = Array.from({ length: 19 }, (_, index) =>
+      timestampAgeMinutesAgo(5 + (index + 1) * 0.01),
+    );
+    const agedOutSurvivor = timestampAgeMinutesAgo(40 * 24 * 60);
+
+    const kept = selectBackupTimestampsToKeep(
+      [bucket5to10Kept, ...ordinaryRejects, agedOutSurvivor],
+      NOW,
+    );
+
+    expect(new Set(kept)).toEqual(new Set([bucket5to10Kept, agedOutSurvivor]));
   });
 
   it("drops a bucket-survivor older than 30 days once at least 20 newer ones survive", () => {
