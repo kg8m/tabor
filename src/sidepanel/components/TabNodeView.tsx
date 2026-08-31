@@ -109,6 +109,15 @@ export function TabNodeView({
     }
   };
 
+  // Without this, a right-click while still hovering the row leaves the
+  // tooltip's `isVisible` stuck `true` (only `mouseleave` clears it), and its
+  // `document.body` portal—appended after `#root` in the DOM—then paints
+  // above the context menu despite both sharing the same z-index.
+  const handleContextMenu = (event: MouseEvent) => {
+    rowTooltip.onMouseLeave();
+    onContextMenu(event);
+  };
+
   const handleOpenNoteEditor = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
@@ -134,7 +143,7 @@ export function TabNodeView({
       data-tab-id={node.id}
       draggable={onDragStart !== undefined}
       onClick={handleClick}
-      onContextMenu={onContextMenu}
+      onContextMenu={handleContextMenu}
       onMouseEnter={rowTooltip.onMouseEnter}
       onMouseLeave={rowTooltip.onMouseLeave}
       onDragStart={onDragStart}
