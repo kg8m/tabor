@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { TooltipAnchor } from "../hooks/useTooltip";
+import { NoteIcon } from "./icons";
 
 // Keeps the tooltip from touching the panel's edge once clamped into view.
 const VIEWPORT_MARGIN = 4;
@@ -20,6 +21,10 @@ interface TooltipProps {
   text: string;
   // Rendered on its own line below `text`, e.g. a tab's URL below its title.
   secondaryText?: string;
+  // Rendered below `secondaryText`, e.g. a tab's note. Shown in full
+  // (line breaks preserved) rather than truncated—unlike `secondaryText`,
+  // this is content the user wrote themselves, not an incidental URL.
+  noteText?: string;
   anchor: TooltipAnchor;
 }
 
@@ -31,7 +36,12 @@ interface TooltipProps {
  * regardless of its own `position`) and the same viewport-clamping approach
  * (needs the tooltip's own rendered size, so it runs after mount).
  */
-export function Tooltip({ text, secondaryText, anchor }: TooltipProps) {
+export function Tooltip({
+  text,
+  secondaryText,
+  noteText,
+  anchor,
+}: TooltipProps) {
   const elementReference = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: anchor.y, left: anchor.x });
 
@@ -60,6 +70,12 @@ export function Tooltip({ text, secondaryText, anchor }: TooltipProps) {
       <div className="tooltip__text">{text}</div>
       {secondaryText !== undefined && (
         <div className="tooltip__secondary">{truncate(secondaryText)}</div>
+      )}
+      {noteText !== undefined && (
+        <div className="tooltip__note">
+          <NoteIcon />
+          <span>{noteText}</span>
+        </div>
       )}
     </div>,
     document.body,

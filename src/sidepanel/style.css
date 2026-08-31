@@ -724,6 +724,24 @@ body {
   word-break: break-all;
 }
 
+.tooltip__note {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  /* Preserve the note's own line breaks rather than collapsing them like
+     `.tooltip`'s `white-space: normal`. */
+  white-space: pre-wrap;
+}
+
+.tooltip__note svg {
+  flex-shrink: 0;
+  /* Aligns the icon with the note text's first line rather than its own
+     box's full line-height. */
+  margin-top: 0.2em;
+}
+
 .backup-history {
   position: absolute;
   inset: 0;
