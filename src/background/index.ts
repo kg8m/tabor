@@ -1225,10 +1225,21 @@ const BACKUP_INTERVAL_MINUTES = 5;
  * Snapshots every window's tree for on-demand restore later, then thins out
  * older snapshots (see `selectBackupTimestampsToKeep`) so the backup history
  * doesn't grow without bound.
+ *
+ * Skipped while every normal window is momentarily gone (see
+ * `isNormalWindowsGapPending`—e.g. between closing the last one and a
+ * profile switch reopening it): `getAllTrees()` at that instant would hold
+ * only whatever lightweight windows (installed PWAs, etc.) happen to still
+ * be open, silently dropping the real window's tree from this snapshot
+ * instead of the alarm simply catching it on its next tick.
  */
 async function handleBackupAlarm(): Promise<void> {
   await ensureInitialized();
   await pruneOldDebugLogs();
+
+  if (await isNormalWindowsGapPending()) {
+    return;
+  }
 
   const windows = getAllTrees();
   if (Object.keys(windows).length === 0) {

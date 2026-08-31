@@ -41,6 +41,17 @@ function countOverlap(a: Set<string>, b: Set<string>): number {
   return count;
 }
 
+// Below this fraction of overlap (relative to the union of both tab sets), a
+// candidate is treated as no match at all rather than merely a weak one—e.g.
+// one shared tab out of a hundred is almost certainly coincidence (the same
+// site open in two unrelated windows), not the same window. Scoring by plain
+// overlap count instead of this ratio would let a single-tab window win a
+// match against a large window over a genuinely unrelated one just because
+// nothing else scored higher, which is exactly the failure this guards
+// against—while a ratio still lets two small windows match on a single
+// shared tab (see the tests), since that pair's ratio is 100%.
+const MIN_OVERLAP_RATIO = 0.1;
+
 function scoreCandidate(
   savedUrlSet: Set<string> | undefined,
   actualUrlSet: Set<string> | undefined,
@@ -48,7 +59,13 @@ function scoreCandidate(
   if (savedUrlSet === undefined || actualUrlSet === undefined) {
     return 0;
   }
-  return countOverlap(savedUrlSet, actualUrlSet);
+  const overlap = countOverlap(savedUrlSet, actualUrlSet);
+  if (overlap === 0) {
+    return 0;
+  }
+  const unionSize = savedUrlSet.size + actualUrlSet.size - overlap;
+  const ratio = overlap / unionSize;
+  return ratio < MIN_OVERLAP_RATIO ? 0 : ratio;
 }
 
 /**

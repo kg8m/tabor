@@ -112,4 +112,33 @@ describe("matchWindows", () => {
     expect(result).toHaveLength(1);
     expect(result[0]?.savedWindowId).toBe(100);
   });
+
+  it("matches two single-tab windows on their one shared tab", () => {
+    const saved: SavedWindow[] = [
+      { windowId: 100, tree: tree("https://a.com") },
+    ];
+    const actual: ActualWindow[] = [actualWindow(1, "https://a.com")];
+
+    const result = matchWindows(saved, actual);
+
+    expect(result[0]?.savedWindowId).toBe(100);
+  });
+
+  it("does not match a large window on a single tab shared with an otherwise unrelated saved window", () => {
+    const saved: SavedWindow[] = [
+      { windowId: 100, tree: tree("https://shared.com") },
+    ];
+    const manyUrls = Array.from(
+      { length: 20 },
+      (_, index) => `https://unrelated-${index}.com`,
+    );
+    const actual: ActualWindow[] = [
+      actualWindow(1, "https://shared.com", ...manyUrls),
+    ];
+
+    const result = matchWindows(saved, actual);
+
+    expect(result[0]?.savedWindowId).toBeUndefined();
+    expect(result[0]?.savedTree).toEqual({ nodes: {}, rootIds: [] });
+  });
 });
