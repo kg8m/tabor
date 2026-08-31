@@ -94,9 +94,11 @@ const SECOND_BUCKET_EDGE_MINUTES = 10;
 // MIN_KEEP_COUNT below).
 const MAX_AGE_MINUTES = 30 * 24 * 60;
 
-// selectBackupTimestampsToKeep never lets the kept set drop below this many,
-// topping up with the most recent backups not otherwise kept when
-// bucket-thinning plus the MAX_AGE_MINUTES cutoff would leave fewer—e.g.
+// If there are more than this many backups to begin with,
+// selectBackupTimestampsToKeep never lets the kept set drop below this many:
+// when bucket-thinning plus the MAX_AGE_MINUTES cutoff would leave fewer, it
+// tops up with the bucket survivors closest to the MAX_AGE_MINUTES
+// cutoff—never with a bucket's ordinary rejects, which stay thinned—e.g.
 // after a long idle stretch, where every backup that survived thinning
 // before going idle is now older than MAX_AGE_MINUTES.
 const MIN_KEEP_COUNT = 20;
@@ -123,9 +125,12 @@ function generateBucketRangesMinutes(
 /**
  * Decides which backup timestamps survive thinning, given the current time.
  *
- * Anything younger than the first bucket edge is always kept in full (in
- * normal operation there's at most one such backup anyway, since they're
- * taken on the same interval as the first edge). Everything older is
+ * If there are MIN_KEEP_COUNT or fewer backups to begin with, none of this
+ * applies—there's nothing worth thinning, so everything is kept.
+ *
+ * Otherwise: anything younger than the first bucket edge is always kept in
+ * full (in normal operation there's at most one such backup anyway, since
+ * they're taken on the same interval as the first edge). Everything older is
  * grouped into buckets whose age range doubles-ish in width the further
  * back they start (see `generateBucketRangesMinutes`), keeping only the
  * oldest backup in each bucket—the one that can stand in for the widest
@@ -133,23 +138,25 @@ function generateBucketRangesMinutes(
  *
  * Bucket survivors older than MAX_AGE_MINUTES are then dropped. If that
  * leaves fewer than MIN_KEEP_COUNT backups, the shortfall is topped up with
- * the most recent backups not already kept—reaching into bucket-thinning's
- * rejects, and past MAX_AGE_MINUTES if it must—so the kept set never drops
- * below MIN_KEEP_COUNT (or the total number of backups given, if that's
- * fewer).
+ * the bucket survivors closest to the MAX_AGE_MINUTES cutoff—reaching past
+ * MAX_AGE_MINUTES if it must, e.g. after a long idle stretch where every
+ * survivor is now older than that cutoff. This never reaches into a
+ * bucket's ordinary rejects (the ones dropped in favor of their bucket's
+ * survivor): otherwise a bucket still within MAX_AGE_MINUTES would get
+ * padded back out with the closely-spaced backups it just thinned.
  */
 export function selectBackupTimestampsToKeep(
   timestamps: number[],
   now: number,
 ): number[] {
+  if (timestamps.length <= MIN_KEEP_COUNT) {
+    return timestamps;
+  }
+
   const entries = timestamps.map((timestamp) => ({
     timestamp,
     ageMinutes: (now - timestamp) / 60_000,
   }));
-
-  if (entries.length === 0) {
-    return [];
-  }
 
   const bucketed = new Set<number>();
 
@@ -187,16 +194,21 @@ export function selectBackupTimestampsToKeep(
 
   const shortfall = MIN_KEEP_COUNT - kept.size;
   if (shortfall > 0) {
-    // Sorts the array copy filter() just produced, not a shared/external
-    // array; toSorted() isn't available under this project's configured lib
-    // target.
-    const topUp = entries
-      .filter((entry) => !kept.has(entry.timestamp))
+    // Only bucket survivors that aged out past MAX_AGE_MINUTES are eligible
+    // here—never a bucket's ordinary rejects, or a bucket still within
+    // MAX_AGE_MINUTES would get padded back out with the closely-spaced
+    // backups it just thinned. Sorts the array copy filter() just produced,
+    // not a shared/external array; toSorted() isn't available under this
+    // project's configured lib target.
+    const agedOutSurvivors = entries
+      .filter(
+        (entry) => bucketed.has(entry.timestamp) && !kept.has(entry.timestamp),
+      )
       // eslint-disable-next-line unicorn/no-array-sort
       .sort((a, b) => a.ageMinutes - b.ageMinutes)
       .slice(0, shortfall);
 
-    for (const entry of topUp) {
+    for (const entry of agedOutSurvivors) {
       kept.add(entry.timestamp);
     }
   }
