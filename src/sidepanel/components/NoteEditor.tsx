@@ -74,8 +74,14 @@ export function NoteEditor({
     // reasoning as `ContextMenu`'s own scroll handler). `scroll` events
     // don't bubble, but the capturing phase still reaches `document` for a
     // scroll on any descendant, which is what listening with
-    // `capture: true` here relies on.
-    const handleScroll = (): void => {
+    // `capture: true` here relies on. Excludes the form's own descendants:
+    // once typed text overflows the input's own width, the browser scrolls
+    // its text to keep the caret visible, which fires a `scroll` event of
+    // its own—not the panel scroll this is meant to guard against.
+    const handleScroll = (event: Event): void => {
+      if (formReference.current?.contains(event.target as Node)) {
+        return;
+      }
       onClose();
     };
 
