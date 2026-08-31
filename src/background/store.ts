@@ -7,6 +7,7 @@ const trees = new Map<number, TreeState>();
 const activeTabIds = new Map<number, number>();
 const previousActiveTabIds = new Map<number, number>();
 const restoreSessions = new Map<number, RestoreSession>();
+const deletedWindowIds = new Set<number>();
 
 /**
  * The in-memory tree for a window, or an empty tree if none has been set yet.
@@ -94,10 +95,38 @@ export function removeRestoreSession(windowId: number): void {
 
 /**
  * Drop all in-memory state for a window, e.g. once it's confirmed closed.
+ * Also marks the window id as deleted (see `isDeletedWindow`): Chrome doesn't
+ * guarantee `windows.onRemoved` fires only after every one of that window's
+ * own `tabs.onRemoved`/`onActivated`/etc. events has already been delivered—a
+ * straggler among them arriving after this runs would otherwise see `getTree`
+ * fall back to an empty tree (this window id no longer being in `trees`) and,
+ * for a handler that persists whatever it computes regardless, overwrite this
+ * window's still-valid saved tree with that empty one.
  */
 export function deleteWindow(windowId: number): void {
   trees.delete(windowId);
   activeTabIds.delete(windowId);
   previousActiveTabIds.delete(windowId);
   restoreSessions.delete(windowId);
+  deletedWindowIds.add(windowId);
+}
+
+/**
+ * Whether `deleteWindow` has been called for this window id and it hasn't
+ * been reinitialized since (see `clearDeletedWindow`). Event handlers check
+ * this before acting on a window id, to guard against exactly the stale-event
+ * scenario `deleteWindow` documents above.
+ */
+export function isDeletedWindow(windowId: number): boolean {
+  return deletedWindowIds.has(windowId);
+}
+
+/**
+ * Clears a window id's deleted-marker once it's genuinely live again (e.g.
+ * `initializeWindow`/`initializeAllWindows` starting to treat it as such).
+ * Window ids aren't normally reused within a browser session, so this is
+ * mostly a safety net rather than something expected to matter in practice.
+ */
+export function clearDeletedWindow(windowId: number): void {
+  deletedWindowIds.delete(windowId);
 }

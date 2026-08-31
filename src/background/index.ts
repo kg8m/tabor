@@ -20,6 +20,7 @@ import {
 } from "../shared/tree/mutations";
 import type { TaborMessage } from "../shared/messages";
 import {
+  flattenDepthFirst,
   getNativeOrder,
   getPinnedNodes,
   hasHierarchy,
@@ -58,11 +59,13 @@ import {
   waitForTabCreationToSettle,
 } from "./settle";
 import {
+  clearDeletedWindow,
   deleteWindow,
   getActiveTabId,
   getAllTrees,
   getRestoreSession,
   getTree,
+  isDeletedWindow,
   removeRestoreSession,
   setActiveTabId,
   setRestoreSession,
@@ -275,6 +278,18 @@ async function queryTabsWithResolvedUrls(
       (tab) => !isTaborOwnTab(tab) && !tab.url && !tab.pendingUrl,
     );
     if (!hasUnresolvedTab || attempt >= TAB_URL_RESOLVE_MAX_ATTEMPTS) {
+      // TODO(debug): temporary instrumentation, see the block near the top
+      // of this file—only logged when a retry actually happened or gave up
+      // still unresolved, since the common case (nothing unresolved on the
+      // first attempt) isn't interesting.
+      if (hasUnresolvedTab || attempt > 0) {
+        debugLog("queryTabsWithResolvedUrls", {
+          windowId,
+          attempt,
+          hasUnresolvedTab,
+          tabCount: tabs.length,
+        });
+      }
       return tabs;
     }
     await new Promise((resolve) => {
@@ -311,6 +326,7 @@ async function initializeWindow(windowId: number): Promise<void> {
     return;
   }
   initializedWindowIds.add(windowId);
+  clearDeletedWindow(windowId);
 
   const settled = restoreTracking.track();
   await waitForTabCreationToSettle();
@@ -337,10 +353,42 @@ async function initializeWindow(windowId: number): Promise<void> {
   const [match] = matchWindows(savedWindows, [{ windowId, tabs: actualTabs }]);
   const savedTree = match?.savedTree ?? { nodes: {}, rootIds: [] };
 
+  const savedNodeCount = Object.keys(savedTree.nodes).length;
   debugLog("initializeWindow", {
     windowId,
     matchedSavedWindowId: match?.savedWindowId,
-    savedNodeCount: Object.keys(savedTree.nodes).length,
+    savedNodeCount,
+    candidateSavedWindowIds: savedWindows.map((saved) => saved.windowId),
+    // TODO(debug): temporary instrumentation, see the block near the top of
+    // this file—only logged when this window had tabs but matched no saved
+    // tree, to see whether their `url`s were resolved by the time
+    // `matchWindows` ran (a real page URL vs. an empty/placeholder one) for
+    // a window that should have matched, and how close (if at all) it
+    // actually came to matching each candidate saved window.
+    ...(savedNodeCount === 0 &&
+      actualTabs.length > 0 && {
+        unmatchedTabCount: actualTabs.length,
+        unmatchedUnresolvedUrlCount: actualTabs.filter((tab) => !tab.url)
+          .length,
+        unmatchedSampleUrls: actualTabs.slice(0, 5).map((tab) => tab.url),
+        candidateScores: savedWindows.map((saved) => {
+          const savedUrls = new Set(
+            flattenDepthFirst(saved.tree).map((node) => node.url),
+          );
+          const actualUrls = new Set(actualTabs.map((tab) => tab.url));
+          let overlap = 0;
+          for (const url of savedUrls) {
+            if (actualUrls.has(url)) {
+              overlap += 1;
+            }
+          }
+          return {
+            savedWindowId: saved.windowId,
+            savedNodeCount: savedUrls.size,
+            overlap,
+          };
+        }),
+      }),
   });
   const session = createRestoreSession(savedTree);
   const tree = restoreTree(savedTree, actualTabs, session);
@@ -401,7 +449,14 @@ const PENDING_REMOVAL_GRACE_MS = 365 * 24 * 60 * 60 * 1000;
  */
 async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   const settled = restoreTracking.track();
-  await waitForTabCreationToSettle();
+  // TODO(debug): temporary instrumentation, see the block near the top of
+  // this file—how many `tabs.onCreated` events this actually observed before
+  // deciding tab creation had settled, to see whether a window with many
+  // tabs can finish being recreated by session restore in a single burst
+  // this misses most of (e.g. because most of them already existed by the
+  // time this call's own listener got registered).
+  const observedTabCreatedCount = await waitForTabCreationToSettle();
+  debugLog("initializeAllWindows:settled", { observedTabCreatedCount });
   const windows = await chrome.windows.getAll();
   const windowIds = windows
     .map((window) => window.id)
@@ -459,20 +514,58 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
       const session = createRestoreSession(savedTree);
       const tree = restoreTree(savedTree, actualWindow.tabs, session);
 
+      const savedNodeCount = Object.keys(savedTree.nodes).length;
       debugLog("initializeAllWindows:restored", {
         actualWindowId: actualWindow.windowId,
-        savedNodeCount: Object.keys(savedTree.nodes).length,
+        savedNodeCount,
         restoredNodeCount: Object.keys(tree.nodes).length,
         restoredChildIdCount: Object.values(tree.nodes).reduce(
           (total, node) => total + node.childIds.length,
           0,
         ),
+        // TODO(debug): temporary instrumentation, see the block near the
+        // top of this file—only logged for an actual window that had tabs
+        // but matched no saved tree, to see whether their `url`s were
+        // resolved by the time `matchWindows` ran (a real page URL vs. an
+        // empty/placeholder one) for a window that should have matched, and
+        // how close (if at all) it actually came to matching each candidate
+        // saved window.
+        ...(savedNodeCount === 0 &&
+          actualWindow.tabs.length > 0 && {
+            unmatchedTabCount: actualWindow.tabs.length,
+            unmatchedUnresolvedUrlCount: actualWindow.tabs.filter(
+              (tab) => !tab.url,
+            ).length,
+            unmatchedSampleUrls: actualWindow.tabs
+              .slice(0, 5)
+              .map((tab) => tab.url),
+            candidateScores: savedWindows.map((saved) => {
+              const savedUrls = new Set(
+                flattenDepthFirst(saved.tree).map((node) => node.url),
+              );
+              const actualUrls = new Set(
+                actualWindow.tabs.map((tab) => tab.url),
+              );
+              let overlap = 0;
+              for (const url of savedUrls) {
+                if (actualUrls.has(url)) {
+                  overlap += 1;
+                }
+              }
+              return {
+                savedWindowId: saved.windowId,
+                savedNodeCount: savedUrls.size,
+                overlap,
+              };
+            }),
+          }),
       });
 
       setTree(actualWindow.windowId, tree);
       setRestoreSession(actualWindow.windowId, session);
       await saveTree(actualWindow.windowId, tree);
       initializedWindowIds.add(actualWindow.windowId);
+      clearDeletedWindow(actualWindow.windowId);
 
       const tabs = tabsByWindowId.get(actualWindow.windowId) ?? [];
       const activeTab = tabs.find((tab) => tab.active);
@@ -703,7 +796,11 @@ async function clearNormalWindowsGapPending(): Promise<void> {
 async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
   await ensureInitialized(tab.id);
 
-  if (tab.id === undefined || isTaborOwnTab(tab)) {
+  if (
+    tab.id === undefined ||
+    isTaborOwnTab(tab) ||
+    isDeletedWindow(tab.windowId)
+  ) {
     return;
   }
 
@@ -784,7 +881,7 @@ async function handleTabRemoved(
 
   // The window itself is being torn down; `windows.onRemoved` will drop its
   // tree, so there's no need to reconcile it tab by tab here.
-  if (info.isWindowClosing) {
+  if (info.isWindowClosing || isDeletedWindow(info.windowId)) {
     return;
   }
 
@@ -814,7 +911,7 @@ async function handleTabMoved(
 
   const pending = pendingNativeOrderSync.get(info.windowId);
   const isSuppressed = pending !== undefined && Date.now() < pending.expiresAt;
-  if (isSuppressed) {
+  if (isSuppressed || isDeletedWindow(info.windowId)) {
     return;
   }
 
@@ -829,6 +926,10 @@ async function handleTabAttached(
   info: chrome.tabs.OnAttachedInfo,
 ): Promise<void> {
   await ensureInitialized();
+
+  if (isDeletedWindow(info.newWindowId)) {
+    return;
+  }
 
   const tab = await chrome.tabs.get(tabId);
   const tree = getTree(info.newWindowId);
@@ -854,6 +955,10 @@ async function handleTabDetached(
 ): Promise<void> {
   await ensureInitialized();
 
+  if (isDeletedWindow(info.oldWindowId)) {
+    return;
+  }
+
   const tree = getTree(info.oldWindowId);
   const updated = removeTab(tree, tabId);
   setTree(info.oldWindowId, updated);
@@ -873,6 +978,10 @@ async function handleTabReplaced(
   await ensureInitialized();
 
   const tab = await chrome.tabs.get(addedTabId);
+  if (isDeletedWindow(tab.windowId)) {
+    return;
+  }
+
   const actualTab = toActualTab(tab);
   const tree = getTree(tab.windowId);
   const updated = replaceTabId(tree, removedTabId, addedTabId, {
@@ -903,6 +1012,10 @@ async function handleTabUpdated(
     discarded: tab.discarded,
   });
 
+  if (isDeletedWindow(tab.windowId)) {
+    return;
+  }
+
   const update = toTabUpdate(changeInfo, tab);
   const tree = getTree(tab.windowId);
   const updated = updateTab(tree, tabId, update);
@@ -922,6 +1035,10 @@ async function handleTabActivated(
   activeInfo: chrome.tabs.OnActivatedInfo,
 ): Promise<void> {
   await ensureInitialized();
+
+  if (isDeletedWindow(activeInfo.windowId)) {
+    return;
+  }
 
   setAndPersistActiveTabId(activeInfo.windowId, activeInfo.tabId);
 
@@ -1049,6 +1166,10 @@ async function handleRestoreBackup(
 ): Promise<void> {
   await ensureInitialized();
 
+  if (isDeletedWindow(windowId)) {
+    return;
+  }
+
   const backup = await loadBackup(timestamp);
   const savedWindows: SavedWindow[] = Object.entries(backup ?? {}).map(
     ([savedWindowId, tree]) => ({ windowId: Number(savedWindowId), tree }),
@@ -1082,6 +1203,10 @@ async function handleMoveNode(
   // All dragged tabs come from the same side panel, so they're always in
   // the same window; look it up via any one of them.
   const tab = await chrome.tabs.get(firstTabId);
+  if (isDeletedWindow(tab.windowId)) {
+    return;
+  }
+
   const tree = getTree(tab.windowId);
   const updated = moveNodes(tree, tabIds, target);
   if (updated === tree) {
