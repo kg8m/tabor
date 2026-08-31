@@ -200,12 +200,8 @@ export function TabNodeView({
             ? "tab-node__title tab-node__title--overflowing"
             : "tab-node__title"
         }
-        onMouseEnter={
-          isTitleOverflowing ? titleTooltip.onMouseEnter : undefined
-        }
-        onMouseLeave={
-          isTitleOverflowing ? titleTooltip.onMouseLeave : undefined
-        }
+        onMouseEnter={titleTooltip.onMouseEnter}
+        onMouseLeave={titleTooltip.onMouseLeave}
       >
         {node.title}
       </span>
@@ -235,8 +231,12 @@ export function TabNodeView({
       {node.note !== null && (
         <span className="tab-node__note-icon-spacer" aria-hidden="true" />
       )}
-      {titleTooltip.isVisible && isTitleOverflowing && (
-        <Tooltip text={node.title} anchor={titleTooltip.anchor} />
+      {titleTooltip.isVisible && (
+        <Tooltip
+          text={node.title}
+          secondaryText={node.url}
+          anchor={titleTooltip.anchor}
+        />
       )}
       {rowTooltip.isVisible && node.note !== null && (
         <Tooltip text={node.note} anchor={rowTooltip.anchor} />

@@ -714,6 +714,16 @@ body {
   pointer-events: none;
 }
 
+.tooltip__secondary {
+  margin-top: 2px;
+  color: color-mix(in srgb, currentColor 65%, transparent);
+  /* A URL has few natural break points (e.g. the hyphen in
+     "chrome-extension://"); without this, that hyphen wins the wrap ahead of
+     the element's own width, leaving the rest of the run to break wherever
+     `overflow-wrap` can force it in. */
+  word-break: break-all;
+}
+
 .backup-history {
   position: absolute;
   inset: 0;

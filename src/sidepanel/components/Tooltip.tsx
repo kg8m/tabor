@@ -5,8 +5,21 @@ import type { TooltipAnchor } from "../hooks/useTooltip";
 // Keeps the tooltip from touching the panel's edge once clamped into view.
 const VIEWPORT_MARGIN = 4;
 
+// A URL can run far longer than anything meant to be read in full (tracking
+// params, encoded query strings); truncate rather than let the tooltip grow
+// to match it.
+const MAX_SECONDARY_TEXT_LENGTH = 100;
+
+function truncate(text: string): string {
+  return text.length > MAX_SECONDARY_TEXT_LENGTH
+    ? `${text.slice(0, MAX_SECONDARY_TEXT_LENGTH)}…`
+    : text;
+}
+
 interface TooltipProps {
   text: string;
+  // Rendered on its own line below `text`, e.g. a tab's URL below its title.
+  secondaryText?: string;
   anchor: TooltipAnchor;
 }
 
@@ -18,7 +31,7 @@ interface TooltipProps {
  * regardless of its own `position`) and the same viewport-clamping approach
  * (needs the tooltip's own rendered size, so it runs after mount).
  */
-export function Tooltip({ text, anchor }: TooltipProps) {
+export function Tooltip({ text, secondaryText, anchor }: TooltipProps) {
   const elementReference = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: anchor.y, left: anchor.x });
 
@@ -44,7 +57,10 @@ export function Tooltip({ text, anchor }: TooltipProps) {
       role="tooltip"
       style={position}
     >
-      {text}
+      <div className="tooltip__text">{text}</div>
+      {secondaryText !== undefined && (
+        <div className="tooltip__secondary">{truncate(secondaryText)}</div>
+      )}
     </div>,
     document.body,
   );
