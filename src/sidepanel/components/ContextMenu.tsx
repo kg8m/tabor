@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import type { TaborMessage } from "../../shared/messages";
+import { closeTabs } from "../close-tabs";
 import { useDismissOnOutsideActivity } from "../hooks/useDismissOnOutsideActivity";
 import type { NoteEditorAnchor } from "../hooks/useNoteEditor";
 import { useViewportClampedPosition } from "../hooks/useViewportClampedPosition";
@@ -213,17 +214,7 @@ export function ContextMenu({
 
   const handleConfirmClose = (): void => {
     const idsToClose = closeConfirmation === "tree" ? treeIds : targetIds;
-    void (async () => {
-      if (windowId !== undefined) {
-        const message: TaborMessage = {
-          type: "registerPendingClose",
-          windowId,
-          tabIds: idsToClose,
-        };
-        await chrome.runtime.sendMessage(message);
-      }
-      await chrome.tabs.remove(idsToClose);
-    })();
+    void closeTabs(windowId, idsToClose);
     onClose();
   };
 

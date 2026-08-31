@@ -4,6 +4,7 @@ import type { TaborMessage } from "../../shared/messages";
 import type { DropPosition } from "../../shared/tree/drop";
 import type { TabNode } from "../../shared/tree/types";
 import { useRef } from "react";
+import { closeTabs } from "../close-tabs";
 import { useOverflowDetection } from "../hooks/useOverflowDetection";
 import type { NoteEditorAnchor } from "../hooks/useNoteEditor";
 import { useTooltip } from "../hooks/useTooltip";
@@ -77,17 +78,7 @@ export function TabNodeView({
 
   const handleClose = (event: MouseEvent) => {
     event.stopPropagation();
-    void (async () => {
-      if (windowId !== undefined) {
-        const message: TaborMessage = {
-          type: "registerPendingClose",
-          windowId,
-          tabIds: [node.id],
-        };
-        await chrome.runtime.sendMessage(message);
-      }
-      await chrome.tabs.remove(node.id);
-    })();
+    void closeTabs(windowId, [node.id]);
   };
 
   // `chrome.tabs.discard` fires an onUpdated event with the tab's new
