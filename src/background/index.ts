@@ -35,12 +35,7 @@ import {
   matchStraggler,
   restoreTree,
 } from "../shared/tree/restore";
-import {
-  loadAllTrees,
-  loadTree,
-  removeTree,
-  saveTree,
-} from "../shared/tree/storage";
+import { loadAllTrees, removeTree, saveTree } from "../shared/tree/storage";
 import type { TreeState } from "../shared/tree/types";
 import {
   matchWindows,
@@ -278,12 +273,21 @@ async function queryTabsWithResolvedUrls(
 }
 
 /**
- * Initialize a single new window with no history to reconcile against
- * (there's nothing saved yet under its brand-new window id). Waits for its
- * own tab creation to settle first (see `waitForTabCreationToSettle`) so a
- * window opened with several tabs at once (e.g. from a bookmark folder)
- * doesn't have the later ones missed by this function's own `tabs.query` and
- * then mishandled as ordinary new tabs by `handleTabCreated`.
+ * Initialize a single new window, matching it by tab URL overlap (see
+ * `matchWindows`) against every saved tree not already claimed by another
+ * active window—not just whatever's saved under this brand-new window id
+ * itself, which is normally nothing. A window can show up already holding a
+ * previous session's full set of tabs (e.g. a profile switch recreating them
+ * for a browser process that was already running, so `windows.onCreated`
+ * fires instead of `runtime.onStartup`), and that saved parent/child
+ * structure lives under whichever old window id it was last saved under, not
+ * this one.
+ *
+ * Waits for its own tab creation to settle first (see
+ * `waitForTabCreationToSettle`) so a window opened with several tabs at once
+ * (e.g. from a bookmark folder) doesn't have the later ones missed by this
+ * function's own `tabs.query` and then mishandled as ordinary new tabs by
+ * `handleTabCreated`.
  *
  * Also simply never reruns for a window `initializeAllWindows` already
  * restored (see `initializedWindowIds` above). Chrome fires `windows.onCreated`
@@ -303,9 +307,28 @@ async function initializeWindow(windowId: number): Promise<void> {
   const tabs = queriedTabs.filter((tab) => !isTaborOwnTab(tab));
   const actualTabs = tabs.map((tab) => toActualTab(tab));
 
-  const savedTree = (await loadTree(windowId)) ?? { nodes: {}, rootIds: [] };
+  const savedTreesByWindowId = await loadAllTrees();
+  // Excludes trees already claimed by another window this session, so this
+  // window can't steal a match that rightfully belongs to one already up and
+  // running—but still considers a tree saved under this exact window id
+  // (unlikely for a brand-new one, but harmless to include).
+  const savedWindows: SavedWindow[] = Object.entries(savedTreesByWindowId)
+    .map(([savedWindowIdString, savedTree]) => ({
+      windowId: Number(savedWindowIdString),
+      tree: savedTree,
+    }))
+    .filter(
+      (saved) =>
+        saved.windowId === windowId ||
+        !initializedWindowIds.has(saved.windowId),
+    );
+
+  const [match] = matchWindows(savedWindows, [{ windowId, tabs: actualTabs }]);
+  const savedTree = match?.savedTree ?? { nodes: {}, rootIds: [] };
+
   debugLog("initializeWindow", {
     windowId,
+    matchedSavedWindowId: match?.savedWindowId,
     savedNodeCount: Object.keys(savedTree.nodes).length,
   });
   const session = createRestoreSession(savedTree);
@@ -314,6 +337,13 @@ async function initializeWindow(windowId: number): Promise<void> {
   setTree(windowId, tree);
   setRestoreSession(windowId, session);
   await saveTree(windowId, tree);
+
+  // The saved tree now lives under this window's own id (just saved above);
+  // its old id would otherwise sit in storage as a stale duplicate until some
+  // later `initializeAllWindows` cleanup happened to find it.
+  if (match?.savedWindowId !== undefined && match.savedWindowId !== windowId) {
+    await removeTree(match.savedWindowId);
+  }
 
   const activeTab = tabs.find((tab) => tab.active);
   if (activeTab?.id !== undefined) {
