@@ -1,6 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { TaborMessage } from "../../shared/messages";
+import { useDismissOnOutsideActivity } from "../hooks/useDismissOnOutsideActivity";
 import type { NoteEditorAnchor } from "../hooks/useNoteEditor";
+import { useViewportClampedPosition } from "../hooks/useViewportClampedPosition";
 import {
   CloseIcon,
   MoveIntoWindowIcon,
@@ -43,9 +45,6 @@ function describeWindow(
     suffix: ` and ${otherTabCount} other tab${otherTabCount === 1 ? "" : "s"}`,
   };
 }
-
-// Keeps the menu from touching the panel's edge once clamped into view.
-const VIEWPORT_MARGIN = 4;
 
 interface ContextMenuProps {
   x: number;
@@ -100,7 +99,6 @@ export function ContextMenu({
   const suspendableTreeIds = treeIds.filter((id) => id !== activeTabId);
   const hasDescendants = treeIds.length > targetIds.length;
   const menuReference = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ top: y, left: x });
   // `"targets"` confirms closing just the right-clicked tab(s); `"tree"`
   // confirms closing them together with all of their descendants. Tracked as
   // which id list to close (rather than two separate booleans) since only
@@ -115,60 +113,15 @@ export function ContextMenu({
     windows: WindowOption[];
   } | null>(null);
 
-  // Clamps the anchor point so the menu never renders past the panel's own
-  // edge (it otherwise wouldn't be able to shrink to fit and would just get
-  // clipped, right-clicks near the right/bottom edge). Needs the menu's own
-  // rendered size, so this runs after mount rather than being computed from
-  // the click position alone; useLayoutEffect (rather than useEffect) applies
-  // the correction before the browser paints, so there's no visible jump.
   // Also reruns when the close confirmation or window picker swaps in (a
   // different size), since that can newly push the bottom/right edge out of
   // view.
-  useLayoutEffect(() => {
-    const element = menuReference.current;
-    if (!element) {
-      return;
-    }
+  const position = useViewportClampedPosition(menuReference, { x, y }, [
+    closeConfirmation,
+    windowPicker,
+  ]);
 
-    const { width, height } = element.getBoundingClientRect();
-    const maxLeft = window.innerWidth - width - VIEWPORT_MARGIN;
-    const maxTop = window.innerHeight - height - VIEWPORT_MARGIN;
-    setPosition({
-      left: Math.max(VIEWPORT_MARGIN, Math.min(x, maxLeft)),
-      top: Math.max(VIEWPORT_MARGIN, Math.min(y, maxTop)),
-    });
-  }, [x, y, closeConfirmation, windowPicker]);
-
-  useEffect(() => {
-    const handlePointerDown = (event: MouseEvent): void => {
-      if (!menuReference.current?.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-    // Scrolling would leave the menu—rendered at a fixed viewport
-    // position—behind while the row it targets moves underneath it, so
-    // there'd be no way to tell which tab it still applies to. `scroll`
-    // events don't bubble, but the capturing phase still reaches `document`
-    // for a scroll on any descendant, which is what listening with
-    // `capture: true` here relies on.
-    const handleScroll = (): void => {
-      onClose();
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("scroll", handleScroll, { capture: true });
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("scroll", handleScroll, { capture: true });
-    };
-  }, [onClose]);
+  useDismissOnOutsideActivity(menuReference, onClose);
 
   const handleSuspend = (): void => {
     for (const id of suspendableIds) {

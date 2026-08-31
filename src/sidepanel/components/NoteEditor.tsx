@@ -1,15 +1,8 @@
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type SubmitEvent,
-} from "react";
+import { useRef, useState, type SubmitEvent } from "react";
 import type { TaborMessage } from "../../shared/messages";
+import { useDismissOnOutsideActivity } from "../hooks/useDismissOnOutsideActivity";
 import type { NoteEditorAnchor } from "../hooks/useNoteEditor";
-
-// Keeps the popover from touching the panel's edge once clamped into view.
-const VIEWPORT_MARGIN = 4;
+import { useViewportClampedPosition } from "../hooks/useViewportClampedPosition";
 
 interface NoteEditorProps {
   tabId: number;
@@ -37,63 +30,15 @@ export function NoteEditor({
 }: NoteEditorProps) {
   const [value, setValue] = useState(initialNote ?? "");
   const formReference = useRef<HTMLFormElement>(null);
-  const [position, setPosition] = useState({ top: anchor.y, left: anchor.x });
+  const position = useViewportClampedPosition(formReference, anchor);
 
-  // Clamps the anchor point so the popover never renders past the panel's
-  // own edge, the same way `ContextMenu` does—see there for why this needs
-  // the popover's own rendered size and so runs after mount.
-  useLayoutEffect(() => {
-    const element = formReference.current;
-    if (!element) {
-      return;
-    }
-
-    const { width, height } = element.getBoundingClientRect();
-    const maxLeft = window.innerWidth - width - VIEWPORT_MARGIN;
-    const maxTop = window.innerHeight - height - VIEWPORT_MARGIN;
-    setPosition({
-      left: Math.max(VIEWPORT_MARGIN, Math.min(anchor.x, maxLeft)),
-      top: Math.max(VIEWPORT_MARGIN, Math.min(anchor.y, maxTop)),
-    });
-  }, [anchor.x, anchor.y]);
-
-  useEffect(() => {
-    const handlePointerDown = (event: MouseEvent): void => {
-      if (!formReference.current?.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-    // Scrolling would leave the popover—rendered at a fixed viewport
-    // position—behind while the row it targets moves underneath it, so
-    // there'd be no way to tell which tab it still applies to (same
-    // reasoning as `ContextMenu`'s own scroll handler). `scroll` events
-    // don't bubble, but the capturing phase still reaches `document` for a
-    // scroll on any descendant, which is what listening with
-    // `capture: true` here relies on. Excludes the form's own descendants:
-    // once typed text overflows the input's own width, the browser scrolls
-    // its text to keep the caret visible, which fires a `scroll` event of
-    // its own—not the panel scroll this is meant to guard against.
-    const handleScroll = (event: Event): void => {
-      if (formReference.current?.contains(event.target as Node)) {
-        return;
-      }
-      onClose();
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("scroll", handleScroll, { capture: true });
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("scroll", handleScroll, { capture: true });
-    };
-  }, [onClose]);
+  // Excludes the form's own descendants from the scroll-closes-the-popover
+  // behavior: once typed text overflows the input's own width, the browser
+  // scrolls its text to keep the caret visible, which fires a `scroll`
+  // event of its own—not the panel scroll this is meant to guard against.
+  useDismissOnOutsideActivity(formReference, onClose, {
+    ignoreScrollWithin: true,
+  });
 
   const handleSubmit = (event: SubmitEvent): void => {
     event.preventDefault();
