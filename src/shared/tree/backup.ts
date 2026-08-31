@@ -89,6 +89,18 @@ export async function removeBackups(timestamps: number[]): Promise<void> {
 const FIRST_BUCKET_EDGE_MINUTES = 5;
 const SECOND_BUCKET_EDGE_MINUTES = 10;
 
+// Beyond this age, a bucket-thinned backup is dropped entirely instead of
+// being kept forever—unless too few backups would then be left (see
+// MIN_KEEP_COUNT below).
+const MAX_AGE_MINUTES = 30 * 24 * 60;
+
+// selectBackupTimestampsToKeep never lets the kept set drop below this many,
+// topping up with the most recent backups not otherwise kept when
+// bucket-thinning plus the MAX_AGE_MINUTES cutoff would leave fewer—e.g.
+// after a long idle stretch, where every backup that survived thinning
+// before going idle is now older than MAX_AGE_MINUTES.
+const MIN_KEEP_COUNT = 20;
+
 function generateBucketRangesMinutes(
   maxAgeMinutes: number,
 ): Array<[number, number]> {
@@ -118,6 +130,13 @@ function generateBucketRangesMinutes(
  * back they start (see `generateBucketRangesMinutes`), keeping only the
  * oldest backup in each bucket—the one that can stand in for the widest
  * span of time before the next kept backup.
+ *
+ * Bucket survivors older than MAX_AGE_MINUTES are then dropped. If that
+ * leaves fewer than MIN_KEEP_COUNT backups, the shortfall is topped up with
+ * the most recent backups not already kept—reaching into bucket-thinning's
+ * rejects, and past MAX_AGE_MINUTES if it must—so the kept set never drops
+ * below MIN_KEEP_COUNT (or the total number of backups given, if that's
+ * fewer).
  */
 export function selectBackupTimestampsToKeep(
   timestamps: number[],
@@ -132,11 +151,11 @@ export function selectBackupTimestampsToKeep(
     return [];
   }
 
-  const kept = new Set<number>();
+  const bucketed = new Set<number>();
 
   for (const entry of entries) {
     if (entry.ageMinutes < FIRST_BUCKET_EDGE_MINUTES) {
-      kept.add(entry.timestamp);
+      bucketed.add(entry.timestamp);
     }
   }
 
@@ -155,7 +174,30 @@ export function selectBackupTimestampsToKeep(
     }
 
     if (oldest !== undefined) {
-      kept.add(oldest.timestamp);
+      bucketed.add(oldest.timestamp);
+    }
+  }
+
+  const kept = new Set(
+    entries
+      .filter((entry) => bucketed.has(entry.timestamp))
+      .filter((entry) => entry.ageMinutes <= MAX_AGE_MINUTES)
+      .map((entry) => entry.timestamp),
+  );
+
+  const shortfall = MIN_KEEP_COUNT - kept.size;
+  if (shortfall > 0) {
+    // Sorts the array copy filter() just produced, not a shared/external
+    // array; toSorted() isn't available under this project's configured lib
+    // target.
+    const topUp = entries
+      .filter((entry) => !kept.has(entry.timestamp))
+      // eslint-disable-next-line unicorn/no-array-sort
+      .sort((a, b) => a.ageMinutes - b.ageMinutes)
+      .slice(0, shortfall);
+
+    for (const entry of topUp) {
+      kept.add(entry.timestamp);
     }
   }
 
