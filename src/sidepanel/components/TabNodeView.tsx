@@ -3,8 +3,10 @@ import { createPortal } from "react-dom";
 import type { TaborMessage } from "../../shared/messages";
 import type { DropPosition } from "../../shared/tree/drop";
 import type { TabNode } from "../../shared/tree/types";
+import { useRef } from "react";
 import { useOverflowDetection } from "../hooks/useOverflowDetection";
 import type { NoteEditorAnchor } from "../hooks/useNoteEditor";
+import { useTooltip } from "../hooks/useTooltip";
 import {
   AudibleIcon,
   ChevronIcon,
@@ -16,6 +18,7 @@ import {
   PinIcon,
 } from "./icons";
 import { NoteEditor } from "./NoteEditor";
+import { Tooltip } from "./Tooltip";
 
 interface TabNodeViewProps {
   node: TabNode;
@@ -69,6 +72,9 @@ export function TabNodeView({
     useOverflowDetection<HTMLSpanElement>(node.title);
   const { ref: noteReference, isOverflowing: isNoteOverflowing } =
     useOverflowDetection<HTMLSpanElement>(node.note ?? "");
+  const rowReference = useRef<HTMLDivElement>(null);
+  const rowTooltip = useTooltip(rowReference);
+  const titleTooltip = useTooltip(titleReference);
 
   const handleClose = (event: MouseEvent) => {
     event.stopPropagation();
@@ -133,12 +139,14 @@ export function TabNodeView({
 
   return (
     <div
+      ref={rowReference}
       className={className}
       data-tab-id={node.id}
-      title={node.note ?? undefined}
       draggable={onDragStart !== undefined}
       onClick={handleClick}
       onContextMenu={onContextMenu}
+      onMouseEnter={node.note === null ? undefined : rowTooltip.onMouseEnter}
+      onMouseLeave={node.note === null ? undefined : rowTooltip.onMouseLeave}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -192,7 +200,12 @@ export function TabNodeView({
             ? "tab-node__title tab-node__title--overflowing"
             : "tab-node__title"
         }
-        title={isTitleOverflowing ? node.title : undefined}
+        onMouseEnter={
+          isTitleOverflowing ? titleTooltip.onMouseEnter : undefined
+        }
+        onMouseLeave={
+          isTitleOverflowing ? titleTooltip.onMouseLeave : undefined
+        }
       >
         {node.title}
       </span>
@@ -221,6 +234,12 @@ export function TabNodeView({
       )}
       {node.note !== null && (
         <span className="tab-node__note-icon-spacer" aria-hidden="true" />
+      )}
+      {titleTooltip.isVisible && isTitleOverflowing && (
+        <Tooltip text={node.title} anchor={titleTooltip.anchor} />
+      )}
+      {rowTooltip.isVisible && node.note !== null && (
+        <Tooltip text={node.note} anchor={rowTooltip.anchor} />
       )}
       {editingNoteAnchor &&
         // Portaled to `document.body` rather than rendered in place: this
