@@ -19,7 +19,11 @@ import {
   type DropTarget,
 } from "../shared/tree/mutations";
 import type { TaborMessage } from "../shared/messages";
-import { getNativeOrder, getPinnedNodes } from "../shared/tree/queries";
+import {
+  getNativeOrder,
+  getPinnedNodes,
+  hasHierarchy,
+} from "../shared/tree/queries";
 import {
   clearPendingClose,
   noteTabRemoved,
@@ -35,7 +39,14 @@ import {
   matchStraggler,
   restoreTree,
 } from "../shared/tree/restore";
-import { loadAllTrees, removeTree, saveTree } from "../shared/tree/storage";
+import {
+  clearPendingRemoval,
+  loadAllTrees,
+  loadPendingRemovals,
+  markPendingRemoval,
+  removeTree,
+  saveTree,
+} from "../shared/tree/storage";
 import type { TreeState } from "../shared/tree/types";
 import {
   matchWindows,
@@ -358,6 +369,14 @@ async function initializeWindow(windowId: number): Promise<void> {
   void settled.then(() => removeRestoreSession(windowId));
 }
 
+// How long a saved tree may sit unmatched (see `markPendingRemoval`) before
+// `initializeAllWindows` treats it as genuinely stale and deletes it. Long
+// enough that a window the user only reopens occasionally—rather than every
+// single browser restart—doesn't lose its saved parent/child structure just
+// because other windows (e.g. an installed PWA's) happened to reopen ahead
+// of it a couple of times first.
+const PENDING_REMOVAL_GRACE_MS = 365 * 24 * 60 * 60 * 1000;
+
 /**
  * Initialize every window at browser startup, matching saved windows to
  * actual windows by tab URL overlap first (window ids don't survive a
@@ -476,14 +495,52 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   // (just saved above, under `actualWindow.windowId`)—including when that
   // differs from the saved window's own old id, which is the common case
   // across a restart. Anything saved under an id that isn't one of the
-  // actual windows just initialized is therefore stale, whether or not it
-  // got matched to one of them.
+  // actual windows just initialized is a removal *candidate*—but, unless it
+  // has no parent/child structure worth losing (see `hasHierarchy`), not
+  // deleted outright (see `markPendingRemoval`): a window whose session
+  // restore hadn't finished recreating it in time for this pass's own
+  // snapshot (e.g. because another window, like a lightweight installed-PWA
+  // window, was recreated first—possibly repeatedly across several browser
+  // restarts before the real window ever reopens) would otherwise have its
+  // real saved tree deleted as stale before it ever got a chance to be
+  // matched. Only deleted once its mark is older than
+  // `PENDING_REMOVAL_GRACE_MS`, not merely on the next miss—an installed-PWA
+  // window reopening on every restart ahead of a real window the user only
+  // opens occasionally would otherwise still rack up two straight misses
+  // for it in no time at all. A flat tree has nothing to lose that way—
+  // reopening those same tabs later would rebuild an identical flat tree
+  // regardless of whether this saved one still exists—so it's simply
+  // deleted right away instead of accumulating pending-removal clutter for
+  // windows that keep never quite matching (e.g. a one-off popup or
+  // print-preview window whose exact tab set never recurs).
   const actualWindowIds = new Set(windowIds);
-  await Promise.all(
-    savedWindows
-      .filter((saved) => !actualWindowIds.has(saved.windowId))
-      .map((saved) => removeTree(saved.windowId)),
+  const unmatchedSavedWindows = savedWindows.filter(
+    (saved) => !actualWindowIds.has(saved.windowId),
   );
+  const previouslyPendingRemoval = await loadPendingRemovals();
+
+  await Promise.all([
+    ...unmatchedSavedWindows.map((saved) => {
+      if (!hasHierarchy(saved.tree)) {
+        return removeTree(saved.windowId);
+      }
+      const markedAt = previouslyPendingRemoval.get(saved.windowId);
+      if (
+        markedAt !== undefined &&
+        Date.now() - markedAt >= PENDING_REMOVAL_GRACE_MS
+      ) {
+        return removeTree(saved.windowId);
+      }
+      return markPendingRemoval(saved.windowId);
+    }),
+    // A saved window matched this time around is no longer a removal
+    // candidate, even if a previous pass had marked it pending.
+    ...matches.flatMap((match) =>
+      match.savedWindowId === undefined
+        ? []
+        : [clearPendingRemoval(match.savedWindowId)],
+    ),
+  ]);
 }
 
 // Whether the one genuine, URL-matching startup reconciliation

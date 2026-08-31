@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadAllTrees, loadTree, removeTree, saveTree } from "./storage";
+import {
+  clearPendingRemoval,
+  loadAllTrees,
+  loadPendingRemovals,
+  loadTree,
+  markPendingRemoval,
+  removeTree,
+  saveTree,
+} from "./storage";
 import { createNode } from "./test-helpers";
 import type { TreeState } from "./types";
 
@@ -21,8 +29,11 @@ function createStorageLocalMock() {
         store.has(keys) ? { [keys]: store.get(keys) } : {},
       );
     }),
-    remove: vi.fn((key: string) => {
-      store.delete(key);
+    remove: vi.fn((keys: string | string[]) => {
+      const keyList = Array.isArray(keys) ? keys : [keys];
+      for (const key of keyList) {
+        store.delete(key);
+      }
       return Promise.resolve();
     }),
   };
@@ -111,5 +122,61 @@ describe("loadAllTrees", () => {
 
   it("returns an empty object when nothing has been saved", async () => {
     expect(await loadAllTrees()).toEqual({});
+  });
+
+  it("doesn't mistake a pending-removal mark for a saved tree", async () => {
+    const tree: TreeState = {
+      nodes: { 1: createNode({ id: 1 }) },
+      rootIds: [1],
+    };
+    await saveTree(1, tree);
+    await markPendingRemoval(2);
+
+    expect(await loadAllTrees()).toEqual({ 1: tree });
+  });
+});
+
+describe("pending removal marks", () => {
+  it("round-trips a mark through markPendingRemoval / loadPendingRemovals, recording when it was marked", async () => {
+    await markPendingRemoval(1);
+
+    const marks = await loadPendingRemovals();
+    expect(marks.size).toBe(1);
+    expect(marks.get(1)).toEqual(expect.any(Number));
+  });
+
+  it("doesn't push a mark's timestamp forward on a later repeated miss", async () => {
+    await markPendingRemoval(1);
+    const firstMarks = await loadPendingRemovals();
+    const firstMarkedAt = firstMarks.get(1);
+
+    await markPendingRemoval(1);
+
+    const secondMarks = await loadPendingRemovals();
+    expect(secondMarks.get(1)).toBe(firstMarkedAt);
+  });
+
+  it("clearPendingRemoval removes only the given window's mark", async () => {
+    await markPendingRemoval(1);
+    await markPendingRemoval(2);
+
+    await clearPendingRemoval(1);
+
+    const marks = await loadPendingRemovals();
+    expect(marks.has(1)).toBe(false);
+    expect(marks.has(2)).toBe(true);
+  });
+
+  it("removeTree also clears the window's pending-removal mark", async () => {
+    const tree: TreeState = {
+      nodes: { 1: createNode({ id: 1 }) },
+      rootIds: [1],
+    };
+    await saveTree(1, tree);
+    await markPendingRemoval(1);
+
+    await removeTree(1);
+
+    expect(await loadPendingRemovals()).toEqual(new Map());
   });
 });

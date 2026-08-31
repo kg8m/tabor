@@ -159,3 +159,16 @@ export function getNativeOrder(tree: TreeState): number[] {
 export function getVisibleOrder(tree: TreeState): TabNode[] {
   return flattenDepthFirst(tree, { respectCollapsed: true });
 }
+
+/**
+ * Whether the tree has any parent/child relationship at all, rather than
+ * being just a flat list of root-level tabs (every node is its own root,
+ * i.e. `rootIds.length === Object.keys(nodes).length`). Used to decide
+ * whether a saved tree is worth keeping around once it goes unmatched (see
+ * `initializeAllWindows`): with no parent/child structure to lose,
+ * rebuilding the window flat from its actual tabs later would look
+ * identical regardless of whether this saved tree still exists.
+ */
+export function hasHierarchy(tree: TreeState): boolean {
+  return Object.keys(tree.nodes).length > tree.rootIds.length;
+}

@@ -8,6 +8,7 @@ import {
   getRootNodes,
   getUnpinnedRootNodes,
   getVisibleOrder,
+  hasHierarchy,
   isSelfOrDescendant,
 } from "./queries";
 import { createNode } from "./test-helpers";
@@ -190,6 +191,26 @@ describe("getNativeOrder", () => {
     };
 
     expect(getNativeOrder(collapsed)).toEqual([1, 2, 3, 4, 5]);
+  });
+});
+
+describe("hasHierarchy", () => {
+  it("returns true when at least one node has a parent", () => {
+    const tree = createSampleTree();
+    expect(hasHierarchy(tree)).toBe(true);
+  });
+
+  it("returns false when every node is its own root", () => {
+    const a = createNode({ id: 1 });
+    const b = createNode({ id: 2 });
+    const tree: TreeState = { nodes: { 1: a, 2: b }, rootIds: [1, 2] };
+
+    expect(hasHierarchy(tree)).toBe(false);
+  });
+
+  it("returns false for an empty tree", () => {
+    const tree: TreeState = { nodes: {}, rootIds: [] };
+    expect(hasHierarchy(tree)).toBe(false);
   });
 });
 
