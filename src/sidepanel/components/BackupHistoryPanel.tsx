@@ -158,7 +158,7 @@ export function BackupHistoryPanel({
           {backups?.length === 0 && (
             <li className="backup-history__empty">No backups yet.</li>
           )}
-          {backups?.map((backup) => (
+          {backups?.map((backup, index) => (
             <li key={backup.timestamp}>
               <button
                 type="button"
@@ -170,6 +170,9 @@ export function BackupHistoryPanel({
                 }
                 onClick={() => setSelectedTimestamp(backup.timestamp)}
               >
+                <span className="backup-history__item-index">
+                  {index + 1}
+                </span>
                 {formatTimestamp(backup.timestamp)}
               </button>
             </li>

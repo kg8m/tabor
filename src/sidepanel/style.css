@@ -823,6 +823,14 @@ body {
   background: color-mix(in srgb, currentColor 10%, transparent);
 }
 
+.backup-history__item-index {
+  display: inline-block;
+  min-width: 1.5em;
+  margin-right: 6px;
+  color: color-mix(in srgb, currentColor 55%, transparent);
+  text-align: right;
+}
+
 .backup-history__item--selected {
   background: color-mix(in srgb, var(--tabor-accent) 15%, transparent);
 }
