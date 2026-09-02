@@ -506,20 +506,46 @@ body {
    background (rather than the same transparent tint `.tab-node:hover`
    uses) is needed here specifically to mask the title text that would
    otherwise render underneath before being clipped. */
+/* Inset 1px on the three edges this element covers, always (not just while
+   `.tab-node--selected`), so its position doesn't shift by 1px the moment a
+   row is selected/deselected. The inset leaves room for `.tab-node--selected`'s
+   1px outline (drawn 1px inside the row via `outline-offset: -1px`) — without
+   it, this opaque, later-painted layer would hide that segment of the outline. */
 .tab-node__actions {
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
   display: flex;
   align-items: center;
   visibility: hidden;
   background: color-mix(in srgb, currentColor 8%, var(--tabor-bg));
-  border-radius: 0 4px 4px 0;
+  border-radius: 0 3px 3px 0;
 }
 
 .tab-node:hover .tab-node__actions {
   visibility: visible;
+}
+
+/* Mirrors the row background formulas above (still opaque against
+   `--tabor-bg`, for the same title-masking reason), so the actions column
+   doesn't sit as a visibly mismatched patch over a selected or active row's
+   tint. Source order matches `.tab-node--active`'s below so it likewise wins
+   over `.tab-node--selected` for a row that's both. */
+.tab-node--selected .tab-node__actions {
+  background: color-mix(in srgb, currentColor 15%, var(--tabor-bg));
+}
+
+.tab-node--selected:hover .tab-node__actions {
+  background: color-mix(in srgb, currentColor 20%, var(--tabor-bg));
+}
+
+.tab-node--active .tab-node__actions {
+  background: color-mix(in srgb, var(--tabor-accent) 12%, var(--tabor-bg));
+}
+
+.tab-node--active:hover .tab-node__actions {
+  background: color-mix(in srgb, var(--tabor-accent) 18%, var(--tabor-bg));
 }
 
 .tab-node__suspend,
