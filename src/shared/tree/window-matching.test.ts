@@ -124,6 +124,23 @@ describe("matchWindows", () => {
     expect(result[0]?.savedWindowId).toBe(100);
   });
 
+  it("breaks a tied score by preferring the more recently saved (larger id) window, not array order", () => {
+    const saved: SavedWindow[] = [
+      // Ascending id order, as `loadAllTrees` (numeric object keys) hands
+      // them over—deliberately *not* the order that should win, so this
+      // catches a tie-break that just falls back to array/insertion order.
+      { windowId: 100, tree: tree("https://a.com", "https://b.com") },
+      { windowId: 200, tree: tree("https://a.com", "https://b.com") },
+    ];
+    const actual: ActualWindow[] = [
+      actualWindow(1, "https://a.com", "https://b.com"),
+    ];
+
+    const result = matchWindows(saved, actual);
+
+    expect(result[0]?.savedWindowId).toBe(200);
+  });
+
   it("does not match a large window on a single tab shared with an otherwise unrelated saved window", () => {
     const saved: SavedWindow[] = [
       { windowId: 100, tree: tree("https://shared.com") },
