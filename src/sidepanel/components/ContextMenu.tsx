@@ -57,6 +57,11 @@ interface ContextMenuProps {
    * `targetIds` when none of the targets have children.
    */
   treeIds: number[];
+  /**
+   * Every tab id in the current window (pinned and unpinned), used to derive
+   * "Suspend other tabs"'s target set.
+   */
+  allTabIds: number[];
   isEveryTargetPinned: boolean;
   activeTabId: number | undefined;
   // Only meaningful (non-`undefined`) when `targetIds.length === 1`, per
@@ -73,11 +78,11 @@ interface ContextMenuProps {
  * click on e.g. "Suspend" still reaches its own `onClick` normally, and only
  * this component decides when to close (right after running the action).
  *
- * "Close" asks for confirmation as an in-menu step (swapping its buttons for
- * a Cancel/Close pair) rather than via `window.confirm`: Chrome silently
- * blocks `alert`/`confirm`/`prompt` from extension surfaces like this side
- * panel, so a real `confirm()` call here would always resolve to `false`
- * without ever actually prompting anyone.
+ * "Close" and "Suspend other tab(s)" ask for confirmation as an in-menu step
+ * (swapping the main menu for a Cancel/confirm pair) rather than via
+ * `window.confirm`: Chrome silently blocks `alert`/`confirm`/`prompt` from
+ * extension surfaces like this side panel, so a real `confirm()` call here
+ * would always resolve to `false` without ever actually prompting anyone.
  */
 export function ContextMenu({
   x,
@@ -85,6 +90,7 @@ export function ContextMenu({
   windowId,
   targetIds,
   treeIds,
+  allTabIds,
   isEveryTargetPinned,
   activeTabId,
   targetNote,
@@ -98,6 +104,12 @@ export function ContextMenu({
   // several targets: the others are still worth suspending.
   const suspendableIds = targetIds.filter((id) => id !== activeTabId);
   const suspendableTreeIds = treeIds.filter((id) => id !== activeTabId);
+  // Every tab in the window except the right-clicked/selected target(s) and
+  // the active tab—unlike `suspendableTreeIds`, this deliberately reaches
+  // beyond the targets' own subtree to every other tab in the window.
+  const otherSuspendableIds = allTabIds.filter(
+    (id) => !targetIds.includes(id) && id !== activeTabId,
+  );
   const hasDescendants = treeIds.length > targetIds.length;
   const menuReference = useRef<HTMLDivElement>(null);
   // `"targets"` confirms closing just the right-clicked tab(s); `"tree"`
@@ -107,6 +119,12 @@ export function ContextMenu({
   const [closeConfirmation, setCloseConfirmation] = useState<
     "targets" | "tree" | null
   >(null);
+  // Whether the "Suspend other tabs" confirmation step is showing. Kept
+  // separate from `closeConfirmation` since suspend and close confirmations
+  // are never in progress at the same time, but sharing one state variable
+  // would force an unrelated union type onto both actions.
+  const [suspendOthersConfirmation, setSuspendOthersConfirmation] =
+    useState(false);
   // The "move to window" picker, once its window list has been fetched;
   // `null` while the main menu (or the close confirmation) is showing.
   const [windowPicker, setWindowPicker] = useState<{
@@ -114,11 +132,12 @@ export function ContextMenu({
     windows: WindowOption[];
   } | null>(null);
 
-  // Also reruns when the close confirmation or window picker swaps in (a
-  // different size), since that can newly push the bottom/right edge out of
-  // view.
+  // Also reruns when the close confirmation, suspend-others confirmation, or
+  // window picker swaps in (a different size), since that can newly push the
+  // bottom/right edge out of view.
   const position = useViewportClampedPosition(menuReference, { x, y }, [
     closeConfirmation,
+    suspendOthersConfirmation,
     windowPicker,
   ]);
 
@@ -133,6 +152,13 @@ export function ContextMenu({
 
   const handleSuspendTree = (): void => {
     for (const id of suspendableTreeIds) {
+      void chrome.tabs.discard(id);
+    }
+    onClose();
+  };
+
+  const handleConfirmSuspendOthers = (): void => {
+    for (const id of otherSuspendableIds) {
       void chrome.tabs.discard(id);
     }
     onClose();
@@ -227,92 +253,127 @@ export function ContextMenu({
     >
       {windowPicker === null ? (
         closeConfirmation === null ? (
-          <>
-            <button
-              type="button"
-              role="menuitem"
-              className="context-menu__item"
-              onClick={handleReload}
-            >
-              <ReloadIcon />
-              Reload
-            </button>
-            {suspendableIds.length > 0 && (
+          suspendOthersConfirmation ? (
+            <div className="context-menu__confirm">
+              <p className="context-menu__confirm-text">
+                {`Suspend ${otherSuspendableIds.length} other tab${otherSuspendableIds.length === 1 ? "" : "s"}?`}
+              </p>
+              <div className="context-menu__confirm-actions">
+                <button
+                  type="button"
+                  className="context-menu__item"
+                  onClick={onClose}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="context-menu__item"
+                  onClick={handleConfirmSuspendOthers}
+                >
+                  Suspend
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
               <button
                 type="button"
                 role="menuitem"
                 className="context-menu__item"
-                onClick={handleSuspend}
+                onClick={handleReload}
               >
-                <PauseIcon />
-                Suspend
+                <ReloadIcon />
+                Reload
               </button>
-            )}
-            {hasDescendants && suspendableTreeIds.length > 0 && (
+              {suspendableIds.length > 0 && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="context-menu__item"
+                  onClick={handleSuspend}
+                >
+                  <PauseIcon />
+                  Suspend
+                </button>
+              )}
+              {hasDescendants && suspendableTreeIds.length > 0 && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="context-menu__item"
+                  onClick={handleSuspendTree}
+                >
+                  <PauseIcon />
+                  Suspend tree
+                </button>
+              )}
+              {otherSuspendableIds.length > 0 && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="context-menu__item"
+                  onClick={() => setSuspendOthersConfirmation(true)}
+                >
+                  <PauseIcon />
+                  Suspend other tab(s)
+                </button>
+              )}
+              {!isEveryTargetPinned && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="context-menu__item"
+                  onClick={() => setCloseConfirmation("targets")}
+                >
+                  <CloseIcon />
+                  Close
+                </button>
+              )}
+              {hasDescendants && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="context-menu__item"
+                  onClick={() => setCloseConfirmation("tree")}
+                >
+                  <CloseIcon />
+                  Close tree
+                </button>
+              )}
+              {targetNote !== undefined && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="context-menu__item"
+                  onClick={handleOpenNoteEditor}
+                >
+                  <NoteIcon />
+                  {targetNote === null ? "Add note" : "Edit note"}
+                </button>
+              )}
               <button
                 type="button"
                 role="menuitem"
                 className="context-menu__item"
-                onClick={handleSuspendTree}
-              >
-                <PauseIcon />
-                Suspend tree
-              </button>
-            )}
-            {!isEveryTargetPinned && (
-              <button
-                type="button"
-                role="menuitem"
-                className="context-menu__item"
-                onClick={() => setCloseConfirmation("targets")}
-              >
-                <CloseIcon />
-                Close
-              </button>
-            )}
-            {hasDescendants && (
-              <button
-                type="button"
-                role="menuitem"
-                className="context-menu__item"
-                onClick={() => setCloseConfirmation("tree")}
-              >
-                <CloseIcon />
-                Close tree
-              </button>
-            )}
-            {targetNote !== undefined && (
-              <button
-                type="button"
-                role="menuitem"
-                className="context-menu__item"
-                onClick={handleOpenNoteEditor}
-              >
-                <NoteIcon />
-                {targetNote === null ? "Add note" : "Edit note"}
-              </button>
-            )}
-            <button
-              type="button"
-              role="menuitem"
-              className="context-menu__item"
-              onClick={() => handleOpenWindowPicker("targets")}
-            >
-              <MoveToWindowIcon />
-              Move tab(s) to window
-            </button>
-            {hasDescendants && (
-              <button
-                type="button"
-                role="menuitem"
-                className="context-menu__item"
-                onClick={() => handleOpenWindowPicker("tree")}
+                onClick={() => handleOpenWindowPicker("targets")}
               >
                 <MoveToWindowIcon />
-                Move tree(s) to window
+                Move tab(s) to window
               </button>
-            )}
-          </>
+              {hasDescendants && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="context-menu__item"
+                  onClick={() => handleOpenWindowPicker("tree")}
+                >
+                  <MoveToWindowIcon />
+                  Move tree(s) to window
+                </button>
+              )}
+            </>
+          )
         ) : (
           <div className="context-menu__confirm">
             <p className="context-menu__confirm-text">
