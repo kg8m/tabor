@@ -129,6 +129,9 @@ export function App() {
             windowId={windowId}
             targetIds={menu.targetIds}
             allTabIds={Object.keys(tree.nodes).map(Number)}
+            unpinnedTabIds={Object.values(tree.nodes)
+              .filter((node) => !node.pinned)
+              .map((node) => node.id)}
             treeIds={[
               ...new Set(
                 menu.targetIds.flatMap((id) => [
