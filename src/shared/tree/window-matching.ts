@@ -93,23 +93,39 @@ export function matchWindows(
     savedIndex: number;
     actualIndex: number;
     score: number;
+    savedWindowId: number;
   }[] = [];
-  for (let savedIndex = 0; savedIndex < savedWindows.length; savedIndex++) {
-    for (
-      let actualIndex = 0;
-      actualIndex < actualWindows.length;
-      actualIndex++
-    ) {
+  for (const [savedIndex, savedWindow] of savedWindows.entries()) {
+    for (let actualIndex = 0; actualIndex < actualWindows.length; actualIndex++) {
       const score = scoreCandidate(
         savedUrlSets[savedIndex],
         actualUrlSets[actualIndex],
       );
       if (score > 0) {
-        candidates.push({ savedIndex, actualIndex, score });
+        candidates.push({
+          savedIndex,
+          actualIndex,
+          score,
+          savedWindowId: savedWindow.windowId,
+        });
       }
     }
   }
-  candidates.sort((a, b) => b.score - a.score);
+  // A saved window whose structure changed (a tab reparented or reordered)
+  // but whose tab *set* stayed the same scores identically to a stale
+  // duplicate left over from before that change (see
+  // `initializeAllWindows`'s matched-window cleanup in
+  // `background/index.ts`, which only stops new duplicates from
+  // accumulating, not ones already sitting in storage)—URL overlap alone
+  // can't break that tie. Left to plain array order, the
+  // stale duplicate would win: it's built first here since `loadAllTrees`
+  // iterates its object's keys in ascending numeric order, and
+  // `Array.prototype.sort` is stable. Preferring the larger windowId—Chrome
+  // assigns those in increasing creation order—instead makes the more
+  // recently saved candidate win, which is what a tie should mean.
+  candidates.sort(
+    (a, b) => b.score - a.score || b.savedWindowId - a.savedWindowId,
+  );
 
   const savedIndexByActualIndex = new Map<number, number>();
   const usedSavedIndices = new Set<number>();
