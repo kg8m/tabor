@@ -153,8 +153,8 @@ export function NoteIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" />
-      <path d="M5 6.5h6M5 9.5h4" />
+      <path d="M3 1.5h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2.5a1 1 0 0 1 1-1z" />
+      <path d="M5 6h6M5 9h4" />
     </IconBase>
   );
 }
