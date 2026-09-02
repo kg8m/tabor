@@ -606,9 +606,33 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   // deleted right away instead of accumulating pending-removal clutter for
   // windows that keep never quite matching (e.g. a one-off popup or
   // print-preview window whose exact tab set never recurs).
-  const actualWindowIds = new Set(windowIds);
+  // A saved window matched this time is fully consumed: its tree now lives
+  // under its matched actual window's id (saved above), so its own old
+  // entry—when that id differs—is pure duplicate clutter, removed outright
+  // rather than through the pending-removal grace period below (which
+  // exists only for saved windows that didn't match anything this pass).
+  // Left as a stale duplicate instead, it would keep sitting in storage as
+  // a candidate for a future `matchWindows` call, at risk of outscoring (or
+  // tying, and then winning via `Array.sort`'s stability plus
+  // `Object.entries`' ascending-numeric-key order) the very entry that
+  // superseded it—resurrecting a long-stale parent/child structure over the
+  // current one.
+  //
+  // A saved window that matches *itself* (its own id, still live—e.g. only
+  // the extension reloaded, not the browser, so a window never actually
+  // closed) has no old entry to remove, but may still carry a stale
+  // pending-removal mark from an earlier pass that missed it (e.g. a
+  // transient unresolved-tab-URL race in `queryTabsWithResolvedUrls`).
+  // Clear that mark rather than leaving it—otherwise a later, genuine miss
+  // would inherit that stale timestamp instead of starting its own grace
+  // period fresh, risking premature deletion.
+  const matchedSavedWindowIds = new Set(
+    matches.flatMap((match) =>
+      match.savedWindowId === undefined ? [] : [match.savedWindowId],
+    ),
+  );
   const unmatchedSavedWindows = savedWindows.filter(
-    (saved) => !actualWindowIds.has(saved.windowId),
+    (saved) => !matchedSavedWindowIds.has(saved.windowId),
   );
   const previouslyPendingRemoval = await loadPendingRemovals();
 
@@ -626,13 +650,14 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
       }
       return markPendingRemoval(saved.windowId);
     }),
-    // A saved window matched this time around is no longer a removal
-    // candidate, even if a previous pass had marked it pending.
-    ...matches.flatMap((match) =>
-      match.savedWindowId === undefined
-        ? []
-        : [clearPendingRemoval(match.savedWindowId)],
-    ),
+    ...matches.flatMap((match) => {
+      if (match.savedWindowId === undefined) {
+        return [];
+      }
+      return match.savedWindowId === match.actualWindowId
+        ? [clearPendingRemoval(match.savedWindowId)]
+        : [removeTree(match.savedWindowId)];
+    }),
   ]);
 }
 
