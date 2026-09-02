@@ -128,6 +128,7 @@ export function App() {
             y={menu.y}
             windowId={windowId}
             targetIds={menu.targetIds}
+            allTabIds={Object.keys(tree.nodes).map(Number)}
             treeIds={[
               ...new Set(
                 menu.targetIds.flatMap((id) => [
