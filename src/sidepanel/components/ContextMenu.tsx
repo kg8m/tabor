@@ -59,9 +59,14 @@ interface ContextMenuProps {
   treeIds: number[];
   /**
    * Every tab id in the current window (pinned and unpinned), used to derive
-   * "Suspend other tabs"'s target set.
+   * "Suspend other tab(s)"'s target set.
    */
   allTabIds: number[];
+  /**
+   * Every unpinned tab id in the current window, used to derive "Suspend
+   * other unpinned tab(s)"'s target set.
+   */
+  unpinnedTabIds: number[];
   isEveryTargetPinned: boolean;
   activeTabId: number | undefined;
   // Only meaningful (non-`undefined`) when `targetIds.length === 1`, per
@@ -78,11 +83,12 @@ interface ContextMenuProps {
  * click on e.g. "Suspend" still reaches its own `onClick` normally, and only
  * this component decides when to close (right after running the action).
  *
- * "Close" and "Suspend other tab(s)" ask for confirmation as an in-menu step
- * (swapping the main menu for a Cancel/confirm pair) rather than via
- * `window.confirm`: Chrome silently blocks `alert`/`confirm`/`prompt` from
- * extension surfaces like this side panel, so a real `confirm()` call here
- * would always resolve to `false` without ever actually prompting anyone.
+ * "Close" and the "Suspend other …" items ask for confirmation as an
+ * in-menu step (swapping the main menu for a Cancel/confirm pair) rather
+ * than via `window.confirm`: Chrome silently blocks `alert`/`confirm`/
+ * `prompt` from extension surfaces like this side panel, so a real
+ * `confirm()` call here would always resolve to `false` without ever
+ * actually prompting anyone.
  */
 export function ContextMenu({
   x,
@@ -91,6 +97,7 @@ export function ContextMenu({
   targetIds,
   treeIds,
   allTabIds,
+  unpinnedTabIds,
   isEveryTargetPinned,
   activeTabId,
   targetNote,
@@ -110,6 +117,11 @@ export function ContextMenu({
   const otherSuspendableIds = allTabIds.filter(
     (id) => !targetIds.includes(id) && id !== activeTabId,
   );
+  // Same as `otherSuspendableIds`, but scoped to unpinned tabs only, for
+  // "Suspend other unpinned tab(s)".
+  const otherSuspendableUnpinnedIds = unpinnedTabIds.filter(
+    (id) => !targetIds.includes(id) && id !== activeTabId,
+  );
   const hasDescendants = treeIds.length > targetIds.length;
   const menuReference = useRef<HTMLDivElement>(null);
   // `"targets"` confirms closing just the right-clicked tab(s); `"tree"`
@@ -119,12 +131,23 @@ export function ContextMenu({
   const [closeConfirmation, setCloseConfirmation] = useState<
     "targets" | "tree" | null
   >(null);
-  // Whether the "Suspend other tabs" confirmation step is showing. Kept
-  // separate from `closeConfirmation` since suspend and close confirmations
-  // are never in progress at the same time, but sharing one state variable
-  // would force an unrelated union type onto both actions.
-  const [suspendOthersConfirmation, setSuspendOthersConfirmation] =
-    useState(false);
+  // `"all"` confirms suspending every other tab; `"unpinned"` confirms
+  // suspending every other unpinned tab. Kept separate from
+  // `closeConfirmation` since suspend and close confirmations are never in
+  // progress at the same time, but sharing one state variable would force an
+  // unrelated union type onto both actions.
+  const [suspendOthersConfirmation, setSuspendOthersConfirmation] = useState<
+    "all" | "unpinned" | null
+  >(null);
+  // Which id list and wording the suspend-others confirmation step is
+  // currently showing for. Meaningless while `suspendOthersConfirmation` is
+  // `null`, i.e. before that step is ever shown.
+  const suspendOthersTargetIds =
+    suspendOthersConfirmation === "unpinned"
+      ? otherSuspendableUnpinnedIds
+      : otherSuspendableIds;
+  const suspendOthersNoun =
+    suspendOthersConfirmation === "unpinned" ? "unpinned tab" : "tab";
   // The "move to window" picker, once its window list has been fetched;
   // `null` while the main menu (or the close confirmation) is showing.
   const [windowPicker, setWindowPicker] = useState<{
@@ -158,7 +181,7 @@ export function ContextMenu({
   };
 
   const handleConfirmSuspendOthers = (): void => {
-    for (const id of otherSuspendableIds) {
+    for (const id of suspendOthersTargetIds) {
       void chrome.tabs.discard(id);
     }
     onClose();
@@ -253,29 +276,7 @@ export function ContextMenu({
     >
       {windowPicker === null ? (
         closeConfirmation === null ? (
-          suspendOthersConfirmation ? (
-            <div className="context-menu__confirm">
-              <p className="context-menu__confirm-text">
-                {`Suspend ${otherSuspendableIds.length} other tab${otherSuspendableIds.length === 1 ? "" : "s"}?`}
-              </p>
-              <div className="context-menu__confirm-actions">
-                <button
-                  type="button"
-                  className="context-menu__item"
-                  onClick={onClose}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="context-menu__item"
-                  onClick={handleConfirmSuspendOthers}
-                >
-                  Suspend
-                </button>
-              </div>
-            </div>
-          ) : (
+          suspendOthersConfirmation === null ? (
             <>
               <button
                 type="button"
@@ -313,12 +314,28 @@ export function ContextMenu({
                   type="button"
                   role="menuitem"
                   className="context-menu__item"
-                  onClick={() => setSuspendOthersConfirmation(true)}
+                  onClick={() => setSuspendOthersConfirmation("all")}
                 >
                   <PauseIcon />
                   Suspend other tab(s)
                 </button>
               )}
+              {/* Hidden when identical to "Suspend other tab(s)" above, i.e.
+                  the window has no pinned tabs to exclude in the first
+                  place. */}
+              {otherSuspendableUnpinnedIds.length > 0 &&
+                otherSuspendableUnpinnedIds.length !==
+                  otherSuspendableIds.length && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="context-menu__item"
+                    onClick={() => setSuspendOthersConfirmation("unpinned")}
+                  >
+                    <PauseIcon />
+                    Suspend other unpinned tab(s)
+                  </button>
+                )}
               {!isEveryTargetPinned && (
                 <button
                   type="button"
@@ -373,6 +390,28 @@ export function ContextMenu({
                 </button>
               )}
             </>
+          ) : (
+            <div className="context-menu__confirm">
+              <p className="context-menu__confirm-text">
+                {`Suspend ${suspendOthersTargetIds.length} other ${suspendOthersNoun}${suspendOthersTargetIds.length === 1 ? "" : "s"}?`}
+              </p>
+              <div className="context-menu__confirm-actions">
+                <button
+                  type="button"
+                  className="context-menu__item"
+                  onClick={onClose}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="context-menu__item"
+                  onClick={handleConfirmSuspendOthers}
+                >
+                  Suspend
+                </button>
+              </div>
+            </div>
           )
         ) : (
           <div className="context-menu__confirm">
