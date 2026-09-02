@@ -606,6 +606,11 @@ body {
 .context-menu {
   position: fixed;
   z-index: 1;
+  /* Without an explicit width, a `position: fixed` element with `width: auto`
+     shrink-to-fits within the space between its `left` and the viewport’s
+     right edge—not the full viewport—so right-clicking near the panel’s
+     right edge would otherwise squeeze the menu and wrap its item labels. */
+  width: max-content;
   min-width: 140px;
   padding: 4px;
   border-radius: 6px;
