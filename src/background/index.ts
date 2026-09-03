@@ -346,9 +346,10 @@ async function initializeWindow(windowId: number): Promise<void> {
   // running—but still considers a tree saved under this exact window id
   // (unlikely for a brand-new one, but harmless to include).
   const savedWindows: SavedWindow[] = Object.entries(savedTreesByWindowId)
-    .map(([savedWindowIdString, savedTree]) => ({
+    .map(([savedWindowIdString, stored]) => ({
       windowId: Number(savedWindowIdString),
-      tree: savedTree,
+      tree: stored.tree,
+      savedAt: stored.savedAt,
     }))
     .filter(
       (saved) =>
@@ -496,7 +497,11 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
 
   const savedTreesByWindowId = await loadAllTrees();
   const savedWindows: SavedWindow[] = Object.entries(savedTreesByWindowId).map(
-    ([windowId, tree]) => ({ windowId: Number(windowId), tree }),
+    ([windowId, stored]) => ({
+      windowId: Number(windowId),
+      tree: stored.tree,
+      savedAt: stored.savedAt,
+    }),
   );
 
   const matches = matchWindows(savedWindows, actualWindows);
@@ -718,10 +723,12 @@ async function reloadFromStorage(): Promise<void> {
 
   await Promise.all(
     Object.entries(savedTrees)
-      .map(([windowIdString, tree]) => [Number(windowIdString), tree] as const)
+      .map(
+        ([windowIdString, stored]) => [Number(windowIdString), stored] as const,
+      )
       .filter(([windowId]) => windowIds.has(windowId))
-      .map(async ([windowId, tree]) => {
-        setTree(windowId, tree);
+      .map(async ([windowId, stored]) => {
+        setTree(windowId, stored.tree);
         initializedWindowIds.add(windowId);
 
         // The *persisted* active tab id, not a fresh `chrome.tabs.query`:
@@ -1203,7 +1210,13 @@ async function handleRestoreBackup(
 
   const backup = await loadBackup(timestamp);
   const savedWindows: SavedWindow[] = Object.entries(backup ?? {}).map(
-    ([savedWindowId, tree]) => ({ windowId: Number(savedWindowId), tree }),
+    ([savedWindowId, tree]) => ({
+      windowId: Number(savedWindowId),
+      tree,
+      // The whole snapshot was saved at once, so every window in it shares
+      // this same `savedAt`—see `matchWindows`'s use of it.
+      savedAt: timestamp,
+    }),
   );
 
   const queriedTabs = await chrome.tabs.query({ windowId });

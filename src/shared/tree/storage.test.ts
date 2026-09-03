@@ -39,6 +39,13 @@ function createStorageLocalMock() {
   };
 }
 
+// vitest's `expect.any()` matcher types as `any`; wrapping it once here
+// keeps that unsafe assignment contained to this one spot instead of
+// disabling the lint rule at every place below that asserts a saved
+// timestamp without caring about its exact value.
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+const ANY_NUMBER: number = expect.any(Number);
+
 beforeEach(() => {
   vi.stubGlobal("chrome", { storage: { local: createStorageLocalMock() } });
 });
@@ -48,7 +55,7 @@ afterEach(() => {
 });
 
 describe("saveTree / loadTree", () => {
-  it("round-trips a tree through storage", async () => {
+  it("round-trips a tree through storage, stamped with when it was saved", async () => {
     const tree: TreeState = {
       nodes: {
         1: createNode({ id: 1, childIds: [2] }),
@@ -59,7 +66,10 @@ describe("saveTree / loadTree", () => {
 
     await saveTree(1, tree);
 
-    expect(await loadTree(1)).toEqual(tree);
+    expect(await loadTree(1)).toEqual({
+      tree,
+      savedAt: ANY_NUMBER,
+    });
   });
 
   it("returns undefined when nothing has been saved for the window", async () => {
@@ -79,8 +89,26 @@ describe("saveTree / loadTree", () => {
     await saveTree(1, treeA);
     await saveTree(2, treeB);
 
-    expect(await loadTree(1)).toEqual(treeA);
-    expect(await loadTree(2)).toEqual(treeB);
+    expect(await loadTree(1)).toEqual({
+      tree: treeA,
+      savedAt: ANY_NUMBER,
+    });
+    expect(await loadTree(2)).toEqual({
+      tree: treeB,
+      savedAt: ANY_NUMBER,
+    });
+  });
+
+  it("reads a tree saved before `savedAt` existed as the oldest possible save", async () => {
+    const tree: TreeState = {
+      nodes: { 1: createNode({ id: 1 }) },
+      rootIds: [1],
+    };
+    // Simulates a pre-existing storage entry from before this field was
+    // introduced: a bare `TreeState`, not the `{ tree, savedAt }` wrapper.
+    await chrome.storage.local.set({ "tabor:tree:1": tree });
+
+    expect(await loadTree(1)).toEqual({ tree, savedAt: 0 });
   });
 });
 
@@ -100,7 +128,10 @@ describe("removeTree", () => {
     await removeTree(1);
 
     expect(await loadTree(1)).toBeUndefined();
-    expect(await loadTree(2)).toEqual(treeB);
+    expect(await loadTree(2)).toEqual({
+      tree: treeB,
+      savedAt: ANY_NUMBER,
+    });
   });
 });
 
@@ -117,7 +148,10 @@ describe("loadAllTrees", () => {
     await saveTree(1, treeA);
     await saveTree(2, treeB);
 
-    expect(await loadAllTrees()).toEqual({ 1: treeA, 2: treeB });
+    expect(await loadAllTrees()).toEqual({
+      1: { tree: treeA, savedAt: ANY_NUMBER },
+      2: { tree: treeB, savedAt: ANY_NUMBER },
+    });
   });
 
   it("returns an empty object when nothing has been saved", async () => {
@@ -132,7 +166,9 @@ describe("loadAllTrees", () => {
     await saveTree(1, tree);
     await markPendingRemoval(2);
 
-    expect(await loadAllTrees()).toEqual({ 1: tree });
+    expect(await loadAllTrees()).toEqual({
+      1: { tree, savedAt: ANY_NUMBER },
+    });
   });
 });
 

@@ -34,10 +34,20 @@ function actualWindow(windowId: number, ...urls: string[]): ActualWindow {
   };
 }
 
+// `savedAt` defaults to an arbitrary fixed value for tests that don't care
+// about recency at all (i.e. where the raw score alone already decides).
+function savedWindow(
+  windowId: number,
+  urls: string[],
+  savedAt = 1000,
+): SavedWindow {
+  return { windowId, savedAt, tree: tree(...urls) };
+}
+
 describe("matchWindows", () => {
   it("matches a single saved window to a single actual window by url overlap", () => {
     const saved: SavedWindow[] = [
-      { windowId: 100, tree: tree("https://a.com", "https://b.com") },
+      savedWindow(100, ["https://a.com", "https://b.com"]),
     ];
     const actual: ActualWindow[] = [
       actualWindow(1, "https://a.com", "https://b.com"),
@@ -52,11 +62,8 @@ describe("matchWindows", () => {
 
   it("prefers the saved window with the highest url overlap", () => {
     const saved: SavedWindow[] = [
-      { windowId: 100, tree: tree("https://a.com") },
-      {
-        windowId: 200,
-        tree: tree("https://a.com", "https://b.com", "https://c.com"),
-      },
+      savedWindow(100, ["https://a.com"]),
+      savedWindow(200, ["https://a.com", "https://b.com", "https://c.com"]),
     ];
     const actual: ActualWindow[] = [
       actualWindow(1, "https://a.com", "https://b.com"),
@@ -69,8 +76,8 @@ describe("matchWindows", () => {
 
   it("matches multiple windows one-to-one, not letting one saved window match twice", () => {
     const saved: SavedWindow[] = [
-      { windowId: 100, tree: tree("https://a.com") },
-      { windowId: 200, tree: tree("https://b.com") },
+      savedWindow(100, ["https://a.com"]),
+      savedWindow(200, ["https://b.com"]),
     ];
     const actual: ActualWindow[] = [
       actualWindow(1, "https://b.com"),
@@ -84,9 +91,7 @@ describe("matchWindows", () => {
   });
 
   it("gives an actual window with no overlapping saved window an empty tree", () => {
-    const saved: SavedWindow[] = [
-      { windowId: 100, tree: tree("https://a.com") },
-    ];
+    const saved: SavedWindow[] = [savedWindow(100, ["https://a.com"])];
     const actual: ActualWindow[] = [actualWindow(1, "https://new.com")];
 
     const result = matchWindows(saved, actual);
@@ -102,8 +107,8 @@ describe("matchWindows", () => {
 
   it("leaves unmatched saved windows out of the result", () => {
     const saved: SavedWindow[] = [
-      { windowId: 100, tree: tree("https://a.com") },
-      { windowId: 200, tree: tree("https://gone.com") },
+      savedWindow(100, ["https://a.com"]),
+      savedWindow(200, ["https://gone.com"]),
     ];
     const actual: ActualWindow[] = [actualWindow(1, "https://a.com")];
 
@@ -114,9 +119,7 @@ describe("matchWindows", () => {
   });
 
   it("matches two single-tab windows on their one shared tab", () => {
-    const saved: SavedWindow[] = [
-      { windowId: 100, tree: tree("https://a.com") },
-    ];
+    const saved: SavedWindow[] = [savedWindow(100, ["https://a.com"])];
     const actual: ActualWindow[] = [actualWindow(1, "https://a.com")];
 
     const result = matchWindows(saved, actual);
@@ -124,13 +127,13 @@ describe("matchWindows", () => {
     expect(result[0]?.savedWindowId).toBe(100);
   });
 
-  it("breaks a tied score by preferring the more recently saved (larger id) window, not array order", () => {
+  it("breaks a tied score by preferring the more recently *saved* window, not array order or window id", () => {
     const saved: SavedWindow[] = [
-      // Ascending id order, as `loadAllTrees` (numeric object keys) hands
-      // them over—deliberately *not* the order that should win, so this
-      // catches a tie-break that just falls back to array/insertion order.
-      { windowId: 100, tree: tree("https://a.com", "https://b.com") },
-      { windowId: 200, tree: tree("https://a.com", "https://b.com") },
+      // First in array, and a larger window id—both deliberately wrong
+      // signals to win on, so this catches a tie-break that falls back to
+      // array/insertion order or to id instead of `savedAt`.
+      savedWindow(200, ["https://a.com", "https://b.com"], 1000),
+      savedWindow(100, ["https://a.com", "https://b.com"], 2000),
     ];
     const actual: ActualWindow[] = [
       actualWindow(1, "https://a.com", "https://b.com"),
@@ -138,13 +141,101 @@ describe("matchWindows", () => {
 
     const result = matchWindows(saved, actual);
 
-    expect(result[0]?.savedWindowId).toBe(200);
+    expect(result[0]?.savedWindowId).toBe(100);
+  });
+
+  it("prefers the more recently saved window over a marginally higher-scoring older one (within the tie-break epsilon)", () => {
+    const shared = Array.from(
+      { length: 100 },
+      (_, index) => `https://shared-${index}.com`,
+    );
+    const actual: ActualWindow[] = [actualWindow(1, ...shared)];
+
+    const saved: SavedWindow[] = [
+      // Older save, a hair higher raw score (91/100 shared urls plus 9
+      // stray ones, ratio 91/109 ≈ 0.835)—and a deliberately *larger*
+      // window id than its rival, the way a long-lived earlier browser
+      // session's ids can outgrow a fresh post-restart session's. Recency
+      // should still be judged by `savedAt`, not by this id.
+      {
+        windowId: 999_999,
+        savedAt: 1000,
+        tree: tree(
+          ...shared.slice(0, 91),
+          ...Array.from(
+            { length: 9 },
+            (_, index) => `https://older-only-${index}.com`,
+          ),
+        ),
+      },
+      // Newer save, marginally lower raw score (90/100 shared urls plus 10
+      // stray ones, ratio 90/110 ≈ 0.818)—within `SCORE_TIE_EPSILON` of the
+      // older window's score, so recency should decide instead—and a
+      // deliberately *smaller* window id, the way a post-restart id reset
+      // would produce.
+      {
+        windowId: 1,
+        savedAt: 5000,
+        tree: tree(
+          ...shared.slice(0, 90),
+          ...Array.from(
+            { length: 10 },
+            (_, index) => `https://newer-only-${index}.com`,
+          ),
+        ),
+      },
+    ];
+
+    const result = matchWindows(saved, actual);
+
+    expect(result[0]?.savedWindowId).toBe(1);
+  });
+
+  it("does not let recency override a meaningfully better-scoring window (score gap beyond the tie-break epsilon)", () => {
+    const shared = Array.from(
+      { length: 100 },
+      (_, index) => `https://shared-${index}.com`,
+    );
+    const actual: ActualWindow[] = [actualWindow(1, ...shared)];
+
+    const saved: SavedWindow[] = [
+      // Higher raw score (90/100 shared, ratio 90/110 ≈ 0.818), an older
+      // save, and (deliberately) a larger window id—recency (by either
+      // measure) shouldn't be able to override a genuinely better url
+      // match this large.
+      {
+        windowId: 999_999,
+        savedAt: 1000,
+        tree: tree(
+          ...shared.slice(0, 90),
+          ...Array.from(
+            { length: 10 },
+            (_, index) => `https://higher-only-${index}.com`,
+          ),
+        ),
+      },
+      // A more recent save and a smaller window id, but a much weaker
+      // match (70/100 shared, ratio 70/130 ≈ 0.538).
+      {
+        windowId: 1,
+        savedAt: 5000,
+        tree: tree(
+          ...shared.slice(0, 70),
+          ...Array.from(
+            { length: 30 },
+            (_, index) => `https://lower-only-${index}.com`,
+          ),
+        ),
+      },
+    ];
+
+    const result = matchWindows(saved, actual);
+
+    expect(result[0]?.savedWindowId).toBe(999_999);
   });
 
   it("does not match a large window on a single tab shared with an otherwise unrelated saved window", () => {
-    const saved: SavedWindow[] = [
-      { windowId: 100, tree: tree("https://shared.com") },
-    ];
+    const saved: SavedWindow[] = [savedWindow(100, ["https://shared.com"])];
     const manyUrls = Array.from(
       { length: 20 },
       (_, index) => `https://unrelated-${index}.com`,

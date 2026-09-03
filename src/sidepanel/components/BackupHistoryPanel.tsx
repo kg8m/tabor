@@ -116,6 +116,9 @@ export function BackupHistoryPanel({
           ).map(([savedWindowId, tree]) => ({
             windowId: Number(savedWindowId),
             tree,
+            // The whole snapshot was saved at once, so every window in it
+            // shares this same `savedAt`—see `matchWindows`'s use of it.
+            savedAt: selectedBackup.timestamp,
           }));
           const [match] = matchWindows(savedWindows, [
             { windowId, tabs: actualTabs },
