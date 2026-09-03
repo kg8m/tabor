@@ -313,7 +313,13 @@ async function queryTabsWithResolvedUrls(
  * `waitForTabCreationToSettle`) so a window opened with several tabs at once
  * (e.g. from a bookmark folder) doesn't have the later ones missed by this
  * function's own `tabs.query` and then mishandled as ordinary new tabs by
- * `handleTabCreated`.
+ * `handleTabCreated`. Queries via `queryTabsWithResolvedUrls`, the same as
+ * `initializeAllWindows`, rather than a plain `chrome.tabs.query`: the
+ * profile-switch case above recreates every tab at once, the same burst
+ * `queryTabsWithResolvedUrls`'s own doc comment describes, so without this a
+ * window's tabs can still have empty `url`/`pendingUrl` here—scoring every
+ * saved-tree candidate at zero overlap and silently discarding this window's
+ * real saved hierarchy for a fresh flat one built from its current tabs.
  *
  * Also simply never reruns for a window `initializeAllWindows` already
  * restored (see `initializedWindowIds` above). Chrome fires `windows.onCreated`
@@ -330,7 +336,7 @@ async function initializeWindow(windowId: number): Promise<void> {
 
   const settled = restoreTracking.track();
   await waitForTabCreationToSettle();
-  const queriedTabs = await chrome.tabs.query({ windowId });
+  const queriedTabs = await queryTabsWithResolvedUrls(windowId);
   const tabs = queriedTabs.filter((tab) => !isTaborOwnTab(tab));
   const actualTabs = tabs.map((tab) => toActualTab(tab));
 
