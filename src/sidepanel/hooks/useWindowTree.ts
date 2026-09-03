@@ -1,5 +1,9 @@
 import { useMemo, useSyncExternalStore } from "react";
-import { getStorageKey, loadTree } from "../../shared/tree/storage";
+import {
+  getStorageKey,
+  loadTree,
+  unwrapStoredTree,
+} from "../../shared/tree/storage";
 import type { TreeState } from "../../shared/tree/types";
 
 const EMPTY_TREE: TreeState = { nodes: {}, rootIds: [] };
@@ -55,7 +59,7 @@ function createWindowTreeStore(windowId: number): {
       async function loadInitialTree() {
         const loaded = await loadTree(windowId);
         if (loaded !== undefined) {
-          snapshot = { tree: loaded, isLoading: false };
+          snapshot = { tree: loaded.tree, isLoading: false };
           onStoreChange();
         }
       }
@@ -68,7 +72,10 @@ function createWindowTreeStore(windowId: number): {
         const change = changes[key];
         if (change !== undefined) {
           snapshot = {
-            tree: (change.newValue as TreeState | undefined) ?? EMPTY_TREE,
+            tree:
+              change.newValue === undefined
+                ? EMPTY_TREE
+                : unwrapStoredTree(change.newValue).tree,
             isLoading: false,
           };
           onStoreChange();

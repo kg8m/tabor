@@ -1,6 +1,45 @@
 import { normalizeTree } from "./normalize";
 import type { TreeState } from "./types";
 
+/**
+ * A saved tree together with when it was last written—used by `matchWindows`
+ * to prefer a more recently saved candidate when two score close to each
+ * other (see its own comments). Wall-clock time, not the window id it was
+ * saved under: window/tab ids only increase within a single running browser
+ * process and reset to small numbers on every real restart, so a tree saved
+ * under a large id in a long-lived earlier session can otherwise outrank one
+ * saved moments ago under a small, post-restart id.
+ */
+export interface StoredTree {
+  tree: TreeState;
+  savedAt: number;
+}
+
+/**
+ * A tree saved before `savedAt` existed comes back as a bare `TreeState`
+ * (no `tree`/`savedAt` wrapper) rather than a `StoredTree`. Treated as the
+ * oldest possible save (`savedAt: 0`) rather than "just now"—it'll pick up a
+ * real timestamp the next time anything actually re-saves it (which
+ * ordinary tab activity does often), and in the meantime a real, freshly
+ * timestamped candidate should always be preferred over it on recency.
+ *
+ * Exported so `useWindowTree` can apply the same fallback to a raw
+ * `chrome.storage.local.onChanged` payload, which arrives as this same
+ * on-disk shape rather than going through `loadTree`/`loadAllTrees`.
+ */
+export function unwrapStoredTree(value: unknown): StoredTree {
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    "tree" in value &&
+    "savedAt" in value
+  ) {
+    const stored = value as StoredTree;
+    return { tree: normalizeTree(stored.tree), savedAt: stored.savedAt };
+  }
+  return { tree: normalizeTree(value as TreeState), savedAt: 0 };
+}
+
 const KEY_PREFIX = "tabor:tree:";
 // Deliberately not a `KEY_PREFIX`-prefixed name (e.g. "tabor:tree:pending...")
 // —`loadAllTrees` below matches any key starting with `KEY_PREFIX`, so a mark
@@ -20,13 +59,14 @@ function getPendingRemovalKey(windowId: number): string {
 }
 
 /**
- * Persist a window's tree.
+ * Persist a window's tree, stamped with the current time (see `StoredTree`).
  */
 export async function saveTree(
   windowId: number,
   tree: TreeState,
 ): Promise<void> {
-  await chrome.storage.local.set({ [getStorageKey(windowId)]: tree });
+  const stored: StoredTree = { tree, savedAt: Date.now() };
+  await chrome.storage.local.set({ [getStorageKey(windowId)]: stored });
 }
 
 /**
@@ -34,11 +74,10 @@ export async function saveTree(
  */
 export async function loadTree(
   windowId: number,
-): Promise<TreeState | undefined> {
+): Promise<StoredTree | undefined> {
   const key = getStorageKey(windowId);
   const result = await chrome.storage.local.get(key);
-  const tree = result[key] as TreeState | undefined;
-  return tree === undefined ? undefined : normalizeTree(tree);
+  return Object.hasOwn(result, key) ? unwrapStoredTree(result[key]) : undefined;
 }
 
 /**
@@ -112,16 +151,16 @@ export async function loadPendingRemovals(): Promise<Map<number, number>> {
  * find saved trees whose window no longer exists, in order to match them up
  * with the windows actually open (see `matchWindows`).
  */
-export async function loadAllTrees(): Promise<Record<number, TreeState>> {
+export async function loadAllTrees(): Promise<Record<number, StoredTree>> {
   const all = await chrome.storage.local.get(null);
-  const trees: Record<number, TreeState> = {};
+  const trees: Record<number, StoredTree> = {};
 
   for (const [key, value] of Object.entries(all)) {
     if (!key.startsWith(KEY_PREFIX)) {
       continue;
     }
     const windowId = Number(key.slice(KEY_PREFIX.length));
-    trees[windowId] = normalizeTree(value as TreeState);
+    trees[windowId] = unwrapStoredTree(value);
   }
 
   return trees;
