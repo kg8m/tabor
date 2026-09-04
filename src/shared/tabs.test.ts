@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { isTaborOwnTab, normalizeFavIconUrl, toActualTab } from "./tabs";
+import {
+  isTabSuspended,
+  isTaborOwnTab,
+  normalizeFavIconUrl,
+  toActualTab,
+} from "./tabs";
 
 function tab(overrides: Partial<chrome.tabs.Tab> = {}): chrome.tabs.Tab {
   return {
@@ -35,6 +40,27 @@ describe("normalizeFavIconUrl", () => {
     expect(
       normalizeFavIconUrl("file:///Users/example/project/favicon.ico"),
     ).toBeUndefined();
+  });
+});
+
+describe("isTabSuspended", () => {
+  it("treats a discarded tab as suspended", () => {
+    expect(isTabSuspended(tab({ discarded: true }))).toBe(true);
+  });
+
+  it("treats an unloaded-but-not-discarded tab as suspended", () => {
+    // A tab Chrome just recreated from session restore or a window reopen
+    // and hasn't loaded yet (never clicked)—`discarded` alone can't tell
+    // this apart from an ordinary tab, but `status` can.
+    expect(isTabSuspended(tab({ discarded: false, status: "unloaded" }))).toBe(
+      true,
+    );
+  });
+
+  it("treats an ordinary loaded tab as not suspended", () => {
+    expect(isTabSuspended(tab({ discarded: false, status: "complete" }))).toBe(
+      false,
+    );
   });
 });
 
