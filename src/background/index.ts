@@ -648,15 +648,33 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   const previouslyPendingRemoval = await loadPendingRemovals();
 
   await Promise.all([
+    // TODO(debug): temporary instrumentation, see the block near the top of
+    // this file—records exactly what this pass saw for each unmatched saved
+    // window at the moment it decided whether to keep, mark, or delete it,
+    // to catch a case where `saved.tree` (from this call's own `loadAllTrees`
+    // snapshot) unexpectedly disagrees with what a backup taken moments
+    // earlier (via the in-memory `getAllTrees`) showed for the same window.
     ...unmatchedSavedWindows.map((saved) => {
-      if (!hasHierarchy(saved.tree)) {
-        return removeTree(saved.windowId);
-      }
+      const hasTreeHierarchy = hasHierarchy(saved.tree);
       const markedAt = previouslyPendingRemoval.get(saved.windowId);
-      if (
+      const isExpired =
         markedAt !== undefined &&
-        Date.now() - markedAt >= PENDING_REMOVAL_GRACE_MS
-      ) {
+        Date.now() - markedAt >= PENDING_REMOVAL_GRACE_MS;
+      debugLog("initializeAllWindows:staleCleanup", {
+        windowId: saved.windowId,
+        savedAt: saved.savedAt,
+        nodeCount: Object.keys(saved.tree.nodes).length,
+        rootCount: saved.tree.rootIds.length,
+        hasHierarchy: hasTreeHierarchy,
+        markedAt,
+        action: hasTreeHierarchy
+          ? isExpired
+            ? "removeExpired"
+            : "markPending"
+          : "removeImmediately",
+      });
+
+      if (!hasTreeHierarchy || isExpired) {
         return removeTree(saved.windowId);
       }
       return markPendingRemoval(saved.windowId);
