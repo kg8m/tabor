@@ -727,24 +727,36 @@ async function markReconciledThisBrowserSession(): Promise<void> {
  * that case apart from a genuine session-restore burst, and made it treat
  * that one ordinary tab as parentless instead of a child of the current
  * tab.
+ *
+ * Restores every saved window's tree, skipping only ones already confirmed
+ * gone via `isDeletedWindow`—deliberately *not* filtered against a live
+ * `chrome.windows.getAll()` query, despite that seeming like the more
+ * obviously "correct" set of windows to restore. A window mid-close (its
+ * tabs' own `onRemoved`/`onUpdated` events still working through `enqueue`,
+ * `windows.onRemoved` itself not yet reached) has already dropped out of
+ * `chrome.windows.getAll()`'s results even though this window id hasn't
+ * been confirmed closed in *this* event stream yet. Filtering it out here
+ * left this window absent from the in-memory store; the very next handler
+ * for one of its still-in-flight events (e.g. `handleTabUpdated`) would
+ * then see `getTree` fall back to an empty tree, and—having no reason to
+ * suspect otherwise—save that empty tree right over its real, still-valid
+ * one moments before `windows.onRemoved` finally arrived to clean it up
+ * properly. `isDeletedWindow` doesn't have this race: it only ever becomes
+ * true once `windows.onRemoved` has actually been processed for this
+ * window id, in the same serialized `enqueue` order every other handler
+ * observes—so a window mid-close is (correctly) still restored here, and
+ * whichever handler is already queued to finish tearing it down does so
+ * against its real data, not a blank one this function manufactured.
  */
 async function reloadFromStorage(): Promise<void> {
-  const [savedTrees, windows] = await Promise.all([
-    loadAllTrees(),
-    chrome.windows.getAll(),
-  ]);
-  const windowIds = new Set(
-    windows
-      .map((window) => window.id)
-      .filter((id): id is number => id !== undefined),
-  );
+  const savedTrees = await loadAllTrees();
 
   await Promise.all(
     Object.entries(savedTrees)
       .map(
         ([windowIdString, stored]) => [Number(windowIdString), stored] as const,
       )
-      .filter(([windowId]) => windowIds.has(windowId))
+      .filter(([windowId]) => !isDeletedWindow(windowId))
       .map(async ([windowId, stored]) => {
         setTree(windowId, stored.tree);
         initializedWindowIds.add(windowId);
