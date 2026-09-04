@@ -58,6 +58,19 @@ function getPendingRemovalKey(windowId: number): string {
   return `${PENDING_REMOVAL_KEY_PREFIX}${windowId}`;
 }
 
+// TODO(debug): temporary instrumentation—chases an intermittent bug where a
+// window's tree ends up saved with zero nodes despite every native tab
+// removal that closes a whole window being skipped (see the
+// `isWindowClosing` check in `background/index.ts`'s `handleTabRemoved`),
+// which should leave the tree untouched rather than emptying it. Records the
+// call stack so the next occurrence points straight at whichever caller did
+// this. Reuses `background/index.ts`'s `tabor:debug:` key prefix/shape so
+// it's picked up by the same console snippets already used to read that
+// module's own `debugLog` entries, but duplicated here rather than importing
+// from it—this module has no other dependency on `background/index.ts`, and
+// shouldn't gain one just for this.
+const DEBUG_LOG_KEY_PREFIX = "tabor:debug:";
+
 /**
  * Persist a window's tree, stamped with the current time (see `StoredTree`).
  */
@@ -65,6 +78,18 @@ export async function saveTree(
   windowId: number,
   tree: TreeState,
 ): Promise<void> {
+  if (Object.keys(tree.nodes).length === 0) {
+    const key = `${DEBUG_LOG_KEY_PREFIX}${Date.now()}-emptySave-${windowId}`;
+    void chrome.storage.local.set({
+      [key]: {
+        event: "saveTree:emptyTree",
+        windowId,
+        stack: new Error("saveTree: empty tree").stack,
+        at: Date.now(),
+      },
+    });
+  }
+
   const stored: StoredTree = { tree, savedAt: Date.now() };
   await chrome.storage.local.set({ [getStorageKey(windowId)]: stored });
 }
