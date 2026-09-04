@@ -1,4 +1,4 @@
-import { normalizeFavIconUrl } from "../shared/tabs";
+import { isTabSuspended, normalizeFavIconUrl } from "../shared/tabs";
 import type { TabUpdate } from "../shared/tree/mutations";
 
 /**
@@ -19,11 +19,12 @@ import type { TabUpdate } from "../shared/tree/mutations";
  *
  * `suspended` and `audible` have no such asymmetry concern (there's no
  * "stuck" failure mode for either to guard against) and are simply read from
- * the live `tab.discarded`/`tab.audible`.
+ * the live `tab.discarded`/`tab.audible` (see `isTabSuspended` for why
+ * `suspended` also considers `tab.status`, not just `discarded`).
  */
 export function toSelfHealingUpdate(tab: chrome.tabs.Tab): TabUpdate {
   const update: TabUpdate = {
-    suspended: tab.discarded,
+    suspended: isTabSuspended(tab),
     audible: tab.audible ?? false,
   };
   if (tab.status === "complete") {

@@ -38,6 +38,19 @@ export function normalizeFavIconUrl(
 }
 
 /**
+ * Whether `tab` should render as suspended. `discarded` alone only reports a
+ * tab that was loaded and later unloaded again—it says nothing about one
+ * that hasn't loaded at all yet, e.g. a non-active tab Chrome just
+ * recreated from session restore or a window reopen and hasn't loaded
+ * because it's never been clicked. Chrome's `status` has a separate
+ * `"unloaded"` value (`chrome.tabs.TabStatus.UNLOADED`) for exactly that
+ * case, distinct from `discarded`—so both are treated as suspended here.
+ */
+export function isTabSuspended(tab: chrome.tabs.Tab): boolean {
+  return tab.discarded || tab.status === "unloaded";
+}
+
+/**
  * Convert a `chrome.tabs.Tab` into the plain shape the tree logic works with.
  */
 export function toActualTab(tab: chrome.tabs.Tab): ActualTab {
@@ -48,7 +61,7 @@ export function toActualTab(tab: chrome.tabs.Tab): ActualTab {
     favIconUrl: normalizeFavIconUrl(tab.favIconUrl),
     pinned: tab.pinned,
     loading: tab.status === "loading",
-    suspended: tab.discarded,
+    suspended: isTabSuspended(tab),
     audible: tab.audible ?? false,
   };
 }
