@@ -118,6 +118,15 @@ export function TabNodeView({
     onContextMenu(event);
   };
 
+  // Once a drag starts, the browser stops firing ordinary mouse events
+  // (`mouseleave` included) on the dragged element until the drag ends—so a
+  // tooltip already showing from a pre-drag hover would otherwise stay
+  // stuck on screen for the whole drag, covering the drop indicators.
+  const handleDragStart = (event: DragEvent) => {
+    rowTooltip.onMouseLeave();
+    onDragStart?.(event);
+  };
+
   const handleOpenNoteEditor = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
@@ -146,7 +155,7 @@ export function TabNodeView({
       onContextMenu={handleContextMenu}
       onMouseEnter={rowTooltip.onMouseEnter}
       onMouseLeave={rowTooltip.onMouseLeave}
-      onDragStart={onDragStart}
+      onDragStart={handleDragStart}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
