@@ -148,6 +148,11 @@ export function BackupHistoryPanel({
   const handleListKeyDown = (
     event: React.KeyboardEvent<HTMLUListElement>,
   ): void => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+      return;
+    }
     if (backups === undefined || backups.length === 0) {
       return;
     }
