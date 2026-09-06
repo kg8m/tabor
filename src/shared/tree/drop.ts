@@ -10,14 +10,17 @@ export type DropPosition = "before" | "after" | "child";
  *
  * The top and bottom quarters of the row mean "reorder as a sibling before/
  * after this node"; the middle half means "make this node a child of the
- * target".
+ * target"—unless `canBeChild` is `false` (e.g. dragging a pinned tab, which
+ * per spec can never have children), in which case the middle half instead
+ * falls back to whichever of before/after the pointer is closer to.
  */
 export function resolveDropPosition(
   offsetY: number,
   height: number,
+  canBeChild = true,
 ): DropPosition {
   if (height <= 0) {
-    return "child";
+    return canBeChild ? "child" : "before";
   }
 
   const ratio = offsetY / height;
@@ -26,6 +29,9 @@ export function resolveDropPosition(
   }
   if (ratio > 0.75) {
     return "after";
+  }
+  if (!canBeChild) {
+    return ratio < 0.5 ? "before" : "after";
   }
   return "child";
 }
