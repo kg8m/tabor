@@ -835,6 +835,7 @@ body {
   list-style: none;
   overflow-y: auto;
   border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  outline: none;
 }
 
 .backup-history__item {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TaborMessage } from "../../shared/messages";
 import { isTaborOwnTab, toActualTab } from "../../shared/tabs";
 import { loadAllBackups, type BackupSnapshot } from "../../shared/tree/backup";
@@ -60,6 +60,25 @@ export function BackupHistoryPanel({
   const [actualTabs, setActualTabs] = useState<ActualTab[] | undefined>(
     undefined,
   );
+  const itemElements = useRef(new Map<number, HTMLLIElement>());
+  const listElement = useRef<HTMLUListElement>(null);
+
+  useEffect(() => {
+    if (selectedTimestamp === null) {
+      return;
+    }
+    itemElements.current.get(selectedTimestamp)?.scrollIntoView({
+      block: "nearest",
+    });
+  }, [selectedTimestamp]);
+
+  useEffect(() => {
+    // JSX's `autoFocus` prop isn't reliable here: this panel mounts from a
+    // click on the history button in `App.tsx`, and that button keeps the
+    // browser's default click-to-focus outcome unless focus is moved away
+    // from it explicitly, after the DOM has actually committed.
+    listElement.current?.focus();
+  }, []);
 
   useEffect(() => {
     let isCancelled = false;
@@ -126,6 +145,33 @@ export function BackupHistoryPanel({
           return match?.savedTree;
         })();
 
+  const handleListKeyDown = (
+    event: React.KeyboardEvent<HTMLUListElement>,
+  ): void => {
+    if (backups === undefined || backups.length === 0) {
+      return;
+    }
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") {
+      return;
+    }
+    event.preventDefault();
+
+    const currentIndex = backups.findIndex(
+      (backup) => backup.timestamp === selectedTimestamp,
+    );
+    const delta = event.key === "ArrowDown" ? 1 : -1;
+    const nextIndex =
+      currentIndex === -1
+        ? 0
+        : Math.min(Math.max(currentIndex + delta, 0), backups.length - 1);
+    const nextBackup = backups[nextIndex];
+    if (nextBackup === undefined) {
+      return;
+    }
+
+    setSelectedTimestamp(nextBackup.timestamp);
+  };
+
   const handleRestore = (): void => {
     if (windowId === undefined || selectedTimestamp === null) {
       return;
@@ -154,7 +200,12 @@ export function BackupHistoryPanel({
         </button>
       </div>
       <div className="backup-history__body">
-        <ul className="backup-history__list">
+        <ul
+          className="backup-history__list"
+          ref={listElement}
+          tabIndex={-1}
+          onKeyDown={handleListKeyDown}
+        >
           {backups === undefined && (
             <li className="backup-history__empty">Loading...</li>
           )}
@@ -162,7 +213,16 @@ export function BackupHistoryPanel({
             <li className="backup-history__empty">No backups yet.</li>
           )}
           {backups?.map((backup, index) => (
-            <li key={backup.timestamp}>
+            <li
+              key={backup.timestamp}
+              ref={(element) => {
+                if (element) {
+                  itemElements.current.set(backup.timestamp, element);
+                } else {
+                  itemElements.current.delete(backup.timestamp);
+                }
+              }}
+            >
               <button
                 type="button"
                 className={
