@@ -734,6 +734,36 @@ describe("moveNode", () => {
 
     expect(result).toEqual(tree);
   });
+
+  it("leaves the tree untouched when moving a pinned tab next to an unpinned one", () => {
+    const a = createNode({ id: 1, pinned: true });
+    const b = createNode({ id: 2 });
+    const tree: TreeState = { nodes: { 1: a, 2: b }, rootIds: [1, 2] };
+
+    const result = moveNode(tree, 1, { targetId: 2, position: "after" });
+
+    expect(result).toEqual(tree);
+  });
+
+  it("leaves the tree untouched when moving an unpinned tab next to a pinned one", () => {
+    const a = createNode({ id: 1, pinned: true });
+    const b = createNode({ id: 2 });
+    const tree: TreeState = { nodes: { 1: a, 2: b }, rootIds: [1, 2] };
+
+    const result = moveNode(tree, 2, { targetId: 1, position: "before" });
+
+    expect(result).toEqual(tree);
+  });
+
+  it("reorders two pinned tabs relative to each other", () => {
+    const a = createNode({ id: 1, pinned: true });
+    const b = createNode({ id: 2, pinned: true });
+    const tree: TreeState = { nodes: { 1: a, 2: b }, rootIds: [1, 2] };
+
+    const result = moveNode(tree, 2, { targetId: 1, position: "before" });
+
+    expect(result.rootIds).toEqual([2, 1]);
+  });
 });
 
 describe("moveNodes", () => {
@@ -806,5 +836,18 @@ describe("moveNodes", () => {
     const result = moveNodes(tree, [3, 1], { targetId: 4, position: "after" });
 
     expect(result.rootIds).toEqual([2, 4, 1, 3]);
+  });
+
+  it("skips a selected node whose pinned state doesn't match the target's", () => {
+    // A (pinned), B, C (pinned) -> drop {A, B} after C -> only A moves next
+    // to C, since B is unpinned and can't join the pinned group: B, C, A
+    const a = createNode({ id: 1, pinned: true });
+    const b = createNode({ id: 2 });
+    const c = createNode({ id: 3, pinned: true });
+    const tree: TreeState = { nodes: { 1: a, 2: b, 3: c }, rootIds: [1, 2, 3] };
+
+    const result = moveNodes(tree, [1, 2], { targetId: 3, position: "after" });
+
+    expect(result.rootIds).toEqual([2, 3, 1]);
   });
 });

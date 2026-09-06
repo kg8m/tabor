@@ -465,8 +465,9 @@ export interface DropTarget {
  * `target.targetId`, `child` makes it target's last child.
  *
  * Refuses the move (returning the tree unchanged) if the target doesn't
- * exist, is the dragged node itself, or is one of its own descendants—the
- * latter would create a cycle.
+ * exist, is the dragged node itself, is one of its own descendants (which
+ * would create a cycle), or has a different `pinned` state—pinned tabs only
+ * ever reorder among themselves, never mixing into the unpinned tree.
  */
 export function moveNode(
   tree: TreeState,
@@ -480,6 +481,9 @@ export function moveNode(
     return tree;
   }
   if (id === target.targetId || isSelfOrDescendant(tree, id, target.targetId)) {
+    return tree;
+  }
+  if (tree.nodes[id].pinned !== tree.nodes[target.targetId]!.pinned) {
     return tree;
   }
 
