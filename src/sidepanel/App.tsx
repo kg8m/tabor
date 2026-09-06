@@ -143,6 +143,9 @@ export function App() {
             isEveryTargetPinned={menu.targetIds.every(
               (id) => tree.nodes[id]?.pinned,
             )}
+            isAnyTargetPinned={menu.targetIds.some(
+              (id) => tree.nodes[id]?.pinned,
+            )}
             activeTabId={activeTabId}
             targetNote={
               contextMenuSingleTargetId === undefined

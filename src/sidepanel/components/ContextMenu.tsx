@@ -11,6 +11,7 @@ import {
   NewWindowIcon,
   NoteIcon,
   PauseIcon,
+  PinIcon,
   ReloadIcon,
 } from "./icons";
 
@@ -68,6 +69,11 @@ interface ContextMenuProps {
    */
   unpinnedTabIds: number[];
   isEveryTargetPinned: boolean;
+  // Whether at least one of `targetIds` is pinned—used to decide whether
+  // "Unpin" is shown at all, independent of `isEveryTargetPinned` (which
+  // instead gates "Pin" and "Close"). A selection mixing pinned and
+  // unpinned tabs shows both items.
+  isAnyTargetPinned: boolean;
   activeTabId: number | undefined;
   // Only meaningful (non-`undefined`) when `targetIds.length === 1`, per
   // spec—the note item itself is hidden for a multi-tab selection.
@@ -99,6 +105,7 @@ export function ContextMenu({
   allTabIds,
   unpinnedTabIds,
   isEveryTargetPinned,
+  isAnyTargetPinned,
   activeTabId,
   targetNote,
   onOpenNoteEditor,
@@ -190,6 +197,24 @@ export function ContextMenu({
   const handleReload = (): void => {
     for (const id of targetIds) {
       void chrome.tabs.reload(id);
+    }
+    onClose();
+  };
+
+  // Pinning/unpinning is left to Chrome's native `chrome.tabs.update`, same
+  // as Reload/Suspend above—`chrome.tabs.onUpdated` already reconciles the
+  // tree afterward (`reorderFromPinnedChange`, `src/background/index.ts`),
+  // so there's no need to route this through a `TaborMessage` first.
+  const handlePin = (): void => {
+    for (const id of targetIds) {
+      void chrome.tabs.update(id, { pinned: true });
+    }
+    onClose();
+  };
+
+  const handleUnpin = (): void => {
+    for (const id of targetIds) {
+      void chrome.tabs.update(id, { pinned: false });
     }
     onClose();
   };
@@ -287,6 +312,28 @@ export function ContextMenu({
                 <ReloadIcon />
                 Reload
               </button>
+              {!isEveryTargetPinned && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="context-menu__item"
+                  onClick={handlePin}
+                >
+                  <PinIcon />
+                  Pin
+                </button>
+              )}
+              {isAnyTargetPinned && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="context-menu__item"
+                  onClick={handleUnpin}
+                >
+                  <PinIcon />
+                  Unpin
+                </button>
+              )}
               {suspendableIds.length > 0 && (
                 <button
                   type="button"
