@@ -85,8 +85,15 @@ export function useDragAndDrop(
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
 
+    // A pinned tab can never have children, so its drop never resolves to
+    // "child"—the middle half of the row falls back to before/after instead.
+    const canBeChild = tree.nodes[draggedId]?.pinned !== true;
     const rect = event.currentTarget.getBoundingClientRect();
-    const position = resolveDropPosition(event.clientY - rect.top, rect.height);
+    const position = resolveDropPosition(
+      event.clientY - rect.top,
+      rect.height,
+      canBeChild,
+    );
     setDropIndicator({ kind: "node", targetId: id, position });
   };
 
@@ -101,9 +108,16 @@ export function useDragAndDrop(
       return;
     }
 
+    // Excludes a selected tab whose pinned state doesn't match the dragged
+    // one's: `moveNode` refuses such a move anyway (see its own guard), so
+    // dropping it here would just leave that tab behind rather than moving
+    // it—no different from how a descendant of another selected node is
+    // already left out of `moveNodes`.
     const tabIds =
       selectedIds.has(draggedId) && selectedIds.size > 1
-        ? [...selectedIds]
+        ? [...selectedIds].filter(
+            (id) => tree.nodes[id]?.pinned === tree.nodes[draggedId]?.pinned,
+          )
         : [draggedId];
 
     const message: TaborMessage = {
