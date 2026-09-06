@@ -302,6 +302,15 @@ export function reorderFromNativeMove(
   }
 
   const index = newOrder.indexOf(movedId);
+
+  // movedId can be absent from newOrder—e.g. it was excluded by the
+  // pinned:false query used to build newOrder because it just became
+  // pinned. That's not a real reorder among newOrder's tabs, so leave the
+  // tree untouched rather than misreading index-1 as "moved to the front".
+  if (index === -1) {
+    return tree;
+  }
+
   const previousId = newOrder[index - 1];
 
   // A move that would place movedId right after its own descendant would
@@ -355,6 +364,91 @@ export function reorderFromNativeMove(
     previous.parentId,
     previousIndexInParent + 1,
   );
+}
+
+/**
+ * Promote a node's children into its own place, leaving the node itself in
+ * the tree with no children—shared by `removeTab` (which then deletes the
+ * node) and `reorderFromPinnedChange` (which then relocates it).
+ */
+function promoteChildren(tree: TreeState, id: number): TreeState {
+  const target = tree.nodes[id];
+  if (target === undefined || target.childIds.length === 0) {
+    return tree;
+  }
+
+  const nodes = { ...tree.nodes };
+
+  for (const childId of target.childIds) {
+    const child = nodes[childId];
+    if (child !== undefined) {
+      nodes[childId] = { ...child, parentId: target.parentId };
+    }
+  }
+
+  nodes[id] = { ...target, childIds: [] };
+
+  // Unlike removeTab's replaceWithChildren, id itself must stay in the
+  // list—so its children are inserted right after it, not in its place.
+  const insertChildrenAfterTarget = (ids: number[]): number[] =>
+    ids.flatMap((currentId) =>
+      currentId === id ? [id, ...target.childIds] : [currentId],
+    );
+
+  if (target.parentId === null) {
+    return { nodes, rootIds: insertChildrenAfterTarget(tree.rootIds) };
+  }
+
+  const parent = nodes[target.parentId];
+  if (parent === undefined) {
+    return { nodes, rootIds: tree.rootIds };
+  }
+
+  nodes[parent.id] = {
+    ...parent,
+    childIds: insertChildrenAfterTarget(parent.childIds),
+  };
+
+  return { nodes, rootIds: tree.rootIds };
+}
+
+/**
+ * Reconcile the tree with a tab having just become pinned natively.
+ *
+ * Pinned tabs are always root nodes with no children (see `addTab`), so
+ * this promotes any existing children into the tab's former place—just
+ * like `removeTab`—and then places the tab among the other pinned tabs to
+ * match `nativePinnedOrder` (the actual native order of pinned tabs,
+ * `tabId` included). `handleTabUpdated`'s `updateTab` call only flips the
+ * `pinned` flag and never touches tree position, so without this a tab that
+ * becomes pinned would keep whatever position it had among the unpinned
+ * tabs instead of taking its real place in the pinned region.
+ */
+export function reorderFromPinnedChange(
+  tree: TreeState,
+  tabId: number,
+  nativePinnedOrder: number[],
+): TreeState {
+  if (tree.nodes[tabId] === undefined) {
+    return tree;
+  }
+
+  const promoted = promoteChildren(tree, tabId);
+  const detached = detach(promoted, tabId);
+
+  const index = nativePinnedOrder.indexOf(tabId);
+  const previousId = nativePinnedOrder[index - 1];
+
+  if (previousId === undefined) {
+    return attachAt(detached, tabId, null, 0);
+  }
+
+  const previousIndex = detached.rootIds.indexOf(previousId);
+  if (previousIndex === -1) {
+    return attachAt(detached, tabId, null, detached.rootIds.length);
+  }
+
+  return attachAt(detached, tabId, null, previousIndex + 1);
 }
 
 /**
