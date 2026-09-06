@@ -28,6 +28,10 @@ export function App() {
     activeTabId,
   );
   const dragAndDrop = useDragAndDrop(selectedIds, tree);
+  // A separate instance from `dragAndDrop`, so a pinned tab's drag state
+  // never leaks into `TreeView`'s handlers or vice versa—each side only ever
+  // sees a drag that started within its own area.
+  const pinnedDragAndDrop = useDragAndDrop(selectedIds, tree);
   const { menu, openMenu, closeMenu } = useContextMenu();
   const { editor: noteEditor, openEditor, closeEditor } = useNoteEditor();
   const contextMenuTargetIds = menu
@@ -100,6 +104,7 @@ export function App() {
               onNodeContextMenu={(id, event) =>
                 openMenu(id, event, selectedIds)
               }
+              dragAndDrop={pinnedDragAndDrop}
               activeTabId={activeTabId}
               noteEditor={noteEditor}
               onOpenNoteEditor={openEditor}
