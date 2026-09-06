@@ -1171,29 +1171,29 @@ async function handleUpdateNote(
 }
 
 /**
- * Move the window's non-pinned tabs to match the tree's depth-first order.
- * Used after a side-panel drag-and-drop changes the tree, since that only
- * updates our own state—chrome.tabs.onMoved tells us about the opposite
- * direction (native move -> tree update), not this one.
+ * Move the window's tabs to match the tree's order: pinned tabs to
+ * `getPinnedNodes`' order, at the window's frontmost slots, followed by the
+ * non-pinned tabs to the tree's depth-first order. Used after a side-panel
+ * drag-and-drop changes the tree, since that only updates our own state—
+ * chrome.tabs.onMoved tells us about the opposite direction (native move ->
+ * tree update), not this one.
  *
- * Pinned tabs are left out: they're independent of the tree (see `addTab`)
- * and always occupy the window's frontmost slots, ahead of every id in
- * `order`—so each target index is offset by how many of them there are,
- * rather than assuming Chrome slots a non-pinned tab in after them on its
- * own regardless of the index we ask for.
+ * The non-pinned tabs' target index is offset by how many pinned tabs there
+ * are, since pinned tabs always occupy the window's frontmost slots—rather
+ * than assuming Chrome slots a non-pinned tab in after them on its own
+ * regardless of the index we ask for.
  */
 async function syncNativeOrder(
   tree: TreeState,
   windowId: number,
 ): Promise<void> {
+  const pinnedOrder = getPinnedNodes(tree).map((node) => node.id);
   const order = getNativeOrder(tree).filter(
     (id) => tree.nodes[id]?.pinned !== true,
   );
-  if (order.length === 0) {
+  if (pinnedOrder.length === 0 && order.length === 0) {
     return;
   }
-
-  const pinnedCount = getPinnedNodes(tree).length;
 
   pendingNativeOrderSync.set(windowId, {
     expiresAt: Date.now() + NATIVE_ORDER_SYNC_GUARD_MS,
@@ -1208,15 +1208,28 @@ async function syncNativeOrder(
   // can land scattered away from its intended neighbors instead of next to
   // them. Moving a single id at a time has no such array-relative ambiguity:
   // each call unambiguously means "put this one tab at this index".
-  for (const [offset, id] of order.entries()) {
-    const index = pinnedCount + offset;
+  for (const [index, id] of pinnedOrder.entries()) {
     try {
       await chrome.tabs.move(id, { windowId, index });
     } catch (error) {
       // The id no longer resolving to a real tab (e.g. the tree holding a
       // stale id for a tab that's since closed or moved to another window)
-      // shouldn't stop the rest of `order` from reaching their own target
-      // index, which a thrown error here would otherwise skip entirely.
+      // shouldn't stop the rest of `pinnedOrder`/`order` from reaching their
+      // own target index, which a thrown error here would otherwise skip
+      // entirely.
+      console.error("Tabor: failed to move a pinned tab", {
+        windowId,
+        id,
+        index,
+        error,
+      });
+    }
+  }
+  for (const [offset, id] of order.entries()) {
+    const index = pinnedOrder.length + offset;
+    try {
+      await chrome.tabs.move(id, { windowId, index });
+    } catch (error) {
       console.error("Tabor: failed to move a tab", {
         windowId,
         id,
