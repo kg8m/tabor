@@ -1,4 +1,5 @@
 import type { MouseEvent } from "react";
+import type { DragAndDrop } from "../hooks/useDragAndDrop";
 import type { NoteEditorAnchor, NoteEditorState } from "../hooks/useNoteEditor";
 import { getPinnedNodes } from "../../shared/tree/queries";
 import type { TreeState } from "../../shared/tree/types";
@@ -11,6 +12,7 @@ interface PinnedTabsViewProps {
   contextMenuTargetIds: Set<number>;
   onNodeClick: (id: number, event: MouseEvent) => void;
   onNodeContextMenu: (id: number, event: MouseEvent) => void;
+  dragAndDrop: DragAndDrop;
   activeTabId: number | undefined;
   noteEditor: NoteEditorState | null;
   onOpenNoteEditor: (id: number, anchor: NoteEditorAnchor) => void;
@@ -19,8 +21,10 @@ interface PinnedTabsViewProps {
 
 /**
  * Pinned tabs, shown above the regular tree in their own flat list—no
- * collapse toggle or drag-and-drop, since per spec they have no parent/child
- * relationships to fold or reorder into.
+ * collapse toggle, since per spec they have no parent/child relationships to
+ * fold into, but still reorderable among themselves via drag-and-drop (see
+ * `dragAndDrop`, a separate instance from the one `TreeView` uses so a drag
+ * can never cross between the two areas).
  */
 export function PinnedTabsView({
   tree,
@@ -29,6 +33,7 @@ export function PinnedTabsView({
   contextMenuTargetIds,
   onNodeClick,
   onNodeContextMenu,
+  dragAndDrop,
   activeTabId,
   noteEditor,
   onOpenNoteEditor,
@@ -39,8 +44,18 @@ export function PinnedTabsView({
     return null;
   }
 
+  // The last pinned tab, so a drop in the empty space below the list—e.g.
+  // when there are too few pinned tabs to fill it—always resolves to
+  // "become the new last pinned tab" instead of being silently ignored.
+  const lastPinnedId = pinnedNodes.at(-1)?.id ?? null;
+  const { dropIndicator } = dragAndDrop;
+
   return (
-    <ul className="pinned-tabs">
+    <ul
+      className="pinned-tabs"
+      onDragOver={(event) => dragAndDrop.onContainerDragOver(lastPinnedId, event)}
+      onDrop={(event) => dragAndDrop.onContainerDrop(lastPinnedId, event)}
+    >
       {pinnedNodes.map((node) => (
         <li key={node.id} className="pinned-tabs__item">
           <TabNodeView
@@ -56,9 +71,23 @@ export function PinnedTabsView({
             }
             onOpenNoteEditor={(anchor) => onOpenNoteEditor(node.id, anchor)}
             onCloseNoteEditor={onCloseNoteEditor}
+            dropIndicatorPosition={
+              dropIndicator?.kind === "node" &&
+              dropIndicator.targetId === node.id
+                ? dropIndicator.position
+                : null
+            }
+            onDragStart={(event) => dragAndDrop.onDragStart(node.id, event)}
+            onDragOver={(event) => dragAndDrop.onDragOver(node.id, event)}
+            onDragLeave={() => dragAndDrop.onDragLeave(node.id)}
+            onDrop={(event) => dragAndDrop.onDrop(node.id, event)}
+            onDragEnd={dragAndDrop.onDragEnd}
           />
         </li>
       ))}
+      {dropIndicator?.kind === "end" && (
+        <li className="pinned-tabs__end-indicator" aria-hidden="true" />
+      )}
     </ul>
   );
 }

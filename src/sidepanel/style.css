@@ -176,12 +176,14 @@ body {
   border-bottom: 1px solid color-mix(in srgb, currentColor 8%, transparent);
 }
 
-/* Shown while dragging over the empty space below the tree (see
-   `onContainerDragOver`). Deliberately unindented, at the same width as a
-   root-level row, to signal that dropping here makes the dragged tab a new
-   top-level tab—unlike `.tab-node--drop-after`, which is indented to match
-   whatever row it's actually attached to. */
-.tree-view__end-indicator {
+/* Shown while dragging over the empty space below the tree, or below the
+   pinned tabs list (see `onContainerDragOver`). Deliberately unindented, at
+   the same width as a root-level row, to signal that dropping here makes the
+   dragged tab a new top-level (or last pinned) tab—unlike
+   `.tab-node--drop-after`, which is indented to match whatever row it's
+   actually attached to. */
+.tree-view__end-indicator,
+.pinned-tabs__end-indicator {
   height: 2px;
   margin-top: 1px;
   background: currentColor;
