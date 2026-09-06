@@ -5,6 +5,7 @@ import {
   moveNodes,
   removeTab,
   reorderFromNativeMove,
+  reorderFromPinnedChange,
   replaceTabId,
   updateTab,
 } from "./mutations";
@@ -552,6 +553,92 @@ describe("reorderFromNativeMove", () => {
     const result = reorderFromNativeMove(tree, 999, [1]);
 
     expect(result).toEqual(tree);
+  });
+
+  it("leaves the tree untouched when movedId is absent from newOrder", () => {
+    // e.g. movedId just became pinned, so the pinned:false query used to
+    // build newOrder excludes it—this isn't a real reorder among newOrder's
+    // tabs, and must not be misread as "moved to the front".
+    const a = createNode({ id: 1, pinned: true });
+    const b = createNode({ id: 2, pinned: true });
+    const c = createNode({ id: 3 });
+    const tree: TreeState = {
+      nodes: { 1: a, 2: b, 3: c },
+      rootIds: [1, 2, 3],
+    };
+
+    const result = reorderFromNativeMove(tree, 2, [3]);
+
+    expect(result).toEqual(tree);
+  });
+});
+
+describe("reorderFromPinnedChange", () => {
+  it("returns the tree unchanged when the given id doesn't exist", () => {
+    const a = createNode({ id: 1 });
+    const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
+
+    const result = reorderFromPinnedChange(tree, 999, [1]);
+
+    expect(result).toEqual(tree);
+  });
+
+  it("keeps a newly pinned tab's position when it already matches the native pinned order", () => {
+    const a = createNode({ id: 1, pinned: true });
+    const b = createNode({ id: 2, pinned: true });
+    const c = createNode({ id: 3 });
+    const tree: TreeState = {
+      nodes: { 1: a, 2: b, 3: c },
+      rootIds: [1, 2, 3],
+    };
+
+    const result = reorderFromPinnedChange(tree, 2, [1, 2]);
+
+    expect(result.rootIds).toEqual([1, 2, 3]);
+  });
+
+  it("moves a newly pinned tab to sit right after the pinned tab preceding it natively, correcting a stale position", () => {
+    // Tab 1 was already pinned; tab 2 just became pinned into the second
+    // pinned slot natively, but rootIds still has it ahead of tab 1 from
+    // before—this is the bug: pinning tab 2 must not leave it displayed
+    // ahead of tab 1.
+    const a = createNode({ id: 1, pinned: true });
+    const b = createNode({ id: 2, pinned: true });
+    const c = createNode({ id: 3 });
+    const tree: TreeState = {
+      nodes: { 1: a, 2: b, 3: c },
+      rootIds: [2, 1, 3],
+    };
+
+    const result = reorderFromPinnedChange(tree, 2, [1, 2]);
+
+    expect(result.rootIds).toEqual([1, 2, 3]);
+  });
+
+  it("inserts the tab at the front when it's now the first pinned tab", () => {
+    const a = createNode({ id: 1 });
+    const b = createNode({ id: 2, pinned: true });
+    const tree: TreeState = { nodes: { 1: a, 2: b }, rootIds: [1, 2] };
+
+    const result = reorderFromPinnedChange(tree, 2, [2]);
+
+    expect(result.rootIds).toEqual([2, 1]);
+  });
+
+  it("promotes a newly pinned tab's children into its former place", () => {
+    const a = createNode({ id: 1, pinned: true });
+    const b = createNode({ id: 2, childIds: [3] });
+    const c = createNode({ id: 3, parentId: 2 });
+    const tree: TreeState = {
+      nodes: { 1: a, 2: b, 3: c },
+      rootIds: [1, 2],
+    };
+
+    const result = reorderFromPinnedChange(tree, 2, [1, 2]);
+
+    expect(result.nodes[2]?.childIds).toEqual([]);
+    expect(result.nodes[3]?.parentId).toBeNull();
+    expect(result.rootIds).toEqual([1, 2, 3]);
   });
 });
 

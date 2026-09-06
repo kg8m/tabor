@@ -14,6 +14,7 @@ import {
   moveNodes,
   removeTab,
   reorderFromNativeMove,
+  reorderFromPinnedChange,
   replaceTabId,
   updateTab,
   type DropTarget,
@@ -1086,7 +1087,19 @@ async function handleTabUpdated(
 
   const update = toTabUpdate(changeInfo, tab);
   const tree = getTree(tab.windowId);
-  const updated = updateTab(tree, tabId, update);
+  let updated = updateTab(tree, tabId, update);
+
+  if (update.pinned === true) {
+    const nativePinnedTabs = await chrome.tabs.query({
+      windowId: tab.windowId,
+      pinned: true,
+    });
+    const nativePinnedOrder = nativePinnedTabs
+      .map((nativeTab) => nativeTab.id)
+      .filter((id): id is number => id !== undefined);
+    updated = reorderFromPinnedChange(updated, tabId, nativePinnedOrder);
+  }
+
   setTree(tab.windowId, updated);
   await saveTree(tab.windowId, updated);
 }
