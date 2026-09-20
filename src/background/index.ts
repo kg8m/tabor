@@ -457,14 +457,8 @@ const PENDING_REMOVAL_GRACE_MS = 365 * 24 * 60 * 60 * 1000;
  */
 async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   const settled = restoreTracking.track();
-  // TODO(debug): temporary instrumentation, see the block near the top of
-  // this file—how many `tabs.onCreated` events this actually observed before
-  // deciding tab creation had settled, to see whether a window with many
-  // tabs can finish being recreated by session restore in a single burst
-  // this misses most of (e.g. because most of them already existed by the
-  // time this call's own listener got registered).
-  const observedTabCreatedCount = await waitForTabCreationToSettle();
-  debugLog("initializeAllWindows:settled", { observedTabCreatedCount });
+  await settled;
+  debugLog("initializeAllWindows:settled", {});
   const windows = await chrome.windows.getAll();
   const windowIds = windows
     .map((window) => window.id)
