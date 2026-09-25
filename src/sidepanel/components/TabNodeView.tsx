@@ -109,6 +109,26 @@ export function TabNodeView({
     }
   };
 
+  // React dispatches `mouseenter` by its own component tree rather than the
+  // DOM’s, so the portaled note editor (see below) counts as part of this
+  // row: moving the pointer from another row onto it fires this row’s
+  // `mouseenter` too. Left unfiltered, that starts the tooltip’s timer while
+  // the editor is open, and the tooltip then pops up the moment the editor
+  // closes—with no `mouseleave` ever coming to clear it, since the editor
+  // the pointer was actually over is gone from the DOM by then. Hence only
+  // an enter onto the row’s own DOM counts, and never while editing.
+  const handleMouseEnter = (event: MouseEvent) => {
+    if (
+      editingNoteAnchor ||
+      !(event.target instanceof Node) ||
+      !rowReference.current?.contains(event.target)
+    ) {
+      return;
+    }
+
+    rowTooltip.onMouseEnter();
+  };
+
   // Without this, a right-click while still hovering the row leaves the
   // tooltip's `isVisible` stuck `true` (only `mouseleave` clears it), and its
   // `document.body` portal—appended after `#root` in the DOM—then paints
@@ -129,6 +149,7 @@ export function TabNodeView({
 
   const handleOpenNoteEditor = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
+    rowTooltip.onMouseLeave();
     const rect = event.currentTarget.getBoundingClientRect();
     onOpenNoteEditor({ x: rect.left, y: rect.bottom });
   };
@@ -153,7 +174,7 @@ export function TabNodeView({
       draggable={onDragStart !== undefined}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
-      onMouseEnter={rowTooltip.onMouseEnter}
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={rowTooltip.onMouseLeave}
       onDragStart={handleDragStart}
       onDragOver={onDragOver}
@@ -237,7 +258,13 @@ export function TabNodeView({
       {node.note !== null && (
         <span className="tab-node__note-icon-spacer" aria-hidden="true" />
       )}
-      {rowTooltip.isVisible && (
+      {/* Suppressed while this row’s note editor is open: the editor is
+          portaled but still a child of this row in the React tree, and React
+          dispatches `mouseenter`/`mouseleave` by that tree rather than the
+          DOM’s—so moving the pointer from the row onto the editor never
+          fires the row’s `mouseleave`, and the tooltip would otherwise show
+          up on top of the editor. */}
+      {rowTooltip.isVisible && !editingNoteAnchor && (
         <Tooltip
           text={node.title}
           secondaryText={node.url}
