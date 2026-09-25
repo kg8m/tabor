@@ -591,8 +591,10 @@ body {
   min-width: 280px;
   padding: 6px;
   border-radius: 6px;
-  border: 1px solid color-mix(in srgb, currentColor 15%, transparent);
-  background: var(--tabor-bg);
+  /* Same border/background as `.context-menu` and `.tooltip`, so every
+     popover reads as part of one family. */
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  background: color-mix(in srgb, var(--tabor-bg) 92%, currentColor);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
@@ -628,7 +630,7 @@ body {
 }
 
 .note-editor__cancel:hover {
-  background: color-mix(in srgb, currentColor 15%, transparent);
+  background: color-mix(in srgb, currentColor 10%, transparent);
 }
 
 .context-menu {
