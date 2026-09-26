@@ -206,15 +206,12 @@ export function selectBackupTimestampsToKeep(
     // Only bucket survivors that aged out past MAX_AGE_MINUTES are eligible
     // here—never a bucket's ordinary rejects, or a bucket still within
     // MAX_AGE_MINUTES would get padded back out with the closely-spaced
-    // backups it just thinned. Sorts the array copy filter() just produced,
-    // not a shared/external array; toSorted() isn't available under this
-    // project's configured lib target.
+    // backups it just thinned.
     const agedOutSurvivors = entries
       .filter(
         (entry) => bucketed.has(entry.timestamp) && !kept.has(entry.timestamp),
       )
-      // eslint-disable-next-line unicorn/no-array-sort
-      .sort((a, b) => a.ageMinutes - b.ageMinutes)
+      .toSorted((a, b) => a.ageMinutes - b.ageMinutes)
       .slice(0, shortfall);
 
     for (const entry of agedOutSurvivors) {
