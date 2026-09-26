@@ -66,6 +66,16 @@ export interface RegisterPendingTreeMoveMessage {
 }
 
 /**
+ * Remove the saved trees of windows that are no longer open (see
+ * `selectOrphanedWindowIds`). Any id in `windowIds` whose window is open
+ * again by the time this is handled is left alone.
+ */
+export interface RemoveSavedTreesMessage {
+  type: "removeSavedTrees";
+  windowIds: number[];
+}
+
+/**
  * The discriminated union of every message the side panel can send the
  * background service worker (see `chrome.runtime.onMessage` in
  * `src/background/index.ts`).
@@ -76,4 +86,5 @@ export type TaborMessage =
   | RestoreBackupMessage
   | RegisterPendingCloseMessage
   | UpdateNoteMessage
-  | RegisterPendingTreeMoveMessage;
+  | RegisterPendingTreeMoveMessage
+  | RemoveSavedTreesMessage;

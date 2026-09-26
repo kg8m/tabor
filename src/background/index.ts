@@ -26,6 +26,7 @@ import {
   SESSION_RECONCILED_KEY,
   selectMalformedKeys,
 } from "../shared/storage-keys";
+import { selectOrphanedWindowIds } from "../shared/tree/orphaned-trees";
 import {
   flattenDepthFirst,
   getNativeOrder,
@@ -80,6 +81,7 @@ import {
 } from "./store";
 import { toSelfHealingUpdate, toTabUpdate } from "./tab-update";
 import { isTaborOwnTab, toActualTab } from "../shared/tabs";
+import { queryOpenWindowIds } from "../shared/windows";
 
 /**
  * Records a tab becoming active both in memory (for the rest of this
@@ -1298,6 +1300,36 @@ async function handleRestoreBackup(
   await syncNativeOrder(restored, windowId);
 }
 
+/**
+ * Removes the saved trees the user picked out as belonging to windows that
+ * are no longer open (see `RemoveSavedTreesMessage`). Re-checks against the
+ * windows open right now rather than trusting the side panel's list, which
+ * may be stale by the time this runs, so a live window's tree is never
+ * removed.
+ *
+ * Whether this store holds a tree for a window says nothing about whether
+ * it's open: `reloadFromStorage` loads every saved tree after an idle-wake
+ * restart, closed windows' included. So each removed tree is dropped from
+ * the store too (`deleteWindow`, as `windows.onRemoved` does for a window
+ * that just closed), not just from storage—otherwise it would linger in
+ * memory, and in every backup snapshot taken from it, until the next
+ * restart.
+ */
+async function handleRemoveSavedTrees(windowIds: number[]): Promise<void> {
+  await ensureInitialized();
+
+  const removable = selectOrphanedWindowIds(
+    windowIds,
+    await queryOpenWindowIds(),
+  );
+  await Promise.all(
+    removable.map((windowId) => {
+      deleteWindow(windowId);
+      return removeTree(windowId);
+    }),
+  );
+}
+
 async function handleMoveNode(
   tabIds: number[],
   target: DropTarget,
@@ -1530,6 +1562,10 @@ chrome.runtime.onMessage.addListener((message: TaborMessage) => {
     }
     case "registerPendingTreeMove": {
       registerPendingTreeMove(getTree(message.windowId), message.tabIds);
+      break;
+    }
+    case "removeSavedTrees": {
+      void enqueue(() => handleRemoveSavedTrees(message.windowIds));
       break;
     }
   }
