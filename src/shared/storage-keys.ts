@@ -70,3 +70,20 @@ export const NORMAL_WINDOWS_GAP_KEY = "tabor:session:normalWindowsGapPending";
  * is cleared on restart anyway.
  */
 export const ACTIVE_TAB_KEY_PREFIX = "tabor:session:activeTab:";
+
+/**
+ * The numeric part after `prefix` in `key` (a window id or timestamp), or
+ * `undefined` if `key` doesn't start with `prefix` or the rest isn't a
+ * non-negative integer—so a malformed or foreign key is skipped rather than
+ * being read back as `NaN` (or as `0`, which is what `Number("")` gives).
+ */
+export function extractNumericSuffix(
+  key: string,
+  prefix: string,
+): number | undefined {
+  if (!key.startsWith(prefix)) {
+    return undefined;
+  }
+  const suffix = key.slice(prefix.length);
+  return /^\d+$/.test(suffix) ? Number(suffix) : undefined;
+}

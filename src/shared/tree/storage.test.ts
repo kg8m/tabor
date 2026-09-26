@@ -170,9 +170,29 @@ describe("loadAllTrees", () => {
       1: { tree, savedAt: ANY_NUMBER },
     });
   });
+
+  it("skips a key whose window id isn't numeric", async () => {
+    const tree: TreeState = {
+      nodes: { 1: createNode({ id: 1 }) },
+      rootIds: [1],
+    };
+    await saveTree(1, tree);
+    await chrome.storage.local.set({ "tabor:tree:abc": tree });
+
+    expect(await loadAllTrees()).toEqual({
+      1: { tree, savedAt: ANY_NUMBER },
+    });
+  });
 });
 
 describe("pending removal marks", () => {
+  it("skips a mark whose window id isn't numeric", async () => {
+    await markPendingRemoval(1);
+    await chrome.storage.local.set({ "tabor:pendingTreeRemoval:abc": 0 });
+
+    expect(await loadPendingRemovals()).toEqual(new Map([[1, ANY_NUMBER]]));
+  });
+
   it("round-trips a mark through markPendingRemoval / loadPendingRemovals, recording when it was marked", async () => {
     await markPendingRemoval(1);
 

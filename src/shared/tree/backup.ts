@@ -1,4 +1,4 @@
-import { BACKUP_KEY_PREFIX } from "../storage-keys";
+import { BACKUP_KEY_PREFIX, extractNumericSuffix } from "../storage-keys";
 import { normalizeTree } from "./normalize";
 import type { TreeState } from "./types";
 
@@ -58,10 +58,10 @@ export async function loadAllBackups(): Promise<BackupSnapshot[]> {
   const backups: BackupSnapshot[] = [];
 
   for (const [key, value] of Object.entries(all)) {
-    if (!key.startsWith(BACKUP_KEY_PREFIX)) {
+    const timestamp = extractNumericSuffix(key, BACKUP_KEY_PREFIX);
+    if (timestamp === undefined) {
       continue;
     }
-    const timestamp = Number(key.slice(BACKUP_KEY_PREFIX.length));
     backups.push({
       timestamp,
       windows: normalizeWindows(value as Record<number, TreeState>),

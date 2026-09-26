@@ -2,6 +2,7 @@ import {
   DEBUG_LOG_KEY_PREFIX,
   PENDING_TREE_REMOVAL_KEY_PREFIX,
   TREE_KEY_PREFIX,
+  extractNumericSuffix,
 } from "../storage-keys";
 import { normalizeTree } from "./normalize";
 import type { TreeState } from "./types";
@@ -153,11 +154,9 @@ export async function loadPendingRemovals(): Promise<Map<number, number>> {
   const markedAtByWindowId = new Map<number, number>();
 
   for (const [key, value] of Object.entries(all)) {
-    if (key.startsWith(PENDING_TREE_REMOVAL_KEY_PREFIX)) {
-      markedAtByWindowId.set(
-        Number(key.slice(PENDING_TREE_REMOVAL_KEY_PREFIX.length)),
-        value as number,
-      );
+    const windowId = extractNumericSuffix(key, PENDING_TREE_REMOVAL_KEY_PREFIX);
+    if (windowId !== undefined) {
+      markedAtByWindowId.set(windowId, value as number);
     }
   }
 
@@ -176,10 +175,10 @@ export async function loadAllTrees(): Promise<Record<number, StoredTree>> {
   const trees: Record<number, StoredTree> = {};
 
   for (const [key, value] of Object.entries(all)) {
-    if (!key.startsWith(TREE_KEY_PREFIX)) {
+    const windowId = extractNumericSuffix(key, TREE_KEY_PREFIX);
+    if (windowId === undefined) {
       continue;
     }
-    const windowId = Number(key.slice(TREE_KEY_PREFIX.length));
     trees[windowId] = unwrapStoredTree(value);
   }
 

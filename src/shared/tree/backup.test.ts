@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
-import { selectBackupTimestampsToKeep } from "./backup";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { loadAllBackups, selectBackupTimestampsToKeep } from "./backup";
+import { createNode } from "./test-helpers";
+import type { TreeState } from "./types";
 
 const NOW = 1_700_000_000_000;
 const MINUTE = 60_000;
@@ -187,5 +189,33 @@ describe("selectBackupTimestampsToKeep", () => {
 
     expect(kept).toHaveLength(20);
     expect(new Set(kept)).toEqual(new Set(timestamps.slice(0, 20)));
+  });
+});
+
+describe("loadAllBackups", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("skips a key whose timestamp isn't numeric", async () => {
+    const tree: TreeState = {
+      nodes: { 1: createNode({ id: 1 }) },
+      rootIds: [1],
+    };
+    vi.stubGlobal("chrome", {
+      storage: {
+        local: {
+          get: () =>
+            Promise.resolve({
+              "tabor:backup:1000": { 1: tree },
+              "tabor:backup:abc": { 1: tree },
+            }),
+        },
+      },
+    });
+
+    expect(await loadAllBackups()).toEqual([
+      { timestamp: 1000, windows: { 1: tree } },
+    ]);
   });
 });
