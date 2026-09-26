@@ -82,6 +82,29 @@ export function HistoryIcon() {
 }
 
 /**
+ * Opens the view for cleaning up saved trees of closed windows.
+ */
+export function SavedTreesIcon() {
+  return (
+    <IconBase
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="2.5,4 13.5,4" />
+      <path d="M6,4 V2.5 H10 V4" />
+      <path d="M3.75,4 L4.5,14 H11.5 L12.25,4" />
+      <line x1="6.75" y1="7" x2="6.75" y2="11" />
+      <line x1="9.25" y1="7" x2="9.25" y2="11" />
+    </IconBase>
+  );
+}
+
+/**
  * Shown in place of a tab's own favicon when it doesn't have one (e.g.
  * `chrome://` pages), rather than leaving that space blank: an empty tree
  * row otherwise reads as if there's nothing there at all.

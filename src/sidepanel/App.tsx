@@ -1,8 +1,9 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import { BackupHistoryView } from "./components/BackupHistoryView";
 import { ContextMenu } from "./components/ContextMenu";
-import { HistoryIcon } from "./components/icons";
+import { HistoryIcon, SavedTreesIcon } from "./components/icons";
 import { PinnedTabsView } from "./components/PinnedTabsView";
+import { SavedTreesView } from "./components/SavedTreesView";
 import { TreeView } from "./components/TreeView";
 import { useActiveTabId } from "./hooks/useActiveTabId";
 import { useContextMenu } from "./hooks/useContextMenu";
@@ -20,7 +21,11 @@ import { getDescendantIds } from "../shared/tree/queries";
  */
 export function App() {
   const windowId = useWindowId();
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  // A single value rather than one flag per subview, since only one can be
+  // open at a time.
+  const [openSubview, setOpenSubview] = useState<
+    "backupHistory" | "savedTrees" | null
+  >(null);
   const { tree, isLoading } = useWindowTree(windowId);
   const activeTabId = useActiveTabId(windowId);
   const { selectedIds, handleNodeClick, clearSelection } = useSelection(
@@ -80,9 +85,17 @@ export function App() {
       <header className="app-header">
         <button
           type="button"
-          className="app-header__history-button"
+          className="app-header__button"
+          aria-label="Closed windows"
+          onClick={() => setOpenSubview("savedTrees")}
+        >
+          <SavedTreesIcon />
+        </button>
+        <button
+          type="button"
+          className="app-header__button"
           aria-label="Backup history"
-          onClick={() => setIsHistoryOpen(true)}
+          onClick={() => setOpenSubview("backupHistory")}
         >
           <HistoryIcon />
         </button>
@@ -166,11 +179,14 @@ export function App() {
           />
         )}
       </div>
-      {isHistoryOpen && (
+      {openSubview === "backupHistory" && (
         <BackupHistoryView
           windowId={windowId}
-          onClose={() => setIsHistoryOpen(false)}
+          onClose={() => setOpenSubview(null)}
         />
+      )}
+      {openSubview === "savedTrees" && (
+        <SavedTreesView onClose={() => setOpenSubview(null)} />
       )}
     </div>
   );

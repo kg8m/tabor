@@ -181,7 +181,7 @@ export function BackupHistoryView({
       footer={
         <button
           type="button"
-          className="backup-history__restore"
+          className="subview__primary-action"
           disabled={selectedTimestamp === null}
           onClick={handleRestore}
         >
