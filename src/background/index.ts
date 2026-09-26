@@ -133,8 +133,8 @@ const debugLog = (() => {
 // an extended stretch (waiting on an intermittent bug to recur) doesn't grow
 // `chrome.storage.local` without bound. Half a day is plenty: whatever
 // triggers a bug worth digging into is almost always something done not
-// long before it's noticed. Piggybacks on the existing 5-minute backup
-// alarm (see `handleBackupAlarm`) instead of a dedicated one.
+// long before it's noticed. Run from the periodic alarm (see
+// `handlePeriodicAlarm`) instead of a dedicated one.
 async function pruneOldDebugLogs(): Promise<void> {
   const all = await chrome.storage.local.get(null);
   const cutoff = Date.now() - DEBUG_LOG_RETENTION_MS;
@@ -1313,7 +1313,14 @@ async function handleMoveNode(
   await syncNativeOrder(updated, tab.windowId);
 }
 
-const BACKUP_ALARM_NAME = "tabor-backup-snapshot";
+const PERIODIC_ALARM_NAME = "tabor-periodic";
+// The alarm's name before it started running more than just backups. Alarms
+// persist in Chrome across service worker restarts and extension updates
+// (see `ensurePeriodicAlarm`), so one created under this name keeps firing
+// until explicitly cleared.
+const LEGACY_BACKUP_ALARM_NAME = "tabor-backup-snapshot";
+// The periodic alarm's interval, set by what backups need: it matches the
+// first backup-thinning bucket edge (see `selectBackupTimestampsToKeep`).
 const BACKUP_INTERVAL_MINUTES = 5;
 
 /**
@@ -1328,10 +1335,7 @@ const BACKUP_INTERVAL_MINUTES = 5;
  * be open, silently dropping the real window's tree from this snapshot
  * instead of the alarm simply catching it on its next tick.
  */
-async function handleBackupAlarm(): Promise<void> {
-  await ensureInitialized();
-  await pruneOldDebugLogs();
-
+async function takeBackupSnapshot(): Promise<void> {
   if (await isNormalWindowsGapPending()) {
     return;
   }
@@ -1353,6 +1357,15 @@ async function handleBackupAlarm(): Promise<void> {
 }
 
 /**
+ * Periodic housekeeping, run on every `PERIODIC_ALARM_NAME` tick.
+ */
+async function handlePeriodicAlarm(): Promise<void> {
+  await ensureInitialized();
+  await pruneOldDebugLogs();
+  await takeBackupSnapshot();
+}
+
+/**
  * Alarms persist in Chrome independently of the service worker's own
  * lifetime, so this only needs to actually create one the first time—calling
  * `chrome.alarms.create` again on every later wake-up (this runs at every
@@ -1361,20 +1374,26 @@ async function handleBackupAlarm(): Promise<void> {
  * and a heavily-interactive session can restart the service worker often
  * enough that the alarm would then rarely, if ever, actually reach its full
  * interval.
+ *
+ * Also clears the alarm left over under `LEGACY_BACKUP_ALARM_NAME` (a no-op
+ * once it's gone), which would otherwise keep waking the service worker
+ * every interval for nothing.
  */
-async function ensureBackupAlarm(): Promise<void> {
-  const existing = await chrome.alarms.get(BACKUP_ALARM_NAME);
+async function ensurePeriodicAlarm(): Promise<void> {
+  await chrome.alarms.clear(LEGACY_BACKUP_ALARM_NAME);
+
+  const existing = await chrome.alarms.get(PERIODIC_ALARM_NAME);
   if (existing === undefined) {
-    await chrome.alarms.create(BACKUP_ALARM_NAME, {
+    await chrome.alarms.create(PERIODIC_ALARM_NAME, {
       periodInMinutes: BACKUP_INTERVAL_MINUTES,
     });
   }
 }
-void ensureBackupAlarm();
+void ensurePeriodicAlarm();
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === BACKUP_ALARM_NAME) {
-    void enqueue(handleBackupAlarm);
+  if (alarm.name === PERIODIC_ALARM_NAME) {
+    void enqueue(handlePeriodicAlarm);
   }
 });
 

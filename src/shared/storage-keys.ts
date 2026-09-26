@@ -34,8 +34,8 @@ export const PENDING_TREE_REMOVAL_KEY_PREFIX = "tabor:pendingTreeRemoval:";
 
 /**
  * `tabor:backup:<timestamp>` → every window's tree at that time. Written by
- * the periodic backup alarm and thinned out on the same alarm (see
- * `selectBackupTimestampsToKeep` in `shared/tree/backup.ts`).
+ * the periodic alarm and thinned out on the same alarm (see
+ * `takeBackupSnapshot` and `selectBackupTimestampsToKeep`).
  */
 export const BACKUP_KEY_PREFIX = "tabor:backup:";
 
