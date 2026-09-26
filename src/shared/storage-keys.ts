@@ -87,3 +87,34 @@ export function extractNumericSuffix(
   const suffix = key.slice(prefix.length);
   return /^\d+$/.test(suffix) ? Number(suffix) : undefined;
 }
+
+// The `chrome.storage.local` prefixes whose whole suffix is a window id or
+// timestamp (see `extractNumericSuffix`).
+const NUMERIC_SUFFIX_KEY_PREFIXES = [
+  TREE_KEY_PREFIX,
+  PENDING_TREE_REMOVAL_KEY_PREFIX,
+  BACKUP_KEY_PREFIX,
+];
+
+/**
+ * The keys among `keys` that sit under one of Tabor's `chrome.storage.local`
+ * prefixes but don't fit its shape—a `NUMERIC_SUFFIX_KEY_PREFIXES` key whose
+ * suffix isn't numeric, or a `DEBUG_LOG_KEY_PREFIX` key without a leading
+ * numeric timestamp. Every reader skips these, and nothing ever writes them,
+ * so they're pure clutter that would otherwise stay in storage forever.
+ * Keys outside those prefixes are left alone.
+ */
+export function selectMalformedKeys(keys: string[]): string[] {
+  return keys.filter((key) => {
+    const numericSuffixPrefix = NUMERIC_SUFFIX_KEY_PREFIXES.find((prefix) =>
+      key.startsWith(prefix),
+    );
+    if (numericSuffixPrefix !== undefined) {
+      return extractNumericSuffix(key, numericSuffixPrefix) === undefined;
+    }
+    if (key.startsWith(DEBUG_LOG_KEY_PREFIX)) {
+      return !/^\d+(?:-|$)/.test(key.slice(DEBUG_LOG_KEY_PREFIX.length));
+    }
+    return false;
+  });
+}

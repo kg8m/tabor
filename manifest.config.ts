@@ -5,6 +5,8 @@ export default defineManifest({
   name: "Tabor",
   version: "0.1.0",
   description: "Tree-style tab manager extension for Chrome and Vivaldi",
+  // `chrome.storage.local.getKeys()` needs Chrome 130.
+  minimum_chrome_version: "130",
   permissions: ["tabs", "storage", "sidePanel", "unlimitedStorage", "alarms"],
   icons: {
     16: "icons/icon16.png",

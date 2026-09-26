@@ -24,6 +24,7 @@ import {
   DEBUG_LOG_KEY_PREFIX,
   NORMAL_WINDOWS_GAP_KEY,
   SESSION_RECONCILED_KEY,
+  selectMalformedKeys,
 } from "../shared/storage-keys";
 import {
   flattenDepthFirst,
@@ -149,6 +150,19 @@ async function pruneOldDebugLogs(): Promise<void> {
   });
   if (staleKeys.length > 0) {
     await chrome.storage.local.remove(staleKeys);
+  }
+}
+
+/**
+ * Removes keys that sit under one of Tabor's own prefixes but don't fit its
+ * shape (see `selectMalformedKeys`). Run from the periodic alarm (see
+ * `handlePeriodicAlarm`).
+ */
+async function pruneMalformedKeys(): Promise<void> {
+  const keys = await chrome.storage.local.getKeys();
+  const malformedKeys = selectMalformedKeys(keys);
+  if (malformedKeys.length > 0) {
+    await chrome.storage.local.remove(malformedKeys);
   }
 }
 
@@ -1362,6 +1376,7 @@ async function takeBackupSnapshot(): Promise<void> {
 async function handlePeriodicAlarm(): Promise<void> {
   await ensureInitialized();
   await pruneOldDebugLogs();
+  await pruneMalformedKeys();
   await takeBackupSnapshot();
 }
 
