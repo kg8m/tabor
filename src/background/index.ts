@@ -21,6 +21,11 @@ import {
 } from "../shared/tree/mutations";
 import type { TaborMessage } from "../shared/messages";
 import {
+  DEBUG_LOG_KEY_PREFIX,
+  NORMAL_WINDOWS_GAP_KEY,
+  SESSION_RECONCILED_KEY,
+} from "../shared/storage-keys";
+import {
   flattenDepthFirst,
   getNativeOrder,
   getPinnedNodes,
@@ -90,7 +95,6 @@ function setAndPersistActiveTabId(windowId: number, tabId: number): void {
 // missing active-tab indicator after closing the active tab). Remove once
 // root-caused. Prefixed and timestamped so its output can be correlated
 // with the side panel's own `[Tabor:sidepanel]` logs (a separate console).
-const DEBUG_LOG_KEY_PREFIX = "tabor:debug:";
 const DEBUG_LOG_RETENTION_MS = 12 * 60 * 60 * 1000;
 
 const debugLog = (() => {
@@ -692,8 +696,6 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
 // but—unlike an in-memory flag here—it survives the service worker being
 // killed and restarted for merely going idle, which happens constantly
 // during ordinary use and isn't a real restart at all.
-const SESSION_RECONCILED_KEY = "tabor:session:reconciled";
-
 async function hasReconciledThisBrowserSession(): Promise<boolean> {
   const result = await chrome.storage.session.get(SESSION_RECONCILED_KEY);
   return result[SESSION_RECONCILED_KEY] === true;
@@ -831,7 +833,8 @@ const ensureInitialized = (() => {
 // service worker can be killed for going idle (routinely, after ~30
 // seconds) at any point between the last normal window closing and the next
 // one opening, which would silently wipe an in-memory flag before it ever
-// got consumed—see `SESSION_RECONCILED_KEY` above for the same reasoning.
+// got consumed—see `hasReconciledThisBrowserSession` above for the same
+// reasoning.
 //
 // Deliberately kept independent of `hasReconciledThisBrowserSession`'s own
 // flag, rather than reusing or clearing it directly: any other event
@@ -841,8 +844,6 @@ const ensureInitialized = (() => {
 // first—matching only that PWA window against every saved tree and then, in
 // its own stale-window cleanup, permanently deleting every real window's
 // saved tree before the user gets a chance to reopen it.
-const NORMAL_WINDOWS_GAP_KEY = "tabor:session:normalWindowsGapPending";
-
 async function isNormalWindowsGapPending(): Promise<boolean> {
   const result = await chrome.storage.session.get(NORMAL_WINDOWS_GAP_KEY);
   return result[NORMAL_WINDOWS_GAP_KEY] === true;

@@ -1,7 +1,6 @@
+import { BACKUP_KEY_PREFIX } from "../storage-keys";
 import { normalizeTree } from "./normalize";
 import type { TreeState } from "./types";
-
-const BACKUP_KEY_PREFIX = "tabor:backup:";
 
 /**
  * One point-in-time backup: every window's tree as it stood at `timestamp`.

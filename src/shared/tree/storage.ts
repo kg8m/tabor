@@ -1,3 +1,8 @@
+import {
+  DEBUG_LOG_KEY_PREFIX,
+  PENDING_TREE_REMOVAL_KEY_PREFIX,
+  TREE_KEY_PREFIX,
+} from "../storage-keys";
 import { normalizeTree } from "./normalize";
 import type { TreeState } from "./types";
 
@@ -40,22 +45,15 @@ export function unwrapStoredTree(value: unknown): StoredTree {
   return { tree: normalizeTree(value as TreeState), savedAt: 0 };
 }
 
-const KEY_PREFIX = "tabor:tree:";
-// Deliberately not a `KEY_PREFIX`-prefixed name (e.g. "tabor:tree:pending...")
-// —`loadAllTrees` below matches any key starting with `KEY_PREFIX`, so a mark
-// key nested under it would get picked up there too and fail to parse as a
-// window id.
-const PENDING_REMOVAL_KEY_PREFIX = "tabor:pendingTreeRemoval:";
-
 /**
  * The `chrome.storage.local` key a window's tree is saved under.
  */
 export function getStorageKey(windowId: number): string {
-  return `${KEY_PREFIX}${windowId}`;
+  return `${TREE_KEY_PREFIX}${windowId}`;
 }
 
 function getPendingRemovalKey(windowId: number): string {
-  return `${PENDING_REMOVAL_KEY_PREFIX}${windowId}`;
+  return `${PENDING_TREE_REMOVAL_KEY_PREFIX}${windowId}`;
 }
 
 // TODO(debug): temporary instrumentation—chases an intermittent bug where a
@@ -64,12 +62,9 @@ function getPendingRemovalKey(windowId: number): string {
 // `isWindowClosing` check in `background/index.ts`'s `handleTabRemoved`),
 // which should leave the tree untouched rather than emptying it. Records the
 // call stack so the next occurrence points straight at whichever caller did
-// this. Reuses `background/index.ts`'s `tabor:debug:` key prefix/shape so
-// it's picked up by the same console snippets already used to read that
-// module's own `debugLog` entries, but duplicated here rather than importing
-// from it—this module has no other dependency on `background/index.ts`, and
-// shouldn't gain one just for this.
-const DEBUG_LOG_KEY_PREFIX = "tabor:debug:";
+// this. Shares `background/index.ts`'s `debugLog` key prefix/shape so it's
+// picked up by the same console snippets already used to read those
+// entries, and pruned along with them by `pruneOldDebugLogs`.
 
 /**
  * Persist a window's tree, stamped with the current time (see `StoredTree`).
@@ -158,9 +153,9 @@ export async function loadPendingRemovals(): Promise<Map<number, number>> {
   const markedAtByWindowId = new Map<number, number>();
 
   for (const [key, value] of Object.entries(all)) {
-    if (key.startsWith(PENDING_REMOVAL_KEY_PREFIX)) {
+    if (key.startsWith(PENDING_TREE_REMOVAL_KEY_PREFIX)) {
       markedAtByWindowId.set(
-        Number(key.slice(PENDING_REMOVAL_KEY_PREFIX.length)),
+        Number(key.slice(PENDING_TREE_REMOVAL_KEY_PREFIX.length)),
         value as number,
       );
     }
@@ -181,10 +176,10 @@ export async function loadAllTrees(): Promise<Record<number, StoredTree>> {
   const trees: Record<number, StoredTree> = {};
 
   for (const [key, value] of Object.entries(all)) {
-    if (!key.startsWith(KEY_PREFIX)) {
+    if (!key.startsWith(TREE_KEY_PREFIX)) {
       continue;
     }
-    const windowId = Number(key.slice(KEY_PREFIX.length));
+    const windowId = Number(key.slice(TREE_KEY_PREFIX.length));
     trees[windowId] = unwrapStoredTree(value);
   }
 

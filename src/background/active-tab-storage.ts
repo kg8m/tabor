@@ -1,4 +1,4 @@
-const ACTIVE_TAB_KEY_PREFIX = "tabor:session:activeTab:";
+import { ACTIVE_TAB_KEY_PREFIX } from "../shared/storage-keys";
 
 function getActiveTabStorageKey(windowId: number): string {
   return `${ACTIVE_TAB_KEY_PREFIX}${windowId}`;
