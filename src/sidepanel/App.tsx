@@ -1,5 +1,5 @@
 import { useEffect, useState, type MouseEvent } from "react";
-import { BackupHistoryPanel } from "./components/BackupHistoryPanel";
+import { BackupHistoryView } from "./components/BackupHistoryView";
 import { ContextMenu } from "./components/ContextMenu";
 import { HistoryIcon } from "./components/icons";
 import { PinnedTabsView } from "./components/PinnedTabsView";
@@ -167,7 +167,7 @@ export function App() {
         )}
       </div>
       {isHistoryOpen && (
-        <BackupHistoryPanel
+        <BackupHistoryView
           windowId={windowId}
           onClose={() => setIsHistoryOpen(false)}
         />

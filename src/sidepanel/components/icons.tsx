@@ -61,7 +61,7 @@ export function PauseIcon() {
 }
 
 /**
- * Opens the backup history panel.
+ * Opens the backup history view.
  */
 export function HistoryIcon() {
   return (

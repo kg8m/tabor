@@ -11,7 +11,7 @@ import { formatTimestamp } from "../format";
 import { Subview } from "./Subview";
 import { TreePreview } from "./TreePreview";
 
-interface BackupHistoryPanelProps {
+interface BackupHistoryViewProps {
   windowId: number | undefined;
   onClose: () => void;
 }
@@ -27,10 +27,10 @@ interface BackupHistoryPanelProps {
  * store `setTree` needs to update in place, and it alone can safely
  * re-sync the native tab order afterward.
  */
-export function BackupHistoryPanel({
+export function BackupHistoryView({
   windowId,
   onClose,
-}: BackupHistoryPanelProps) {
+}: BackupHistoryViewProps) {
   const [backups, setBackups] = useState<BackupSnapshot[] | undefined>(
     undefined,
   );
