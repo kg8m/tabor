@@ -760,9 +760,22 @@ async function markReconciledThisBrowserSession(): Promise<void> {
  * observes—so a window mid-close is (correctly) still restored here, and
  * whichever handler is already queued to finish tearing it down does so
  * against its real data, not a blank one this function manufactured.
+ *
+ * The flip side is that this store also ends up holding the saved trees of
+ * windows closed long ago (e.g. in a previous browser session), which
+ * `isDeletedWindow` knows nothing about. So only windows actually open are
+ * marked in `initializedWindowIds`: marking a closed window's tree there too
+ * would read as "already claimed by a live window" to `initializeWindow`,
+ * which would then never offer it as a match for a window reopened later.
+ * A window mid-close isn't marked either, which is fine—it's about to
+ * become one of those closed windows anyway.
  */
 async function reloadFromStorage(): Promise<void> {
-  const savedTrees = await loadAllTrees();
+  const [savedTrees, openWindowIds] = await Promise.all([
+    loadAllTrees(),
+    queryOpenWindowIds(),
+  ]);
+  const openWindowIdSet = new Set(openWindowIds);
 
   await Promise.all(
     Object.entries(savedTrees)
@@ -772,7 +785,9 @@ async function reloadFromStorage(): Promise<void> {
       .filter(([windowId]) => !isDeletedWindow(windowId))
       .map(async ([windowId, stored]) => {
         setTree(windowId, stored.tree);
-        initializedWindowIds.add(windowId);
+        if (openWindowIdSet.has(windowId)) {
+          initializedWindowIds.add(windowId);
+        }
 
         // The *persisted* active tab id, not a fresh `chrome.tabs.query`:
         // whichever event just woke the service worker up may itself have
@@ -1370,13 +1385,20 @@ const LEGACY_BACKUP_ALARM_NAME = "tabor-backup-snapshot";
 const BACKUP_INTERVAL_MINUTES = 5;
 
 /**
- * Snapshots every window's tree for on-demand restore later, then thins out
- * older snapshots (see `selectBackupTimestampsToKeep`) so the backup history
- * doesn't grow without bound.
+ * Snapshots every open window's tree for on-demand restore later, then thins
+ * out older snapshots (see `selectBackupTimestampsToKeep`) so the backup
+ * history doesn't grow without bound.
+ *
+ * Only open windows' trees: after an idle-wake restart, this store also
+ * holds the saved trees of windows closed long ago (see
+ * `reloadFromStorage`). Left in, they'd make a snapshot's contents depend on
+ * whether the service worker happened to restart since startup, and give
+ * `matchWindows` a closed window's tree to pick over the current window's
+ * own when restoring.
  *
  * Skipped while every normal window is momentarily gone (see
  * `isNormalWindowsGapPending`—e.g. between closing the last one and a
- * profile switch reopening it): `getAllTrees()` at that instant would hold
+ * profile switch reopening it): the open windows at that instant would be
  * only whatever lightweight windows (installed PWAs, etc.) happen to still
  * be open, silently dropping the real window's tree from this snapshot
  * instead of the alarm simply catching it on its next tick.
@@ -1386,7 +1408,12 @@ async function takeBackupSnapshot(): Promise<void> {
     return;
   }
 
-  const windows = getAllTrees();
+  const openWindowIds = new Set(await queryOpenWindowIds());
+  const windows = Object.fromEntries(
+    Object.entries(getAllTrees()).filter(([windowId]) =>
+      openWindowIds.has(Number(windowId)),
+    ),
+  );
   if (Object.keys(windows).length === 0) {
     return;
   }
