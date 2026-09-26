@@ -3,8 +3,8 @@ import {
   savePersistedActiveTabId,
 } from "./active-tab-storage";
 import {
-  loadAllBackups,
   loadBackup,
+  loadBackupTimestamps,
   removeBackups,
   saveBackup,
   selectBackupTimestampsToKeep,
@@ -137,9 +137,9 @@ const debugLog = (() => {
 // long before it's noticed. Run from the periodic alarm (see
 // `handlePeriodicAlarm`) instead of a dedicated one.
 async function pruneOldDebugLogs(): Promise<void> {
-  const all = await chrome.storage.local.get(null);
+  const keys = await chrome.storage.local.getKeys();
   const cutoff = Date.now() - DEBUG_LOG_RETENTION_MS;
-  const staleKeys = Object.keys(all).filter((key) => {
+  const staleKeys = keys.filter((key) => {
     if (!key.startsWith(DEBUG_LOG_KEY_PREFIX)) {
       return false;
     }
@@ -1361,8 +1361,7 @@ async function takeBackupSnapshot(): Promise<void> {
 
   await saveBackup(Date.now(), windows);
 
-  const backups = await loadAllBackups();
-  const timestamps = backups.map((backup) => backup.timestamp);
+  const timestamps = await loadBackupTimestamps();
   const kept = new Set(selectBackupTimestampsToKeep(timestamps, Date.now()));
   const toRemove = timestamps.filter((timestamp) => !kept.has(timestamp));
   if (toRemove.length > 0) {

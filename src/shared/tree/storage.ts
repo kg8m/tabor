@@ -2,7 +2,7 @@ import {
   DEBUG_LOG_KEY_PREFIX,
   PENDING_TREE_REMOVAL_KEY_PREFIX,
   TREE_KEY_PREFIX,
-  extractNumericSuffix,
+  loadValuesByNumericSuffix,
 } from "../storage-keys";
 import { normalizeTree } from "./normalize";
 import type { TreeState } from "./types";
@@ -150,17 +150,10 @@ export async function clearPendingRemoval(windowId: number): Promise<void> {
  * was first marked at (see `markPendingRemoval`).
  */
 export async function loadPendingRemovals(): Promise<Map<number, number>> {
-  const all = await chrome.storage.local.get(null);
-  const markedAtByWindowId = new Map<number, number>();
-
-  for (const [key, value] of Object.entries(all)) {
-    const windowId = extractNumericSuffix(key, PENDING_TREE_REMOVAL_KEY_PREFIX);
-    if (windowId !== undefined) {
-      markedAtByWindowId.set(windowId, value as number);
-    }
-  }
-
-  return markedAtByWindowId;
+  const marks = await loadValuesByNumericSuffix(
+    PENDING_TREE_REMOVAL_KEY_PREFIX,
+  );
+  return marks as Map<number, number>;
 }
 
 /**
@@ -171,14 +164,10 @@ export async function loadPendingRemovals(): Promise<Map<number, number>> {
  * with the windows actually open (see `matchWindows`).
  */
 export async function loadAllTrees(): Promise<Record<number, StoredTree>> {
-  const all = await chrome.storage.local.get(null);
+  const stored = await loadValuesByNumericSuffix(TREE_KEY_PREFIX);
   const trees: Record<number, StoredTree> = {};
 
-  for (const [key, value] of Object.entries(all)) {
-    const windowId = extractNumericSuffix(key, TREE_KEY_PREFIX);
-    if (windowId === undefined) {
-      continue;
-    }
+  for (const [windowId, value] of stored) {
     trees[windowId] = unwrapStoredTree(value);
   }
 

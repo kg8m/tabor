@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadAllBackups, selectBackupTimestampsToKeep } from "./backup";
+import {
+  loadAllBackups,
+  loadBackupTimestamps,
+  selectBackupTimestampsToKeep,
+} from "./backup";
 import { createNode } from "./test-helpers";
 import type { TreeState } from "./types";
 
@@ -192,30 +196,71 @@ describe("selectBackupTimestampsToKeep", () => {
   });
 });
 
-describe("loadAllBackups", () => {
+// Returns the `get` mock so a test can assert which keys were actually read.
+function stubStorage(stored: Record<string, unknown>) {
+  const get = vi.fn((keys: string[]) =>
+    Promise.resolve(
+      Object.fromEntries(
+        keys
+          .filter((key) => Object.hasOwn(stored, key))
+          .map((key) => [key, stored[key]]),
+      ),
+    ),
+  );
+  vi.stubGlobal("chrome", {
+    storage: {
+      local: {
+        get,
+        getKeys: () => Promise.resolve(Object.keys(stored)),
+      },
+    },
+  });
+  return get;
+}
+
+describe("loading backups from storage", () => {
+  const tree: TreeState = {
+    nodes: { 1: createNode({ id: 1 }) },
+    rootIds: [1],
+  };
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it("skips a key whose timestamp isn't numeric", async () => {
-    const tree: TreeState = {
-      nodes: { 1: createNode({ id: 1 }) },
-      rootIds: [1],
-    };
-    vi.stubGlobal("chrome", {
-      storage: {
-        local: {
-          get: () =>
-            Promise.resolve({
-              "tabor:backup:1000": { 1: tree },
-              "tabor:backup:abc": { 1: tree },
-            }),
-        },
-      },
+  it("loadAllBackups skips a key whose timestamp isn't numeric", async () => {
+    stubStorage({
+      "tabor:backup:1000": { 1: tree },
+      "tabor:backup:abc": { 1: tree },
     });
 
     expect(await loadAllBackups()).toEqual([
       { timestamp: 1000, windows: { 1: tree } },
     ]);
+  });
+
+  it("loadAllBackups reads only backup entries' values", async () => {
+    const get = stubStorage({
+      "tabor:backup:1000": { 1: tree },
+      "tabor:tree:1": { tree, savedAt: 0 },
+    });
+
+    await loadAllBackups();
+
+    expect(get).toHaveBeenCalledExactlyOnceWith(["tabor:backup:1000"]);
+  });
+
+  it("loadBackupTimestamps returns every well-formed backup's timestamp without reading any values", async () => {
+    const get = stubStorage({
+      "tabor:backup:1000": { 1: tree },
+      "tabor:backup:2000": { 1: tree },
+      "tabor:backup:abc": { 1: tree },
+      "tabor:tree:1": { tree, savedAt: 0 },
+    });
+
+    expect(new Set(await loadBackupTimestamps())).toEqual(
+      new Set([1000, 2000]),
+    );
+    expect(get).not.toHaveBeenCalled();
   });
 });

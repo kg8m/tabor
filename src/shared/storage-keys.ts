@@ -2,7 +2,8 @@
  * Every `chrome.storage` key (or key prefix) Tabor uses, kept in one place so
  * the full set and each entry's retention policy can be seen at a glance.
  * The modules that actually read/write each entry build their own concrete
- * keys from these.
+ * keys from these; the helpers at the bottom cover what they share (parsing
+ * a key's numeric suffix, loading every entry under a prefix).
  *
  * Changing any value here orphans whatever is already stored under the old
  * one, so a rename needs a migration.
@@ -86,6 +87,56 @@ export function extractNumericSuffix(
   }
   const suffix = key.slice(prefix.length);
   return /^\d+$/.test(suffix) ? Number(suffix) : undefined;
+}
+
+/**
+ * Every well-formed key under `prefix` in `chrome.storage.local`, mapped from
+ * its numeric suffix (see `extractNumericSuffix`) to its full key.
+ *
+ * Uses `getKeys()` rather than `get(null)`, so callers that only need keys
+ * (or ids/timestamps) don't read every stored value—including every backup
+ * snapshot's full tree—just to throw them away.
+ */
+export async function loadKeysByNumericSuffix(
+  prefix: string,
+): Promise<Map<number, string>> {
+  const keys = await chrome.storage.local.getKeys();
+  const keysBySuffix = new Map<number, string>();
+
+  for (const key of keys) {
+    const suffix = extractNumericSuffix(key, prefix);
+    if (suffix !== undefined) {
+      keysBySuffix.set(suffix, key);
+    }
+  }
+
+  return keysBySuffix;
+}
+
+/**
+ * Every well-formed entry under `prefix` in `chrome.storage.local`, mapped
+ * from its numeric suffix to its stored value. Reads only those entries'
+ * values, not everything in storage (see `loadKeysByNumericSuffix`).
+ */
+export async function loadValuesByNumericSuffix(
+  prefix: string,
+): Promise<Map<number, unknown>> {
+  const keysBySuffix = await loadKeysByNumericSuffix(prefix);
+  const valuesBySuffix = new Map<number, unknown>();
+  if (keysBySuffix.size === 0) {
+    return valuesBySuffix;
+  }
+
+  const stored = await chrome.storage.local.get(
+    keysBySuffix.values().toArray(),
+  );
+  for (const [suffix, key] of keysBySuffix) {
+    if (Object.hasOwn(stored, key)) {
+      valuesBySuffix.set(suffix, stored[key]);
+    }
+  }
+
+  return valuesBySuffix;
 }
 
 // The `chrome.storage.local` prefixes whose whole suffix is a window id or

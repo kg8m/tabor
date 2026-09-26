@@ -1,4 +1,8 @@
-import { BACKUP_KEY_PREFIX, extractNumericSuffix } from "../storage-keys";
+import {
+  BACKUP_KEY_PREFIX,
+  loadKeysByNumericSuffix,
+  loadValuesByNumericSuffix,
+} from "../storage-keys";
 import { normalizeTree } from "./normalize";
 import type { TreeState } from "./types";
 
@@ -54,14 +58,10 @@ export async function loadBackup(
  * Load every backup snapshot currently in storage, in no particular order.
  */
 export async function loadAllBackups(): Promise<BackupSnapshot[]> {
-  const all = await chrome.storage.local.get(null);
+  const stored = await loadValuesByNumericSuffix(BACKUP_KEY_PREFIX);
   const backups: BackupSnapshot[] = [];
 
-  for (const [key, value] of Object.entries(all)) {
-    const timestamp = extractNumericSuffix(key, BACKUP_KEY_PREFIX);
-    if (timestamp === undefined) {
-      continue;
-    }
+  for (const [timestamp, value] of stored) {
     backups.push({
       timestamp,
       windows: normalizeWindows(value as Record<number, TreeState>),
@@ -69,6 +69,16 @@ export async function loadAllBackups(): Promise<BackupSnapshot[]> {
   }
 
   return backups;
+}
+
+/**
+ * The timestamp of every backup currently in storage, in no particular
+ * order—without reading the snapshots themselves, for callers that only
+ * need to decide which to keep (see `selectBackupTimestampsToKeep`).
+ */
+export async function loadBackupTimestamps(): Promise<number[]> {
+  const keysByTimestamp = await loadKeysByNumericSuffix(BACKUP_KEY_PREFIX);
+  return keysByTimestamp.keys().toArray();
 }
 
 /**

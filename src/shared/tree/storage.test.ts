@@ -21,14 +21,19 @@ function createStorageLocalMock() {
       }
       return Promise.resolve();
     }),
-    get: vi.fn((keys: string | null) => {
-      if (keys === null) {
-        return Promise.resolve(Object.fromEntries(store));
-      }
+    // No `get(null)`: nothing should read every stored value anymore (see
+    // `loadValuesByNumericSuffix`), so a regression back to it fails here.
+    get: vi.fn((keys: string | string[]) => {
+      const keyList = Array.isArray(keys) ? keys : [keys];
       return Promise.resolve(
-        store.has(keys) ? { [keys]: store.get(keys) } : {},
+        Object.fromEntries(
+          keyList
+            .filter((key) => store.has(key))
+            .map((key) => [key, store.get(key)]),
+        ),
       );
     }),
+    getKeys: vi.fn(() => Promise.resolve(store.keys().toArray())),
     remove: vi.fn((keys: string | string[]) => {
       const keyList = Array.isArray(keys) ? keys : [keys];
       for (const key of keyList) {
