@@ -99,7 +99,9 @@ export function getTreeIdStorageKey(windowId: number): string {
 // call stack so the next occurrence points straight at whichever caller did
 // this. Shares `background/index.ts`'s `debugLog` key prefix/shape so it's
 // picked up by the same console snippets already used to read those
-// entries, and pruned along with them by `pruneOldDebugLogs`.
+// entries, and pruned along with them by `pruneOldDebugLogs`. Skipped for an
+// incognito window's tree, the same as `debugLog` skips persisting an event
+// about an incognito window.
 
 /**
  * Persist a tree, stamped with the current time and marked as an incognito
@@ -110,7 +112,7 @@ export async function saveTree(
   tree: TreeState,
   { incognito = false }: { incognito?: boolean } = {},
 ): Promise<void> {
-  if (Object.keys(tree.nodes).length === 0) {
+  if (!incognito && Object.keys(tree.nodes).length === 0) {
     const key = `${DEBUG_LOG_KEY_PREFIX}${Date.now()}-emptySave-${treeId}`;
     void chrome.storage.local.set({
       [key]: {

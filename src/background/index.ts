@@ -140,7 +140,11 @@ const DEBUG_LOG_RETENTION_MS = 12 * 60 * 60 * 1000;
 const debugLog = (() => {
   let counter = 0;
 
-  return (event: string, data: Record<string, unknown>): void => {
+  return (
+    event: string,
+    data: Record<string, unknown>,
+    { isIncognito = false }: { isIncognito?: boolean } = {},
+  ): void => {
     // `JSON.stringify` here (rather than logging the object directly) so a
     // copy-paste of the console output carries the actual field values—an
     // inline console object otherwise collapses to a bare "Object" once
@@ -160,6 +164,12 @@ const debugLog = (() => {
     // and silently drop entries—the same kind of race `enqueue` had.
     // Pruned by `pruneOldDebugLogs` (see below) so these don't accumulate
     // forever.
+    //
+    // Except for an event about an incognito window, which is only logged
+    // to the console: nothing about one should be left on disk.
+    if (isIncognito) {
+      return;
+    }
     const key = `${DEBUG_LOG_KEY_PREFIX}${Date.now()}-${counter}`;
     counter += 1;
     void chrome.storage.local.set({
@@ -341,12 +351,11 @@ async function queryTabsWithResolvedUrls(
       // still unresolved, since the common case (nothing unresolved on the
       // first attempt) isn't interesting.
       if (hasUnresolvedTab || attempt > 0) {
-        debugLog("queryTabsWithResolvedUrls", {
-          windowId,
-          attempt,
-          hasUnresolvedTab,
-          tabCount: tabs.length,
-        });
+        debugLog(
+          "queryTabsWithResolvedUrls",
+          { windowId, attempt, hasUnresolvedTab, tabCount: tabs.length },
+          { isIncognito: tabs.some((tab) => tab.incognito) },
+        );
       }
       return tabs;
     }
@@ -431,42 +440,46 @@ async function initializeWindow(
   const savedTree = match?.savedTree ?? { nodes: {}, rootIds: [] };
 
   const savedNodeCount = Object.keys(savedTree.nodes).length;
-  debugLog("initializeWindow", {
-    windowId,
-    matchedSavedTreeId: match?.savedId,
-    savedNodeCount,
-    candidateSavedTreeIds: savedWindows.map((saved) => saved.id),
-    // TODO(debug): temporary instrumentation, see the block near the top of
-    // this file—only logged when this window had tabs but matched no saved
-    // tree, to see whether their `url`s were resolved by the time
-    // `matchWindows` ran (a real page URL vs. an empty/placeholder one) for
-    // a window that should have matched, and how close (if at all) it
-    // actually came to matching each candidate saved window.
-    ...(savedNodeCount === 0 &&
-      actualTabs.length > 0 && {
-        unmatchedTabCount: actualTabs.length,
-        unmatchedUnresolvedUrlCount: actualTabs.filter((tab) => !tab.url)
-          .length,
-        unmatchedSampleUrls: actualTabs.slice(0, 5).map((tab) => tab.url),
-        candidateScores: savedWindows.map((saved) => {
-          const savedUrls = new Set(
-            flattenDepthFirst(saved.tree).map((node) => node.url),
-          );
-          const actualUrls = new Set(actualTabs.map((tab) => tab.url));
-          let overlap = 0;
-          for (const url of savedUrls) {
-            if (actualUrls.has(url)) {
-              overlap += 1;
+  debugLog(
+    "initializeWindow",
+    {
+      windowId,
+      matchedSavedTreeId: match?.savedId,
+      savedNodeCount,
+      candidateSavedTreeIds: savedWindows.map((saved) => saved.id),
+      // TODO(debug): temporary instrumentation, see the block near the top of
+      // this file—only logged when this window had tabs but matched no saved
+      // tree, to see whether their `url`s were resolved by the time
+      // `matchWindows` ran (a real page URL vs. an empty/placeholder one) for
+      // a window that should have matched, and how close (if at all) it
+      // actually came to matching each candidate saved window.
+      ...(savedNodeCount === 0 &&
+        actualTabs.length > 0 && {
+          unmatchedTabCount: actualTabs.length,
+          unmatchedUnresolvedUrlCount: actualTabs.filter((tab) => !tab.url)
+            .length,
+          unmatchedSampleUrls: actualTabs.slice(0, 5).map((tab) => tab.url),
+          candidateScores: savedWindows.map((saved) => {
+            const savedUrls = new Set(
+              flattenDepthFirst(saved.tree).map((node) => node.url),
+            );
+            const actualUrls = new Set(actualTabs.map((tab) => tab.url));
+            let overlap = 0;
+            for (const url of savedUrls) {
+              if (actualUrls.has(url)) {
+                overlap += 1;
+              }
             }
-          }
-          return {
-            savedTreeId: saved.id,
-            savedNodeCount: savedUrls.size,
-            overlap,
-          };
+            return {
+              savedTreeId: saved.id,
+              savedNodeCount: savedUrls.size,
+              overlap,
+            };
+          }),
         }),
-      }),
-  });
+    },
+    { isIncognito },
+  );
   const session = createRestoreSession(savedTree);
   const tree = restoreTree(savedTree, actualTabs, session);
 
@@ -616,51 +629,55 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
       const tree = restoreTree(savedTree, actualWindow.tabs, session);
 
       const savedNodeCount = Object.keys(savedTree.nodes).length;
-      debugLog("initializeAllWindows:restored", {
-        actualWindowId: actualWindow.windowId,
-        savedNodeCount,
-        restoredNodeCount: Object.keys(tree.nodes).length,
-        restoredChildIdCount: Object.values(tree.nodes).reduce(
-          (total, node) => total + node.childIds.length,
-          0,
-        ),
-        // TODO(debug): temporary instrumentation, see the block near the
-        // top of this file—only logged for an actual window that had tabs
-        // but matched no saved tree, to see whether their `url`s were
-        // resolved by the time `matchWindows` ran (a real page URL vs. an
-        // empty/placeholder one) for a window that should have matched, and
-        // how close (if at all) it actually came to matching each candidate
-        // saved window.
-        ...(savedNodeCount === 0 &&
-          actualWindow.tabs.length > 0 && {
-            unmatchedTabCount: actualWindow.tabs.length,
-            unmatchedUnresolvedUrlCount: actualWindow.tabs.filter(
-              (tab) => !tab.url,
-            ).length,
-            unmatchedSampleUrls: actualWindow.tabs
-              .slice(0, 5)
-              .map((tab) => tab.url),
-            candidateScores: savedWindows.map((saved) => {
-              const savedUrls = new Set(
-                flattenDepthFirst(saved.tree).map((node) => node.url),
-              );
-              const actualUrls = new Set(
-                actualWindow.tabs.map((tab) => tab.url),
-              );
-              let overlap = 0;
-              for (const url of savedUrls) {
-                if (actualUrls.has(url)) {
-                  overlap += 1;
+      debugLog(
+        "initializeAllWindows:restored",
+        {
+          actualWindowId: actualWindow.windowId,
+          savedNodeCount,
+          restoredNodeCount: Object.keys(tree.nodes).length,
+          restoredChildIdCount: Object.values(tree.nodes).reduce(
+            (total, node) => total + node.childIds.length,
+            0,
+          ),
+          // TODO(debug): temporary instrumentation, see the block near the
+          // top of this file—only logged for an actual window that had tabs
+          // but matched no saved tree, to see whether their `url`s were
+          // resolved by the time `matchWindows` ran (a real page URL vs. an
+          // empty/placeholder one) for a window that should have matched, and
+          // how close (if at all) it actually came to matching each candidate
+          // saved window.
+          ...(savedNodeCount === 0 &&
+            actualWindow.tabs.length > 0 && {
+              unmatchedTabCount: actualWindow.tabs.length,
+              unmatchedUnresolvedUrlCount: actualWindow.tabs.filter(
+                (tab) => !tab.url,
+              ).length,
+              unmatchedSampleUrls: actualWindow.tabs
+                .slice(0, 5)
+                .map((tab) => tab.url),
+              candidateScores: savedWindows.map((saved) => {
+                const savedUrls = new Set(
+                  flattenDepthFirst(saved.tree).map((node) => node.url),
+                );
+                const actualUrls = new Set(
+                  actualWindow.tabs.map((tab) => tab.url),
+                );
+                let overlap = 0;
+                for (const url of savedUrls) {
+                  if (actualUrls.has(url)) {
+                    overlap += 1;
+                  }
                 }
-              }
-              return {
-                savedTreeId: saved.id,
-                savedNodeCount: savedUrls.size,
-                overlap,
-              };
+                return {
+                  savedTreeId: saved.id,
+                  savedNodeCount: savedUrls.size,
+                  overlap,
+                };
+              }),
             }),
-          }),
-      });
+        },
+        { isIncognito: actualWindow.incognito },
+      );
 
       // A matched window takes over its saved tree's id, so the tree stays
       // saved under the same key. An unmatched one keeps the tree id it
@@ -755,21 +772,25 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
       const isExpired =
         markedAt !== undefined &&
         Date.now() - markedAt >= PENDING_REMOVAL_GRACE_MS;
-      debugLog("initializeAllWindows:staleCleanup", {
-        treeId: saved.id,
-        savedAt: saved.savedAt,
-        nodeCount: Object.keys(saved.tree.nodes).length,
-        rootCount: saved.tree.rootIds.length,
-        hasHierarchy: hasTreeHierarchy,
-        isIncognito,
-        markedAt,
-        action:
-          hasTreeHierarchy && !isIncognito
-            ? isExpired
-              ? "removeExpired"
-              : "markPending"
-            : "removeImmediately",
-      });
+      debugLog(
+        "initializeAllWindows:staleCleanup",
+        {
+          treeId: saved.id,
+          savedAt: saved.savedAt,
+          nodeCount: Object.keys(saved.tree.nodes).length,
+          rootCount: saved.tree.rootIds.length,
+          hasHierarchy: hasTreeHierarchy,
+          isIncognito,
+          markedAt,
+          action:
+            hasTreeHierarchy && !isIncognito
+              ? isExpired
+                ? "removeExpired"
+                : "markPending"
+              : "removeImmediately",
+        },
+        { isIncognito },
+      );
 
       if (!hasTreeHierarchy || isIncognito || isExpired) {
         return removeTree(saved.id);
@@ -1039,11 +1060,15 @@ async function handleTabRemoved(
   info: chrome.tabs.OnRemovedInfo,
 ): Promise<void> {
   await ensureInitialized();
-  debugLog("onRemoved", {
-    tabId,
-    windowId: info.windowId,
-    isWindowClosing: info.isWindowClosing,
-  });
+  debugLog(
+    "onRemoved",
+    {
+      tabId,
+      windowId: info.windowId,
+      isWindowClosing: info.isWindowClosing,
+    },
+    { isIncognito: isIncognitoWindow(info.windowId) },
+  );
 
   // The window itself is being torn down; `windows.onRemoved` will drop its
   // tree, so there's no need to reconcile it tab by tab here.
@@ -1171,12 +1196,16 @@ async function handleTabUpdated(
   tab: chrome.tabs.Tab,
 ): Promise<void> {
   await ensureInitialized();
-  debugLog("onUpdated", {
-    tabId,
-    changeInfo,
-    status: tab.status,
-    discarded: tab.discarded,
-  });
+  debugLog(
+    "onUpdated",
+    {
+      tabId,
+      changeInfo,
+      status: tab.status,
+      discarded: tab.discarded,
+    },
+    { isIncognito: tab.incognito },
+  );
 
   if (isDeletedWindow(tab.windowId)) {
     return;
@@ -1221,12 +1250,16 @@ async function handleTabActivated(
   setAndPersistActiveTabId(activeInfo.windowId, activeInfo.tabId);
 
   const tab = await chrome.tabs.get(activeInfo.tabId);
-  debugLog("onActivated", {
-    tabId: activeInfo.tabId,
-    windowId: activeInfo.windowId,
-    status: tab.status,
-    discarded: tab.discarded,
-  });
+  debugLog(
+    "onActivated",
+    {
+      tabId: activeInfo.tabId,
+      windowId: activeInfo.windowId,
+      status: tab.status,
+      discarded: tab.discarded,
+    },
+    { isIncognito: tab.incognito },
+  );
 
   const tree = getTree(activeInfo.windowId);
   const updated = updateTab(tree, activeInfo.tabId, toSelfHealingUpdate(tab));
@@ -1579,11 +1612,15 @@ chrome.windows.onCreated.addListener((window) =>
     // browser startup would, instead of `initializeWindow`'s history-less
     // path.
     const isGapPending = await isNormalWindowsGapPending();
-    debugLog("windows.onCreated", {
-      windowId: window.id,
-      windowType: window.type,
-      isGapPending,
-    });
+    debugLog(
+      "windows.onCreated",
+      {
+        windowId: window.id,
+        windowType: window.type,
+        isGapPending,
+      },
+      { isIncognito: window.incognito },
+    );
     if (isGapPending && window.type === "normal") {
       await clearNormalWindowsGapPending();
       await initializeAllWindows();
@@ -1618,10 +1655,14 @@ chrome.windows.onRemoved.addListener((windowId) =>
     const remainingNormalWindows = await chrome.windows.getAll({
       windowTypes: ["normal"],
     });
-    debugLog("windows.onRemoved", {
-      windowId,
-      remainingNormalWindows: remainingNormalWindows.length,
-    });
+    debugLog(
+      "windows.onRemoved",
+      {
+        windowId,
+        remainingNormalWindows: remainingNormalWindows.length,
+      },
+      { isIncognito },
+    );
     if (remainingNormalWindows.length === 0) {
       await markNormalWindowsGapPending();
     }

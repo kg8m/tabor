@@ -140,6 +140,32 @@ describe("saveTree / loadTree", () => {
     });
   });
 
+  it("leaves a debug log entry behind for a normal window's empty tree", async () => {
+    await saveTree(TREE_A, { nodes: {}, rootIds: [] });
+
+    const keys = await chrome.storage.local.getKeys();
+    expect(keys.filter((key) => key.startsWith("tabor:debug:"))).toHaveLength(
+      1,
+    );
+  });
+
+  it("doesn't leave a debug log entry behind for an incognito window's empty tree", async () => {
+    await saveTree(TREE_A, { nodes: {}, rootIds: [] }, { incognito: true });
+
+    const keys = await chrome.storage.local.getKeys();
+    expect(keys.filter((key) => key.startsWith("tabor:debug:"))).toEqual([]);
+  });
+
+  it("still saves an incognito window's empty tree itself", async () => {
+    await saveTree(TREE_A, { nodes: {}, rootIds: [] }, { incognito: true });
+
+    expect(await loadTree(TREE_A)).toEqual({
+      tree: { nodes: {}, rootIds: [] },
+      savedAt: ANY_NUMBER,
+      incognito: true,
+    });
+  });
+
   it("leaves the incognito mark out altogether for a normal window's tree", async () => {
     await saveTree(TREE_A, singleTabTree(1), { incognito: false });
     await saveTree(TREE_B, singleTabTree(2));
