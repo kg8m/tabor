@@ -8,19 +8,31 @@ Chrome and Vivaldi are the only officially supported browsers, but it may also w
 
 ## Features
 
-- Side panel tree view of every tab in the window, with favicon, title, loading/suspended state, and a close button per
-  row
+- Side panel tree view of every tab in the window, with favicon, title, loading/suspended/audio-playing state, and
+  suspend/close buttons per row; hovering a row shows its full title, URL, and note in a tooltip
 - A tab opened from another tab (link or otherwise) becomes that tab’s child; closing a tab promotes its children to its
   own position
-- Pinned tabs are shown separately, independent of the tree
-- Drag-and-drop reordering and reparenting, including multi-select (`Ctrl`/`Cmd`-click, `Shift`-click)
+- Closing the active tab focuses a tree-aware next tab (nearest surviving descendant, then sibling, then ancestor)
+  instead of the browser’s default neighbor
+- Pinned tabs are shown in their own section above the tree, reorderable by drag-and-drop
+- Drag-and-drop reordering and reparenting, including multi-select (`Ctrl`/`Cmd`-click, `Shift`-click; `Escape` clears
+  the selection)
 - Collapse/expand per node
-- Manual tab suspension (`chrome.tabs.discard`)
+- A right-click context menu for the targeted tab(s): reload, suspend (`chrome.tabs.discard`) the tab/its tree/every
+  other tab, close the tab/its tree, pin/unpin, add/edit a note, and move tab(s)/tree(s) to another window
+- A free-text note per tab, shown in its row
 - The tree’s order stays in sync with the native tab bar in both directions
-- Tree state persists across restarts and is periodically backed up, with a history panel to preview and restore an
-  earlier snapshot
+- Tree state persists across browser restarts (tabs and windows are re-matched by URL, since their ids change) and is
+  periodically backed up, with a history view to preview and restore an earlier snapshot
+- A “Closed windows” view listing the trees saved for windows that aren’t currently open, to preview or remove them by
+  hand
+- Incognito windows get their own tree too, but it’s discarded as soon as the window closes and never backed up
+- Light/dark theme following the OS’s `prefers-color-scheme`
 
 ## Install
+
+Requires Chrome 130+ (or a Vivaldi version based on it) and Node.js 24 (the exact version is pinned in `package.json`’s
+`engines`).
 
 1. `npm install`
 2. `npm run build`
@@ -32,7 +44,7 @@ Chrome and Vivaldi are the only officially supported browsers, but it may also w
 - `npm run dev` — Vite dev server with HMR. Load `dist/` once as an unpacked extension (per Install above) while this
   keeps running, and both the side panel and the background service worker pick up source changes without a manual
   reload
-- `npm run build` — production build into `dist/`
+- `npm run build` — type check, then production build into `dist/`
 - `npm run typecheck` — TypeScript type checking
 - `npm run lint` / `npm run format` — ESLint / Prettier
 - `npm test` — Vitest (tree/sync logic only; UI components are untested)
