@@ -50,9 +50,9 @@ export const LEGACY_TREE_KEY_PREFIX = "tabor:tree:";
 export const PENDING_TREE_REMOVAL_KEY_PREFIX = "tabor:pendingTreeRemoval:";
 
 /**
- * `tabor:backup:<timestamp>` → every window's tree at that time. Written by
- * the periodic alarm and thinned out on the same alarm (see
- * `takeBackupSnapshot` and `selectBackupTimestampsToKeep`).
+ * `tabor:backup:<timestamp>` → every window's tree at that time, except
+ * incognito windows'. Written by the periodic alarm and thinned out on the
+ * same alarm (see `takeBackupSnapshot` and `selectBackupTimestampsToKeep`).
  */
 export const BACKUP_KEY_PREFIX = "tabor:backup:";
 

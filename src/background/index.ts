@@ -1482,9 +1482,13 @@ async function takeBackupSnapshot(): Promise<void> {
   }
 
   const openWindowIds = new Set(await queryOpenWindowIds());
+  // An incognito window's tree is left out: it's removed once its window
+  // closes, and a backup shouldn't keep it around past that.
   const windows = Object.fromEntries(
-    Object.entries(getAllTrees()).filter(([windowId]) =>
-      openWindowIds.has(Number(windowId)),
+    Object.entries(getAllTrees()).filter(
+      ([windowId]) =>
+        openWindowIds.has(Number(windowId)) &&
+        !isIncognitoWindow(Number(windowId)),
     ),
   );
   if (Object.keys(windows).length === 0) {
