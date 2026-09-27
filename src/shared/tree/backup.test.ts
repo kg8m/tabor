@@ -25,6 +25,24 @@ function fillerTimestamps(count: number): number[] {
   );
 }
 
+// Feeds `selectBackupTimestampsToKeep` one backup every 5 minutes (the
+// periodic alarm's interval) from `start` for `durationMinutes`, the same
+// way `takeBackupSnapshot` does, calling `onTick` after each round.
+function simulateRegularBackups(
+  initial: number[],
+  start: number,
+  durationMinutes: number,
+  onTick: (kept: number[], now: number) => void = () => {},
+): number[] {
+  let kept = initial;
+  for (let elapsed = 0; elapsed <= durationMinutes; elapsed += 5) {
+    const now = start + elapsed * MINUTE;
+    kept = selectBackupTimestampsToKeep([...kept, now], now);
+    onTick(kept, now);
+  }
+  return kept;
+}
+
 describe("selectBackupTimestampsToKeep", () => {
   it("keeps nothing when there are no backups", () => {
     expect(selectBackupTimestampsToKeep([], NOW)).toEqual([]);
@@ -106,25 +124,21 @@ describe("selectBackupTimestampsToKeep", () => {
   });
 
   it("keeps a long-idle sparse history in full, since it never exceeds MIN_KEEP_COUNT", () => {
-    // Simulates a long idle stretch: these 7 timestamps were already
+    // Simulates a long idle stretch: these 5 timestamps were already
     // thinned down to a sparse spread while backups were being taken
     // regularly (see the "one backup per bucket" test above), then nothing
     // ran for a long time. Viewed from far enough in the future, a plain
     // bucket-thinning pass over them would collapse almost all of them into
-    // a single wide bucket—but since there are only 7 of them, the
+    // a single wide bucket—but since there are only 5 of them, the
     // MIN_KEEP_COUNT floor keeps all of them regardless of thinning.
     const recentA = timestampAgeMinutesAgo(1);
-    const recentB = timestampAgeMinutesAgo(2);
     const bucket5to10Kept = timestampAgeMinutesAgo(8);
-    const bucket10to15Kept = timestampAgeMinutesAgo(12);
     const bucket25to40Kept = timestampAgeMinutesAgo(33);
     const bucket40to65Kept = timestampAgeMinutesAgo(50);
     const veryOldKept = timestampAgeMinutesAgo(200);
     const alreadyThinned = [
       recentA,
-      recentB,
       bucket5to10Kept,
-      bucket10to15Kept,
       bucket25to40Kept,
       bucket40to65Kept,
       veryOldKept,
@@ -158,11 +172,11 @@ describe("selectBackupTimestampsToKeep", () => {
     expect(new Set(kept)).toEqual(new Set([bucket5to10Kept, agedOutSurvivor]));
   });
 
-  it("drops a bucket-survivor older than 30 days once at least 20 newer ones survive", () => {
-    // 20 timestamps within the first bucket edge, always kept in full
+  it("drops a bucket-survivor older than 30 days once at least 5 newer ones survive", () => {
+    // 5 timestamps within the first bucket edge, always kept in full
     // regardless of thinning, plus one far older than 30 days that would
     // otherwise also survive thinning as its own bucket's representative.
-    const recents = Array.from({ length: 20 }, (_, index) =>
+    const recents = Array.from({ length: 5 }, (_, index) =>
       timestampAgeMinutesAgo(index * 0.2),
     );
     const beyondMaxAge = timestampAgeMinutesAgo(60 * 24 * 40); // 40 days
@@ -172,7 +186,7 @@ describe("selectBackupTimestampsToKeep", () => {
     expect(kept).not.toContain(beyondMaxAge);
   });
 
-  it("keeps the newest 20 bucket-survivors even when all of them are older than 30 days", () => {
+  it("keeps the newest 5 bucket-survivors even when all of them are older than 30 days", () => {
     // Ages (in minutes), one picked from inside each of 25 consecutive
     // buckets starting at the first bucket entirely past the 30-day cutoff,
     // so each of these 25 timestamps survives thinning as its own bucket's
@@ -191,8 +205,28 @@ describe("selectBackupTimestampsToKeep", () => {
 
     const kept = selectBackupTimestampsToKeep(timestamps, NOW);
 
-    expect(kept).toHaveLength(20);
-    expect(new Set(kept)).toEqual(new Set(timestamps.slice(0, 20)));
+    expect(kept).toHaveLength(5);
+    expect(new Set(kept)).toEqual(new Set(timestamps.slice(0, 5)));
+  });
+
+  it("never keeps a backup older than 30 days under regular use", () => {
+    const maxAgeMs = 30 * 24 * 60 * MINUTE;
+    let oldestAgeMs = 0;
+
+    simulateRegularBackups([], NOW, 60 * 24 * 60, (kept, now) => {
+      oldestAgeMs = Math.max(oldestAgeMs, now - Math.min(...kept));
+    });
+
+    expect(oldestAgeMs).toBeLessThanOrEqual(maxAgeMs);
+  });
+
+  it("drops the backups left over from before a long idle stretch soon after regular use resumes", () => {
+    const beforeIdle = simulateRegularBackups([], NOW, 60 * 24 * 60);
+    const resumedAt = NOW + 120 * 24 * 60 * MINUTE;
+
+    const kept = simulateRegularBackups(beforeIdle, resumedAt, 60);
+
+    expect(kept.every((timestamp) => timestamp >= resumedAt)).toBe(true);
   });
 });
 

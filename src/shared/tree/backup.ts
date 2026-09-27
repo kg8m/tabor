@@ -117,7 +117,15 @@ const MAX_AGE_MINUTES = 30 * 24 * 60;
 // cutoff—never with a bucket's ordinary rejects, which stay thinned—e.g.
 // after a long idle stretch, where every backup that survived thinning
 // before going idle is now older than MAX_AGE_MINUTES.
-const MIN_KEEP_COUNT = 20;
+//
+// Kept well below how many bucket survivors regular backups leave within
+// MAX_AGE_MINUTES (around 16), so under regular use this top-up never kicks
+// in and no backup outlives MAX_AGE_MINUTES: a backup holds every tab's URL
+// and title as they stood back then, so it shouldn’t linger past that just
+// to pad out the count. Only right after a long idle stretch does it keep a
+// few older ones, and those go too once this many newer backups have piled
+// up again.
+const MIN_KEEP_COUNT = 5;
 
 function generateBucketRangesMinutes(
   maxAgeMinutes: number,
@@ -156,10 +164,13 @@ function generateBucketRangesMinutes(
  * leaves fewer than MIN_KEEP_COUNT backups, the shortfall is topped up with
  * the bucket survivors closest to the MAX_AGE_MINUTES cutoff—reaching past
  * MAX_AGE_MINUTES if it must, e.g. after a long idle stretch where every
- * survivor is now older than that cutoff. This never reaches into a
- * bucket's ordinary rejects (the ones dropped in favor of their bucket's
- * survivor): otherwise a bucket still within MAX_AGE_MINUTES would get
- * padded back out with the closely-spaced backups it just thinned.
+ * survivor is now older than that cutoff. Under regular use there are
+ * always more than MIN_KEEP_COUNT survivors within MAX_AGE_MINUTES, so this
+ * never happens and nothing older than that cutoff is kept. This never
+ * reaches into a bucket's ordinary rejects (the ones dropped in favor of
+ * their bucket's survivor): otherwise a bucket still within MAX_AGE_MINUTES
+ * would get padded back out with the closely-spaced backups it just
+ * thinned.
  */
 export function selectBackupTimestampsToKeep(
   timestamps: number[],
