@@ -5,8 +5,10 @@ import {
   clearDeletedWindow,
   deleteWindow,
   getTree,
+  getTreeId,
   isDeletedWindow,
   setTree,
+  setTreeId,
 } from "./store";
 
 describe("deleteWindow / isDeletedWindow / clearDeletedWindow", () => {
@@ -29,6 +31,15 @@ describe("deleteWindow / isDeletedWindow / clearDeletedWindow", () => {
     deleteWindow(windowId);
 
     expect(getTree(windowId)).toEqual({ nodes: {}, rootIds: [] });
+  });
+
+  it("forgets which tree the deleted window held", () => {
+    const windowId = 107;
+    setTreeId(windowId, "tree-107");
+
+    deleteWindow(windowId);
+
+    expect(getTreeId(windowId)).toBeUndefined();
   });
 
   it("clearDeletedWindow un-marks a window id previously passed to deleteWindow", () => {

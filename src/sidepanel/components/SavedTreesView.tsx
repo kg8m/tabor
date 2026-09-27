@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import type { TaborMessage } from "../../shared/messages";
 import {
   PENDING_TREE_REMOVAL_KEY_PREFIX,
-  TREE_KEY_PREFIX,
+  TREE_ID_KEY_PREFIX,
+  WINDOW_TREE_KEY_PREFIX,
 } from "../../shared/storage-keys";
-import { selectOrphanedWindowIds } from "../../shared/tree/orphaned-trees";
+import { selectOrphanedTreeIds } from "../../shared/tree/orphaned-trees";
 import {
   loadAllTrees,
   loadPendingRemovals,
+  loadTreeIdsByWindowId,
   type StoredTree,
 } from "../../shared/tree/storage";
 import { queryOpenWindowIds } from "../../shared/windows";
@@ -20,7 +22,7 @@ interface SavedTreesViewProps {
 }
 
 interface OrphanedTree extends StoredTree {
-  windowId: number;
+  treeId: string;
   // When `initializeAllWindows` first found it unmatched, if it has.
   pendingRemovalSince: number | undefined;
 }
@@ -30,26 +32,30 @@ function formatTabCount(count: number): string {
 }
 
 async function loadOrphanedTrees(): Promise<OrphanedTree[]> {
-  const [trees, pendingRemovals, openWindowIds] = await Promise.all([
-    loadAllTrees(),
-    loadPendingRemovals(),
-    queryOpenWindowIds(),
-  ]);
-  const orphanedWindowIds = selectOrphanedWindowIds(
-    Object.keys(trees).map(Number),
-    openWindowIds,
-  );
+  const [trees, pendingRemovals, treeIdsByWindowId, openWindowIds] =
+    await Promise.all([
+      loadAllTrees(),
+      loadPendingRemovals(),
+      loadTreeIdsByWindowId(),
+      queryOpenWindowIds(),
+    ]);
+  const open = new Set(openWindowIds);
+  const heldTreeIds = treeIdsByWindowId
+    .entries()
+    .filter(([windowId]) => open.has(windowId))
+    .map(([, treeId]) => treeId);
+  const orphanedTreeIds = selectOrphanedTreeIds(trees.keys(), heldTreeIds);
 
-  return orphanedWindowIds
-    .flatMap((windowId) => {
-      const stored = trees[windowId];
+  return orphanedTreeIds
+    .flatMap((treeId) => {
+      const stored = trees.get(treeId);
       return stored === undefined
         ? []
         : [
             {
               ...stored,
-              windowId,
-              pendingRemovalSince: pendingRemovals.get(windowId),
+              treeId,
+              pendingRemovalSince: pendingRemovals.get(treeId),
             },
           ];
     })
@@ -63,14 +69,15 @@ async function loadOrphanedTrees(): Promise<OrphanedTree[]> {
  * for a long time.
  *
  * Reads storage directly, like `BackupHistoryView`, and reloads whenever a
- * saved tree or pending-removal mark changes, so the list stays current
- * both after a removal here and as windows open/close meanwhile. Removal
+ * saved tree, pending-removal mark, or window's tree-id record changes, so
+ * the list stays current both after a removal here and as windows
+ * open/close meanwhile. Removal
  * itself goes through the background service worker (`removeSavedTrees`),
  * the only writer of tree state.
  */
 export function SavedTreesView({ onClose }: SavedTreesViewProps) {
   const [trees, setTrees] = useState<OrphanedTree[] | undefined>(undefined);
-  const [selectedWindowId, setSelectedWindowId] = useState<number | null>(null);
+  const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
   // Removal asks for confirmation as a second step in the footer, the same
   // way `ContextMenu` does for closing tabs (`window.confirm` is blocked in
   // the side panel). Reset whenever the selection changes, so a confirmation
@@ -82,23 +89,23 @@ export function SavedTreesView({ onClose }: SavedTreesViewProps) {
   // of the list. Not auto-selecting that entry outright, which would make
   // the next ArrowDown skip past it.
   const [removedIndex, setRemovedIndex] = useState<number | null>(null);
-  const itemElements = useRef(new Map<number, HTMLLIElement>());
+  const itemElements = useRef(new Map<string, HTMLLIElement>());
   const listElement = useRef<HTMLUListElement>(null);
 
-  const select = (windowId: number): void => {
-    setSelectedWindowId(windowId);
+  const select = (treeId: string): void => {
+    setSelectedTreeId(treeId);
     setIsConfirmingRemoval(false);
     setRemovedIndex(null);
   };
 
   useEffect(() => {
-    if (selectedWindowId === null) {
+    if (selectedTreeId === null) {
       return;
     }
-    itemElements.current.get(selectedWindowId)?.scrollIntoView({
+    itemElements.current.get(selectedTreeId)?.scrollIntoView({
       block: "nearest",
     });
-  }, [selectedWindowId]);
+  }, [selectedTreeId]);
 
   useEffect(() => {
     // See `BackupHistoryView` for why this isn't JSX's `autoFocus`.
@@ -115,21 +122,25 @@ export function SavedTreesView({ onClose }: SavedTreesViewProps) {
       }
       setTrees(loaded);
       // Drop the selection once its tree is gone (e.g. just removed).
-      setSelectedWindowId((current) =>
-        current !== null && loaded.some((tree) => tree.windowId === current)
+      setSelectedTreeId((current) =>
+        current !== null && loaded.some((tree) => tree.treeId === current)
           ? current
           : null,
       );
     }
 
+    // Also watches which window holds which tree (in session storage), since
+    // a window closing or reopening moves a tree onto or off of this list
+    // without touching the tree itself.
     const listener = (
       changes: Record<string, chrome.storage.StorageChange>,
     ): void => {
       if (
         Object.keys(changes).some(
           (key) =>
-            key.startsWith(TREE_KEY_PREFIX) ||
-            key.startsWith(PENDING_TREE_REMOVAL_KEY_PREFIX),
+            key.startsWith(WINDOW_TREE_KEY_PREFIX) ||
+            key.startsWith(PENDING_TREE_REMOVAL_KEY_PREFIX) ||
+            key.startsWith(TREE_ID_KEY_PREFIX),
         )
       ) {
         void load();
@@ -138,16 +149,16 @@ export function SavedTreesView({ onClose }: SavedTreesViewProps) {
 
     void load();
     chrome.storage.local.onChanged.addListener(listener);
+    chrome.storage.session.onChanged.addListener(listener);
 
     return () => {
       isCancelled = true;
       chrome.storage.local.onChanged.removeListener(listener);
+      chrome.storage.session.onChanged.removeListener(listener);
     };
   }, []);
 
-  const selectedTree = trees?.find(
-    (tree) => tree.windowId === selectedWindowId,
-  );
+  const selectedTree = trees?.find((tree) => tree.treeId === selectedTreeId);
 
   const handleListKeyDown = (
     event: React.KeyboardEvent<HTMLUListElement>,
@@ -166,7 +177,7 @@ export function SavedTreesView({ onClose }: SavedTreesViewProps) {
     event.preventDefault();
 
     const currentIndex = trees.findIndex(
-      (tree) => tree.windowId === selectedWindowId,
+      (tree) => tree.treeId === selectedTreeId,
     );
     const isDown = event.key === "ArrowDown";
     let unclampedNextIndex: number;
@@ -186,22 +197,22 @@ export function SavedTreesView({ onClose }: SavedTreesViewProps) {
       return;
     }
 
-    select(nextTree.windowId);
+    select(nextTree.treeId);
   };
 
   const handleRemove = (): void => {
-    if (selectedWindowId === null) {
+    if (selectedTreeId === null) {
       return;
     }
 
     const message: TaborMessage = {
       type: "removeSavedTrees",
-      windowIds: [selectedWindowId],
+      treeIds: [selectedTreeId],
     };
     void chrome.runtime.sendMessage(message);
     setIsConfirmingRemoval(false);
     const index =
-      trees?.findIndex((tree) => tree.windowId === selectedWindowId) ?? -1;
+      trees?.findIndex((tree) => tree.treeId === selectedTreeId) ?? -1;
     setRemovedIndex(index === -1 ? null : index);
     // The Remove button that had focus is about to be replaced by
     // "Remove…", so hand focus back to the list for the arrow keys.
@@ -261,12 +272,12 @@ export function SavedTreesView({ onClose }: SavedTreesViewProps) {
         )}
         {trees?.map((tree) => (
           <li
-            key={tree.windowId}
+            key={tree.treeId}
             ref={(element) => {
               if (element) {
-                itemElements.current.set(tree.windowId, element);
+                itemElements.current.set(tree.treeId, element);
               } else {
-                itemElements.current.delete(tree.windowId);
+                itemElements.current.delete(tree.treeId);
               }
             }}
           >
@@ -274,11 +285,11 @@ export function SavedTreesView({ onClose }: SavedTreesViewProps) {
               type="button"
               className={
                 "subview__item" +
-                (tree.windowId === selectedWindowId
+                (tree.treeId === selectedTreeId
                   ? " subview__item--selected"
                   : "")
               }
-              onClick={() => select(tree.windowId)}
+              onClick={() => select(tree.treeId)}
             >
               {formatTimestamp(tree.savedAt)}
               <span className="saved-trees__item-detail">

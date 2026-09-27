@@ -3,13 +3,14 @@ import { flattenDepthFirst } from "./queries";
 import type { TreeState } from "./types";
 
 /**
- * A window's saved tree, keyed by the window id it was saved under before
- * the browser restarted, along with when it was last saved (see
- * `StoredTree`)—used to prefer a more recently saved candidate when two
+ * A window's saved tree, identified by `id`—a tree id (see
+ * `WINDOW_TREE_KEY_PREFIX`) for a saved tree, or a stringified window id for
+ * a window within one backup snapshot—along with when it was last saved (see
+ * `StoredTree`), used to prefer a more recently saved candidate when two
  * score close to each other (see `SCORE_TIE_EPSILON`).
  */
 export interface SavedWindow {
-  windowId: number;
+  id: string;
   tree: TreeState;
   savedAt: number;
 }
@@ -28,7 +29,7 @@ export interface ActualWindow {
  */
 export interface WindowMatch {
   actualWindowId: number;
-  savedWindowId: number | undefined;
+  savedId: string | undefined;
   savedTree: TreeState;
 }
 
@@ -109,7 +110,7 @@ export function matchWindows(
     savedIndex: number;
     actualIndex: number;
     score: number;
-    savedWindowId: number;
+    savedId: string;
     savedAt: number;
   }[] = [];
   for (const [savedIndex, savedWindow] of savedWindows.entries()) {
@@ -127,35 +128,26 @@ export function matchWindows(
           savedIndex,
           actualIndex,
           score,
-          savedWindowId: savedWindow.windowId,
+          savedId: savedWindow.id,
           savedAt: savedWindow.savedAt,
         });
       }
     }
   }
-  // A saved window whose structure changed (a tab reparented or reordered)
-  // but whose tab *set* stayed the same scores identically to a stale
-  // duplicate left over from before that change (see
-  // `initializeAllWindows`'s matched-window cleanup in
-  // `background/index.ts`, which only stops new duplicates from
-  // accumulating, not ones already sitting in storage)—URL overlap alone
-  // can't break that tie, nor can it separate two snapshots of the same
-  // window that merely score close to each other rather than identically
-  // (see `SCORE_TIE_EPSILON`). Left to plain array order, the stale
-  // duplicate would win: it's built first here since `loadAllTrees` iterates
-  // its object's keys in ascending numeric order, and `Array.prototype.sort`
-  // is stable. Preferring the more recently *saved* candidate (`savedAt`)
-  // instead makes the actually-current one win, which is what a near-tie
-  // should mean.
+  // Two saved trees can score identically or nearly so—e.g. two snapshots
+  // of the same window's tab set, one taken before a tab was reparented or
+  // reordered—and URL overlap alone can't tell which is current (see
+  // `SCORE_TIE_EPSILON`). Preferring the more recently *saved* candidate
+  // (`savedAt`) makes the actually-current one win, which is what a
+  // near-tie should mean.
   //
-  // Deliberately `savedAt`, not `savedWindowId`: a window id only increases
-  // within a single running browser process and resets to a small number on
-  // every real restart (see `StoredTree`), so a saved tree from a long-lived
-  // earlier session can carry a *larger* id than one saved moments ago in
-  // the current one—comparing ids across that boundary would silently
-  // prefer the older tree. `savedWindowId` remains only as a final,
-  // deterministic tiebreak below, for the vanishingly unlikely case two
-  // candidates share the exact same `savedAt` millisecond.
+  // `savedId` is only a final, deterministic tiebreak below, carrying no
+  // meaning of its own: a tree id is random, and a window id isn't stable
+  // across browser restarts, so neither says which is newer.
+  // For saved trees it's practically never reached (two candidates sharing
+  // the exact same `savedAt` millisecond); for windows within one backup
+  // snapshot, which all share the snapshot's own `savedAt`, it's what
+  // settles any score-bucket tie.
   //
   // Scores are bucketed (by `SCORE_TIE_EPSILON` width) rather than compared
   // pairwise ("is |a.score - b.score| within epsilon?") so this stays a
@@ -170,7 +162,7 @@ export function matchWindows(
       Math.floor(b.score / SCORE_TIE_EPSILON) -
       Math.floor(a.score / SCORE_TIE_EPSILON);
     return (
-      bucketDiff || b.savedAt - a.savedAt || b.savedWindowId - a.savedWindowId
+      bucketDiff || b.savedAt - a.savedAt || a.savedId.localeCompare(b.savedId)
     );
   });
 
@@ -197,7 +189,7 @@ export function matchWindows(
 
     return {
       actualWindowId: actualWindow.windowId,
-      savedWindowId: saved?.windowId,
+      savedId: saved?.id,
       savedTree: saved?.tree ?? EMPTY_TREE,
     };
   });

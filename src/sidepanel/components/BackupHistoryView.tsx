@@ -116,7 +116,7 @@ export function BackupHistoryView({
           const savedWindows: SavedWindow[] = Object.entries(
             selectedBackup.windows,
           ).map(([savedWindowId, tree]) => ({
-            windowId: Number(savedWindowId),
+            id: savedWindowId,
             tree,
             // The whole snapshot was saved at once, so every window in it
             // shares this same `savedAt`—see `matchWindows`'s use of it.

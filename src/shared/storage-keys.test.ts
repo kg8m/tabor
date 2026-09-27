@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   extractSuffix,
   parseNonNegativeInteger,
+  parseTreeId,
   selectMalformedKeys,
 } from "./storage-keys";
+
+const TREE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 describe("parseNonNegativeInteger", () => {
   it("parses a string of digits", () => {
@@ -17,6 +20,19 @@ describe("parseNonNegativeInteger", () => {
 
   it("rejects an empty string rather than parsing it as 0", () => {
     expect(parseNonNegativeInteger("")).toBeUndefined();
+  });
+});
+
+describe("parseTreeId", () => {
+  it("accepts a UUID", () => {
+    expect(parseTreeId(TREE_ID)).toBe(TREE_ID);
+    expect(parseTreeId(crypto.randomUUID())).toBeDefined();
+  });
+
+  it("rejects anything else", () => {
+    expect(parseTreeId("1")).toBeUndefined();
+    expect(parseTreeId("")).toBeUndefined();
+    expect(parseTreeId(`${TREE_ID}x`)).toBeUndefined();
   });
 });
 
@@ -52,13 +68,30 @@ describe("selectMalformedKeys", () => {
   it("keeps well-formed keys under every prefix", () => {
     expect(
       selectMalformedKeys([
+        `tabor:windowTree:${TREE_ID}`,
+        `tabor:pendingTreeRemoval:${TREE_ID}`,
         "tabor:tree:1",
-        "tabor:pendingTreeRemoval:1",
         "tabor:backup:1700000000000",
         "tabor:debug:1700000000000-0",
-        "tabor:debug:1700000000000-emptySave-1",
+        `tabor:debug:1700000000000-emptySave-${TREE_ID}`,
       ]),
     ).toEqual([]);
+  });
+
+  it("selects keys whose suffix isn't a tree id under a tree-id prefix", () => {
+    expect(
+      selectMalformedKeys([
+        "tabor:windowTree:abc",
+        "tabor:windowTree:",
+        // A legacy, window-id mark: migrated before anything prunes (see
+        // `migrateLegacyTrees`), so any left over is clutter.
+        "tabor:pendingTreeRemoval:1",
+      ]),
+    ).toEqual([
+      "tabor:windowTree:abc",
+      "tabor:windowTree:",
+      "tabor:pendingTreeRemoval:1",
+    ]);
   });
 
   it("selects keys whose suffix isn't numeric under a numeric-suffix prefix", () => {
@@ -66,15 +99,9 @@ describe("selectMalformedKeys", () => {
       selectMalformedKeys([
         "tabor:tree:abc",
         "tabor:tree:",
-        "tabor:pendingTreeRemoval:1x",
         "tabor:backup:abc",
       ]),
-    ).toEqual([
-      "tabor:tree:abc",
-      "tabor:tree:",
-      "tabor:pendingTreeRemoval:1x",
-      "tabor:backup:abc",
-    ]);
+    ).toEqual(["tabor:tree:abc", "tabor:tree:", "tabor:backup:abc"]);
   });
 
   it("selects debug log keys without a leading numeric timestamp", () => {

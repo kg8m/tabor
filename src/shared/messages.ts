@@ -67,12 +67,12 @@ export interface RegisterPendingTreeMoveMessage {
 
 /**
  * Remove the saved trees of windows that are no longer open (see
- * `selectOrphanedWindowIds`). Any id in `windowIds` whose window is open
- * again by the time this is handled is left alone.
+ * `selectOrphanedTreeIds`). Any tree in `treeIds` that an open window holds
+ * by the time this is handled is left alone.
  */
 export interface RemoveSavedTreesMessage {
   type: "removeSavedTrees";
-  windowIds: number[];
+  treeIds: string[];
 }
 
 /**

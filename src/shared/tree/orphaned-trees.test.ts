@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { selectOrphanedWindowIds } from "./orphaned-trees";
+import { selectOrphanedTreeIds } from "./orphaned-trees";
 
-describe("selectOrphanedWindowIds", () => {
-  it("selects saved window ids that no open window has", () => {
-    expect(selectOrphanedWindowIds([1, 2, 3], [2])).toEqual([1, 3]);
+describe("selectOrphanedTreeIds", () => {
+  it("selects saved tree ids that no open window holds", () => {
+    expect(selectOrphanedTreeIds(["a", "b", "c"], ["b"])).toEqual(["a", "c"]);
   });
 
-  it("selects nothing when every saved window is open", () => {
-    expect(selectOrphanedWindowIds([1, 2], [1, 2, 3])).toEqual([]);
+  it("selects nothing when every saved tree is held", () => {
+    expect(selectOrphanedTreeIds(["a", "b"], ["a", "b", "c"])).toEqual([]);
   });
 
-  it("selects every saved window id when no window is open", () => {
-    expect(selectOrphanedWindowIds([1, 2], [])).toEqual([1, 2]);
+  it("selects every saved tree id when no window holds any", () => {
+    expect(selectOrphanedTreeIds(["a", "b"], [])).toEqual(["a", "b"]);
   });
 });

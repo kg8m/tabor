@@ -1,7 +1,9 @@
 import { useMemo, useSyncExternalStore } from "react";
 import {
   getStorageKey,
+  getTreeIdStorageKey,
   loadTree,
+  loadTreeIdForWindow,
   unwrapStoredTree,
 } from "../../shared/tree/storage";
 import type { TreeState } from "../../shared/tree/types";
@@ -16,10 +18,9 @@ export interface WindowTree {
   tree: TreeState;
   // True until this window's tree is actually found in storage. A window
   // always has at least one tab, so a saved tree is never genuinely empty—
-  // `loadTree` returning `undefined` therefore means the background hasn't
-  // finished (re)initializing this window yet (e.g. right after a browser
-  // restart, before which window ids—and so this window's storage key—don't
-  // exist), not that it has no tabs.
+  // no tree id recorded for this window yet, or no tree saved under it yet,
+  // therefore means the background hasn't finished (re)initializing this
+  // window (e.g. right after a browser restart), not that it has no tabs.
   isLoading: boolean;
 }
 
@@ -37,10 +38,13 @@ function getLoadingSnapshot(): WindowTree {
 
 /**
  * An external store (for `useSyncExternalStore`) over one window's tree in
- * `chrome.storage.local`. `snapshot` is a plain mutable variable rather than
- * React state—`useSyncExternalStore` requires `getSnapshot` to keep
- * returning the very same reference until the store actually changes, so
- * the update has to happen outside of React's own state mechanism.
+ * `chrome.storage.local`, found via the tree id recorded for the window in
+ * `chrome.storage.session` (see `TREE_ID_KEY_PREFIX`)—and followed to a new
+ * one whenever that changes, e.g. when the background matches the window to
+ * a saved tree. `snapshot` is a plain mutable variable rather than React
+ * state—`useSyncExternalStore` requires `getSnapshot` to keep returning the
+ * very same reference until the store actually changes, so the update has to
+ * happen outside of React's own state mechanism.
  */
 function createWindowTreeStore(windowId: number): {
   subscribe: (onStoreChange: () => void) => () => void;
@@ -50,27 +54,59 @@ function createWindowTreeStore(windowId: number): {
 
   return {
     subscribe(onStoreChange) {
-      // No cancellation guard needed for `loadInitialTree`'s result: each
-      // `windowId` gets its own store instance (see `useWindowTree`), so a
-      // resolution arriving after this subscription is torn down can only
-      // write into a `snapshot` that nothing reads anymore—`getSnapshot`
-      // always reads whichever store `useSyncExternalStore` is currently
-      // holding, never this one once it's replaced.
-      async function loadInitialTree() {
-        const loaded = await loadTree(windowId);
-        if (loaded !== undefined) {
+      let treeId: string | undefined;
+      // Bumped whenever `treeId` changes or a change to its tree arrives, so
+      // a `loadTree` resolving late—for a tree id this window has since
+      // moved off of, or with a value older than that change—can't
+      // overwrite the newer snapshot. No guard needed against this
+      // subscription being torn down, though: each `windowId` gets its own
+      // store instance (see `useWindowTree`), so a late resolution can only
+      // write into a `snapshot` that nothing reads anymore.
+      let generation = 0;
+
+      async function followTreeId(nextTreeId: string | undefined) {
+        treeId = nextTreeId;
+        generation += 1;
+        if (nextTreeId === undefined) {
+          return;
+        }
+        const currentGeneration = generation;
+        const loaded = await loadTree(nextTreeId);
+        if (loaded !== undefined && currentGeneration === generation) {
           snapshot = { tree: loaded.tree, isLoading: false };
           onStoreChange();
         }
       }
+
+      async function loadInitialTree() {
+        const initialTreeId = await loadTreeIdForWindow(windowId);
+        // A session change may already have been followed meanwhile.
+        if (generation === 0) {
+          await followTreeId(initialTreeId);
+        }
+      }
       void loadInitialTree();
 
-      const key = getStorageKey(windowId);
-      const listener = (
+      const treeIdKey = getTreeIdStorageKey(windowId);
+      const sessionListener = (
         changes: Record<string, chrome.storage.StorageChange>,
       ) => {
-        const change = changes[key];
+        const change = changes[treeIdKey];
         if (change !== undefined) {
+          void followTreeId(change.newValue as string | undefined);
+        }
+      };
+
+      const localListener = (
+        changes: Record<string, chrome.storage.StorageChange>,
+      ) => {
+        if (treeId === undefined) {
+          return;
+        }
+        const change = changes[getStorageKey(treeId)];
+        if (change !== undefined) {
+          // Newer than whatever a still-pending `loadTree` may return.
+          generation += 1;
           snapshot = {
             tree:
               change.newValue === undefined
@@ -81,10 +117,13 @@ function createWindowTreeStore(windowId: number): {
           onStoreChange();
         }
       };
-      chrome.storage.local.onChanged.addListener(listener);
+
+      chrome.storage.session.onChanged.addListener(sessionListener);
+      chrome.storage.local.onChanged.addListener(localListener);
 
       return () => {
-        chrome.storage.local.onChanged.removeListener(listener);
+        chrome.storage.session.onChanged.removeListener(sessionListener);
+        chrome.storage.local.onChanged.removeListener(localListener);
       };
     },
     getSnapshot() {

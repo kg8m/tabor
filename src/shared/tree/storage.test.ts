@@ -4,14 +4,20 @@ import {
   loadAllTrees,
   loadPendingRemovals,
   loadTree,
+  loadTreeIdForWindow,
+  loadTreeIdsByWindowId,
   markPendingRemoval,
+  migrateLegacyTrees,
+  planLegacyTreeMigration,
   removeTree,
+  removeTreeIdForWindow,
   saveTree,
+  saveTreeIdForWindow,
 } from "./storage";
 import { createNode } from "./test-helpers";
 import type { TreeState } from "./types";
 
-function createStorageLocalMock() {
+function createStorageAreaMock() {
   const store = new Map<string, unknown>();
 
   return {
@@ -51,8 +57,23 @@ function createStorageLocalMock() {
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 const ANY_NUMBER: number = expect.any(Number);
 
+const TREE_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const TREE_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+function singleTabTree(id: number): TreeState {
+  return { nodes: { [id]: createNode({ id }) }, rootIds: [id] };
+}
+
+function stubChromeStorage() {
+  const local = createStorageAreaMock();
+  vi.stubGlobal("chrome", {
+    storage: { local, session: createStorageAreaMock() },
+  });
+  return local;
+}
+
 beforeEach(() => {
-  vi.stubGlobal("chrome", { storage: { local: createStorageLocalMock() } });
+  stubChromeStorage();
 });
 
 afterEach(() => {
@@ -69,71 +90,55 @@ describe("saveTree / loadTree", () => {
       rootIds: [1],
     };
 
-    await saveTree(1, tree);
+    await saveTree(TREE_A, tree);
 
-    expect(await loadTree(1)).toEqual({
+    expect(await loadTree(TREE_A)).toEqual({
       tree,
       savedAt: ANY_NUMBER,
     });
   });
 
-  it("returns undefined when nothing has been saved for the window", async () => {
-    expect(await loadTree(999)).toBeUndefined();
+  it("returns undefined when nothing has been saved under the tree id", async () => {
+    expect(await loadTree(TREE_A)).toBeUndefined();
   });
 
-  it("keeps trees for different windows independent", async () => {
-    const treeA: TreeState = {
-      nodes: { 1: createNode({ id: 1 }) },
-      rootIds: [1],
-    };
-    const treeB: TreeState = {
-      nodes: { 2: createNode({ id: 2 }) },
-      rootIds: [2],
-    };
+  it("keeps different trees independent", async () => {
+    const treeA = singleTabTree(1);
+    const treeB = singleTabTree(2);
 
-    await saveTree(1, treeA);
-    await saveTree(2, treeB);
+    await saveTree(TREE_A, treeA);
+    await saveTree(TREE_B, treeB);
 
-    expect(await loadTree(1)).toEqual({
+    expect(await loadTree(TREE_A)).toEqual({
       tree: treeA,
       savedAt: ANY_NUMBER,
     });
-    expect(await loadTree(2)).toEqual({
+    expect(await loadTree(TREE_B)).toEqual({
       tree: treeB,
       savedAt: ANY_NUMBER,
     });
   });
 
   it("reads a tree saved before `savedAt` existed as the oldest possible save", async () => {
-    const tree: TreeState = {
-      nodes: { 1: createNode({ id: 1 }) },
-      rootIds: [1],
-    };
+    const tree = singleTabTree(1);
     // Simulates a pre-existing storage entry from before this field was
     // introduced: a bare `TreeState`, not the `{ tree, savedAt }` wrapper.
-    await chrome.storage.local.set({ "tabor:tree:1": tree });
+    await chrome.storage.local.set({ [`tabor:windowTree:${TREE_A}`]: tree });
 
-    expect(await loadTree(1)).toEqual({ tree, savedAt: 0 });
+    expect(await loadTree(TREE_A)).toEqual({ tree, savedAt: 0 });
   });
 });
 
 describe("removeTree", () => {
-  it("removes only the given window's saved tree", async () => {
-    const treeA: TreeState = {
-      nodes: { 1: createNode({ id: 1 }) },
-      rootIds: [1],
-    };
-    const treeB: TreeState = {
-      nodes: { 2: createNode({ id: 2 }) },
-      rootIds: [2],
-    };
-    await saveTree(1, treeA);
-    await saveTree(2, treeB);
+  it("removes only the given saved tree", async () => {
+    const treeB = singleTabTree(2);
+    await saveTree(TREE_A, singleTabTree(1));
+    await saveTree(TREE_B, treeB);
 
-    await removeTree(1);
+    await removeTree(TREE_A);
 
-    expect(await loadTree(1)).toBeUndefined();
-    expect(await loadTree(2)).toEqual({
+    expect(await loadTree(TREE_A)).toBeUndefined();
+    expect(await loadTree(TREE_B)).toEqual({
       tree: treeB,
       savedAt: ANY_NUMBER,
     });
@@ -141,103 +146,195 @@ describe("removeTree", () => {
 });
 
 describe("loadAllTrees", () => {
-  it("returns every saved tree, keyed by window id", async () => {
-    const treeA: TreeState = {
-      nodes: { 1: createNode({ id: 1 }) },
-      rootIds: [1],
-    };
-    const treeB: TreeState = {
-      nodes: { 2: createNode({ id: 2 }) },
-      rootIds: [2],
-    };
-    await saveTree(1, treeA);
-    await saveTree(2, treeB);
+  it("returns every saved tree, keyed by tree id", async () => {
+    const treeA = singleTabTree(1);
+    const treeB = singleTabTree(2);
+    await saveTree(TREE_A, treeA);
+    await saveTree(TREE_B, treeB);
 
-    expect(await loadAllTrees()).toEqual({
-      1: { tree: treeA, savedAt: ANY_NUMBER },
-      2: { tree: treeB, savedAt: ANY_NUMBER },
-    });
+    expect(await loadAllTrees()).toEqual(
+      new Map([
+        [TREE_A, { tree: treeA, savedAt: ANY_NUMBER }],
+        [TREE_B, { tree: treeB, savedAt: ANY_NUMBER }],
+      ]),
+    );
   });
 
-  it("returns an empty object when nothing has been saved", async () => {
-    expect(await loadAllTrees()).toEqual({});
+  it("returns an empty map when nothing has been saved", async () => {
+    expect(await loadAllTrees()).toEqual(new Map());
   });
 
   it("doesn't mistake a pending-removal mark for a saved tree", async () => {
-    const tree: TreeState = {
-      nodes: { 1: createNode({ id: 1 }) },
-      rootIds: [1],
-    };
-    await saveTree(1, tree);
-    await markPendingRemoval(2);
+    const tree = singleTabTree(1);
+    await saveTree(TREE_A, tree);
+    await markPendingRemoval(TREE_B);
 
-    expect(await loadAllTrees()).toEqual({
-      1: { tree, savedAt: ANY_NUMBER },
-    });
+    expect(await loadAllTrees()).toEqual(
+      new Map([[TREE_A, { tree, savedAt: ANY_NUMBER }]]),
+    );
   });
 
-  it("skips a key whose window id isn't numeric", async () => {
-    const tree: TreeState = {
-      nodes: { 1: createNode({ id: 1 }) },
-      rootIds: [1],
-    };
-    await saveTree(1, tree);
-    await chrome.storage.local.set({ "tabor:tree:abc": tree });
-
-    expect(await loadAllTrees()).toEqual({
-      1: { tree, savedAt: ANY_NUMBER },
+  it("skips a key whose tree id isn't well-formed, and legacy window-id keys", async () => {
+    const tree = singleTabTree(1);
+    await saveTree(TREE_A, tree);
+    await chrome.storage.local.set({
+      "tabor:windowTree:abc": tree,
+      "tabor:tree:1": tree,
     });
+
+    expect(await loadAllTrees()).toEqual(
+      new Map([[TREE_A, { tree, savedAt: ANY_NUMBER }]]),
+    );
   });
 });
 
 describe("pending removal marks", () => {
-  it("skips a mark whose window id isn't numeric", async () => {
-    await markPendingRemoval(1);
-    await chrome.storage.local.set({ "tabor:pendingTreeRemoval:abc": 0 });
+  it("round-trips a mark through markPendingRemoval / loadPendingRemovals, recording when it was marked", async () => {
+    await markPendingRemoval(TREE_A);
 
-    expect(await loadPendingRemovals()).toEqual(new Map([[1, ANY_NUMBER]]));
+    expect(await loadPendingRemovals()).toEqual(
+      new Map([[TREE_A, ANY_NUMBER]]),
+    );
   });
 
-  it("round-trips a mark through markPendingRemoval / loadPendingRemovals, recording when it was marked", async () => {
-    await markPendingRemoval(1);
+  it("skips a mark whose tree id isn't well-formed", async () => {
+    await markPendingRemoval(TREE_A);
+    await chrome.storage.local.set({
+      "tabor:pendingTreeRemoval:abc": 0,
+      "tabor:pendingTreeRemoval:1": 0,
+    });
 
-    const marks = await loadPendingRemovals();
-    expect(marks.size).toBe(1);
-    expect(marks.get(1)).toEqual(expect.any(Number));
+    expect(await loadPendingRemovals()).toEqual(
+      new Map([[TREE_A, ANY_NUMBER]]),
+    );
   });
 
   it("doesn't push a mark's timestamp forward on a later repeated miss", async () => {
-    await markPendingRemoval(1);
+    await markPendingRemoval(TREE_A);
     const firstMarks = await loadPendingRemovals();
-    const firstMarkedAt = firstMarks.get(1);
 
-    await markPendingRemoval(1);
+    await markPendingRemoval(TREE_A);
 
     const secondMarks = await loadPendingRemovals();
-    expect(secondMarks.get(1)).toBe(firstMarkedAt);
+    expect(secondMarks.get(TREE_A)).toBe(firstMarks.get(TREE_A));
   });
 
-  it("clearPendingRemoval removes only the given window's mark", async () => {
-    await markPendingRemoval(1);
-    await markPendingRemoval(2);
+  it("clearPendingRemoval removes only the given tree's mark", async () => {
+    await markPendingRemoval(TREE_A);
+    await markPendingRemoval(TREE_B);
 
-    await clearPendingRemoval(1);
+    await clearPendingRemoval(TREE_A);
 
     const marks = await loadPendingRemovals();
-    expect(marks.has(1)).toBe(false);
-    expect(marks.has(2)).toBe(true);
+    expect(marks.has(TREE_A)).toBe(false);
+    expect(marks.has(TREE_B)).toBe(true);
   });
 
-  it("removeTree also clears the window's pending-removal mark", async () => {
-    const tree: TreeState = {
-      nodes: { 1: createNode({ id: 1 }) },
-      rootIds: [1],
-    };
-    await saveTree(1, tree);
-    await markPendingRemoval(1);
+  it("removeTree also clears the tree's pending-removal mark", async () => {
+    await saveTree(TREE_A, singleTabTree(1));
+    await markPendingRemoval(TREE_A);
 
-    await removeTree(1);
+    await removeTree(TREE_A);
 
     expect(await loadPendingRemovals()).toEqual(new Map());
+  });
+});
+
+describe("tree ids per window", () => {
+  it("round-trips which tree a window holds", async () => {
+    await saveTreeIdForWindow(1, TREE_A);
+
+    expect(await loadTreeIdForWindow(1)).toBe(TREE_A);
+    expect(await loadTreeIdForWindow(2)).toBeUndefined();
+  });
+
+  it("lists every window's tree id, and forgets a removed one", async () => {
+    await saveTreeIdForWindow(1, TREE_A);
+    await saveTreeIdForWindow(2, TREE_B);
+
+    await removeTreeIdForWindow(1);
+
+    expect(await loadTreeIdsByWindowId()).toEqual(new Map([[2, TREE_B]]));
+  });
+});
+
+describe("planLegacyTreeMigration", () => {
+  it("moves each legacy tree to a fresh tree id, carrying its pending-removal mark along", () => {
+    const ids = [TREE_A, TREE_B];
+    const plan = planLegacyTreeMigration(
+      new Map([
+        [1, "tree-1"],
+        [2, "tree-2"],
+      ]),
+      new Map([[2, 12_345]]),
+      () => ids.shift() ?? "unexpected",
+    );
+
+    expect(plan.toSet).toEqual({
+      [`tabor:windowTree:${TREE_A}`]: "tree-1",
+      [`tabor:windowTree:${TREE_B}`]: "tree-2",
+      [`tabor:pendingTreeRemoval:${TREE_B}`]: 12_345,
+    });
+    expect(plan.treeIdsByLegacyWindowId).toEqual(
+      new Map([
+        [1, TREE_A],
+        [2, TREE_B],
+      ]),
+    );
+    expect(new Set(plan.toRemove)).toEqual(
+      new Set(["tabor:tree:1", "tabor:tree:2", "tabor:pendingTreeRemoval:2"]),
+    );
+  });
+
+  it("removes a legacy mark whose tree is already gone, without moving it anywhere", () => {
+    const plan = planLegacyTreeMigration(new Map(), new Map([[3, 12_345]]));
+
+    expect(plan.toSet).toEqual({});
+    expect(plan.toRemove).toEqual(["tabor:pendingTreeRemoval:3"]);
+  });
+});
+
+describe("migrateLegacyTrees", () => {
+  it("moves legacy trees and marks over, recording the tree of a window that's still open", async () => {
+    const tree1 = singleTabTree(1);
+    const tree2 = singleTabTree(2);
+    await chrome.storage.local.set({
+      "tabor:tree:1": { tree: tree1, savedAt: 100 },
+      "tabor:tree:2": { tree: tree2, savedAt: 200 },
+      "tabor:pendingTreeRemoval:2": 12_345,
+      "tabor:pendingTreeRemoval:3": 67_890,
+    });
+
+    await migrateLegacyTrees([1]);
+
+    const keys = await chrome.storage.local.getKeys();
+    expect(keys.filter((key) => key.startsWith("tabor:tree:"))).toEqual([]);
+
+    const trees = await loadAllTrees();
+    expect(trees.values().toArray()).toEqual(
+      expect.arrayContaining([
+        { tree: tree1, savedAt: 100 },
+        { tree: tree2, savedAt: 200 },
+      ]),
+    );
+    const treeIdSavedAt = (savedAt: number) =>
+      trees.entries().find(([, stored]) => stored.savedAt === savedAt)?.[0];
+
+    expect(await loadPendingRemovals()).toEqual(
+      new Map([[treeIdSavedAt(200), 12_345]]),
+    );
+    expect(await loadTreeIdsByWindowId()).toEqual(
+      new Map([[1, treeIdSavedAt(100)]]),
+    );
+  });
+
+  it("does nothing once there's nothing left to migrate", async () => {
+    const local = stubChromeStorage();
+    await saveTree(TREE_A, singleTabTree(1));
+
+    await migrateLegacyTrees([1]);
+
+    expect(local.set).toHaveBeenCalledTimes(1);
+    expect(local.remove).not.toHaveBeenCalled();
   });
 });

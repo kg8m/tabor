@@ -26,7 +26,7 @@ import {
   SESSION_RECONCILED_KEY,
   selectMalformedKeys,
 } from "../shared/storage-keys";
-import { selectOrphanedWindowIds } from "../shared/tree/orphaned-trees";
+import { selectOrphanedTreeIds } from "../shared/tree/orphaned-trees";
 import {
   flattenDepthFirst,
   getNativeOrder,
@@ -50,11 +50,16 @@ import {
 } from "../shared/tree/restore";
 import {
   clearPendingRemoval,
+  createTreeId,
   loadAllTrees,
   loadPendingRemovals,
+  loadTreeIdsByWindowId,
   markPendingRemoval,
+  migrateLegacyTrees,
   removeTree,
+  removeTreeIdForWindow,
   saveTree,
+  saveTreeIdForWindow,
 } from "../shared/tree/storage";
 import type { TreeState } from "../shared/tree/types";
 import {
@@ -70,14 +75,17 @@ import {
   clearDeletedWindow,
   deleteWindow,
   getActiveTabId,
+  getAllTreeIds,
   getAllTrees,
   getRestoreSession,
   getTree,
+  getTreeId,
   isDeletedWindow,
   removeRestoreSession,
   setActiveTabId,
   setRestoreSession,
   setTree,
+  setTreeId,
 } from "./store";
 import { toSelfHealingUpdate, toTabUpdate } from "./tab-update";
 import { isTaborOwnTab, toActualTab } from "../shared/tabs";
@@ -91,6 +99,33 @@ import { queryOpenWindowIds } from "../shared/windows";
 function setAndPersistActiveTabId(windowId: number, tabId: number): void {
   setActiveTabId(windowId, tabId);
   void savePersistedActiveTabId(windowId, tabId);
+}
+
+/**
+ * Records which tree a window holds both in memory and in
+ * `chrome.storage.session` (for the next service worker lifetime, see
+ * `reloadFromStorage`, and for the side panel to find its window's tree).
+ */
+async function assignTreeId(windowId: number, treeId: string): Promise<void> {
+  setTreeId(windowId, treeId);
+  await saveTreeIdForWindow(windowId, treeId);
+}
+
+/**
+ * Persists a window's tree under the id of the tree it holds, assigning it a
+ * fresh one first if it doesn't hold one yet (e.g. an event for a brand-new
+ * window arriving before `initializeWindow` has run for it).
+ */
+async function saveWindowTree(
+  windowId: number,
+  tree: TreeState,
+): Promise<void> {
+  let treeId = getTreeId(windowId);
+  if (treeId === undefined) {
+    treeId = createTreeId();
+    await assignTreeId(windowId, treeId);
+  }
+  await saveTree(treeId, tree);
 }
 
 // TODO(debug): temporary instrumentation for two intermittent, hard-to-
@@ -321,14 +356,14 @@ async function queryTabsWithResolvedUrls(
 
 /**
  * Initialize a single new window, matching it by tab URL overlap (see
- * `matchWindows`) against every saved tree not already claimed by another
- * active window—not just whatever's saved under this brand-new window id
- * itself, which is normally nothing. A window can show up already holding a
- * previous session's full set of tabs (e.g. a profile switch recreating them
- * for a browser process that was already running, so `windows.onCreated`
- * fires instead of `runtime.onStartup`), and that saved parent/child
- * structure lives under whichever old window id it was last saved under, not
- * this one.
+ * `matchWindows`) against every saved tree no other open window holds. A
+ * window can show up already holding a previous session's full set of tabs
+ * (e.g. a profile switch recreating them for a browser process that was
+ * already running, so `windows.onCreated` fires instead of
+ * `runtime.onStartup`, or a closed window being reopened), and that saved
+ * parent/child structure is only findable by content—nothing ties this
+ * brand-new window to it yet. A match hands this window that tree's id (see
+ * `WINDOW_TREE_KEY_PREFIX`); otherwise it gets a fresh one.
  *
  * Waits for its own tab creation to settle first (see
  * `waitForTabCreationToSettle`) so a window opened with several tabs at once
@@ -361,22 +396,27 @@ async function initializeWindow(windowId: number): Promise<void> {
   const tabs = queriedTabs.filter((tab) => !isTaborOwnTab(tab));
   const actualTabs = tabs.map((tab) => toActualTab(tab));
 
-  const savedTreesByWindowId = await loadAllTrees();
-  // Excludes trees already claimed by another window this session, so this
-  // window can't steal a match that rightfully belongs to one already up and
-  // running—but still considers a tree saved under this exact window id
-  // (unlikely for a brand-new one, but harmless to include).
-  const savedWindows: SavedWindow[] = Object.entries(savedTreesByWindowId)
-    .map(([savedWindowIdString, stored]) => ({
-      windowId: Number(savedWindowIdString),
+  const savedTrees = await loadAllTrees();
+  // Excludes trees another window already holds, so this window can't steal
+  // a match that rightfully belongs to one already up and running—but still
+  // considers the tree this window itself already holds, if an earlier event
+  // for it got it one (see `saveWindowTree`).
+  const ownTreeId = getTreeId(windowId);
+  const heldByOthers = new Set(
+    getAllTreeIds()
+      .entries()
+      .filter(([heldWindowId]) => heldWindowId !== windowId)
+      .map(([, treeId]) => treeId),
+  );
+  const savedWindows: SavedWindow[] = savedTrees
+    .entries()
+    .filter(([treeId]) => !heldByOthers.has(treeId))
+    .map(([treeId, stored]) => ({
+      id: treeId,
       tree: stored.tree,
       savedAt: stored.savedAt,
     }))
-    .filter(
-      (saved) =>
-        saved.windowId === windowId ||
-        !initializedWindowIds.has(saved.windowId),
-    );
+    .toArray();
 
   const [match] = matchWindows(savedWindows, [{ windowId, tabs: actualTabs }]);
   const savedTree = match?.savedTree ?? { nodes: {}, rootIds: [] };
@@ -384,9 +424,9 @@ async function initializeWindow(windowId: number): Promise<void> {
   const savedNodeCount = Object.keys(savedTree.nodes).length;
   debugLog("initializeWindow", {
     windowId,
-    matchedSavedWindowId: match?.savedWindowId,
+    matchedSavedTreeId: match?.savedId,
     savedNodeCount,
-    candidateSavedWindowIds: savedWindows.map((saved) => saved.windowId),
+    candidateSavedTreeIds: savedWindows.map((saved) => saved.id),
     // TODO(debug): temporary instrumentation, see the block near the top of
     // this file—only logged when this window had tabs but matched no saved
     // tree, to see whether their `url`s were resolved by the time
@@ -411,7 +451,7 @@ async function initializeWindow(windowId: number): Promise<void> {
             }
           }
           return {
-            savedWindowId: saved.windowId,
+            savedTreeId: saved.id,
             savedNodeCount: savedUrls.size,
             overlap,
           };
@@ -421,15 +461,18 @@ async function initializeWindow(windowId: number): Promise<void> {
   const session = createRestoreSession(savedTree);
   const tree = restoreTree(savedTree, actualTabs, session);
 
+  // Takes over the matched tree's id, so it stays saved under the same key.
+  const treeId = match?.savedId ?? ownTreeId ?? createTreeId();
   setTree(windowId, tree);
   setRestoreSession(windowId, session);
-  await saveTree(windowId, tree);
+  await assignTreeId(windowId, treeId);
+  await saveTree(treeId, tree);
+  await clearPendingRemoval(treeId);
 
-  // The saved tree now lives under this window's own id (just saved above);
-  // its old id would otherwise sit in storage as a stale duplicate until some
-  // later `initializeAllWindows` cleanup happened to find it.
-  if (match?.savedWindowId !== undefined && match.savedWindowId !== windowId) {
-    await removeTree(match.savedWindowId);
+  // A tree this window held before being matched to a different one (see
+  // `ownTreeId`) is superseded by it, and no other window holds it.
+  if (ownTreeId !== undefined && ownTreeId !== treeId) {
+    await removeTree(ownTreeId);
   }
 
   const activeTab = tabs.find((tab) => tab.active);
@@ -510,26 +553,44 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
     tabs: (tabsByWindowId.get(windowId) ?? []).map((tab) => toActualTab(tab)),
   }));
 
-  const savedTreesByWindowId = await loadAllTrees();
-  const savedWindows: SavedWindow[] = Object.entries(savedTreesByWindowId).map(
-    ([windowId, stored]) => ({
-      windowId: Number(windowId),
+  const savedTrees = await loadAllTrees();
+  // A tree held by an open window this pass isn't reconciling (e.g. one
+  // `chrome.windows.getAll()`'s default window types leave out, during a
+  // normal-windows gap) stays that window's: neither offered to another
+  // window as a match nor cleaned up below as unmatched.
+  const reconciledWindowIds = new Set(windowIds);
+  const heldElsewhere = new Set(
+    getAllTreeIds()
+      .entries()
+      .filter(([windowId]) => !reconciledWindowIds.has(windowId))
+      .map(([, treeId]) => treeId),
+  );
+  const savedWindows: SavedWindow[] = savedTrees
+    .entries()
+    .filter(([treeId]) => !heldElsewhere.has(treeId))
+    .map(([treeId, stored]) => ({
+      id: treeId,
       tree: stored.tree,
       savedAt: stored.savedAt,
-    }),
-  );
+    }))
+    .toArray();
 
   const matches = matchWindows(savedWindows, actualWindows);
   const matchByActualWindowId = new Map(
     matches.map((match) => [match.actualWindowId, match]),
   );
+  const matchedTreeIds = new Set(
+    matches.flatMap((match) =>
+      match.savedId === undefined ? [] : [match.savedId],
+    ),
+  );
 
   debugLog("initializeAllWindows", {
     actualWindowIds: windowIds,
-    savedWindowIds: savedWindows.map((window) => window.windowId),
+    savedTreeIds: savedWindows.map((window) => window.id),
     matches: matches.map((match) => ({
       actualWindowId: match.actualWindowId,
-      savedWindowId: match.savedWindowId,
+      savedTreeId: match.savedId,
     })),
   });
 
@@ -579,7 +640,7 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
                 }
               }
               return {
-                savedWindowId: saved.windowId,
+                savedTreeId: saved.id,
                 savedNodeCount: savedUrls.size,
                 overlap,
               };
@@ -587,9 +648,21 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
           }),
       });
 
+      // A matched window takes over its saved tree's id, so the tree stays
+      // saved under the same key. An unmatched one keeps the tree id it
+      // already holds (e.g. during a normal-windows gap), unless another
+      // window was just matched to that tree, and otherwise gets a fresh one.
+      const heldTreeId = getTreeId(actualWindow.windowId);
+      const treeId =
+        matchByActualWindowId.get(actualWindow.windowId)?.savedId ??
+        (heldTreeId === undefined || matchedTreeIds.has(heldTreeId)
+          ? createTreeId()
+          : heldTreeId);
+
       setTree(actualWindow.windowId, tree);
       setRestoreSession(actualWindow.windowId, session);
-      await saveTree(actualWindow.windowId, tree);
+      await assignTreeId(actualWindow.windowId, treeId);
+      await saveTree(treeId, tree);
       initializedWindowIds.add(actualWindow.windowId);
       clearDeletedWindow(actualWindow.windowId);
 
@@ -610,13 +683,10 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
     return;
   });
 
-  // A saved window's data now lives under its matched actual window's id
-  // (just saved above, under `actualWindow.windowId`)—including when that
-  // differs from the saved window's own old id, which is the common case
-  // across a restart. Anything saved under an id that isn't one of the
-  // actual windows just initialized is a removal *candidate*—but, unless it
-  // has no parent/child structure worth losing (see `hasHierarchy`), not
-  // deleted outright (see `markPendingRemoval`): a window whose session
+  // A saved tree no window took over just now is a removal *candidate*—but,
+  // unless it has no parent/child structure worth losing (see
+  // `hasHierarchy`), not deleted outright (see `markPendingRemoval`): a
+  // window whose session
   // restore hadn't finished recreating it in time for this pass's own
   // snapshot (e.g. because another window, like a lightweight installed-PWA
   // window, was recreated first—possibly repeatedly across several browser
@@ -632,33 +702,21 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   // deleted right away instead of accumulating pending-removal clutter for
   // windows that keep never quite matching (e.g. a one-off popup or
   // print-preview window whose exact tab set never recurs).
-  // A saved window matched this time is fully consumed: its tree now lives
-  // under its matched actual window's id (saved above), so its own old
-  // entry—when that id differs—is pure duplicate clutter, removed outright
-  // rather than through the pending-removal grace period below (which
-  // exists only for saved windows that didn't match anything this pass).
-  // Left as a stale duplicate instead, it would keep sitting in storage as
-  // a candidate for a future `matchWindows` call, at risk of outscoring (or
-  // tying, and then winning via `Array.sort`'s stability plus
-  // `Object.entries`' ascending-numeric-key order) the very entry that
-  // superseded it—resurrecting a long-stale parent/child structure over the
-  // current one.
   //
-  // A saved window that matches *itself* (its own id, still live—e.g. only
-  // the extension reloaded, not the browser, so a window never actually
-  // closed) has no old entry to remove, but may still carry a stale
+  // A saved tree a window did take over may still carry a stale
   // pending-removal mark from an earlier pass that missed it (e.g. a
   // transient unresolved-tab-URL race in `queryTabsWithResolvedUrls`).
   // Clear that mark rather than leaving it—otherwise a later, genuine miss
   // would inherit that stale timestamp instead of starting its own grace
   // period fresh, risking premature deletion.
-  const matchedSavedWindowIds = new Set(
-    matches.flatMap((match) =>
-      match.savedWindowId === undefined ? [] : [match.savedWindowId],
-    ),
+  const assignedTreeIds = new Set(
+    actualWindows.flatMap((actualWindow) => {
+      const treeId = getTreeId(actualWindow.windowId);
+      return treeId === undefined ? [] : [treeId];
+    }),
   );
   const unmatchedSavedWindows = savedWindows.filter(
-    (saved) => !matchedSavedWindowIds.has(saved.windowId),
+    (saved) => !assignedTreeIds.has(saved.id),
   );
   const previouslyPendingRemoval = await loadPendingRemovals();
 
@@ -671,12 +729,12 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
     // earlier (via the in-memory `getAllTrees`) showed for the same window.
     ...unmatchedSavedWindows.map((saved) => {
       const hasTreeHierarchy = hasHierarchy(saved.tree);
-      const markedAt = previouslyPendingRemoval.get(saved.windowId);
+      const markedAt = previouslyPendingRemoval.get(saved.id);
       const isExpired =
         markedAt !== undefined &&
         Date.now() - markedAt >= PENDING_REMOVAL_GRACE_MS;
       debugLog("initializeAllWindows:staleCleanup", {
-        windowId: saved.windowId,
+        treeId: saved.id,
         savedAt: saved.savedAt,
         nodeCount: Object.keys(saved.tree.nodes).length,
         rootCount: saved.tree.rootIds.length,
@@ -690,18 +748,11 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
       });
 
       if (!hasTreeHierarchy || isExpired) {
-        return removeTree(saved.windowId);
+        return removeTree(saved.id);
       }
-      return markPendingRemoval(saved.windowId);
+      return markPendingRemoval(saved.id);
     }),
-    ...matches.flatMap((match) => {
-      if (match.savedWindowId === undefined) {
-        return [];
-      }
-      return match.savedWindowId === match.actualWindowId
-        ? [clearPendingRemoval(match.savedWindowId)]
-        : [removeTree(match.savedWindowId)];
-    }),
+    ...assignedTreeIds.values().map((treeId) => clearPendingRemoval(treeId)),
   ]);
 }
 
@@ -741,8 +792,8 @@ async function markReconciledThisBrowserSession(): Promise<void> {
  * that one ordinary tab as parentless instead of a child of the current
  * tab.
  *
- * Restores every saved window's tree, skipping only ones already confirmed
- * gone via `isDeletedWindow`—deliberately *not* filtered against a live
+ * Restores the tree of every window recorded as holding one (see
+ * `TREE_ID_KEY_PREFIX`)—deliberately *not* filtered against a live
  * `chrome.windows.getAll()` query, despite that seeming like the more
  * obviously "correct" set of windows to restore. A window mid-close (its
  * tabs' own `onRemoved`/`onUpdated` events still working through `enqueue`,
@@ -754,40 +805,32 @@ async function markReconciledThisBrowserSession(): Promise<void> {
  * then see `getTree` fall back to an empty tree, and—having no reason to
  * suspect otherwise—save that empty tree right over its real, still-valid
  * one moments before `windows.onRemoved` finally arrived to clean it up
- * properly. `isDeletedWindow` doesn't have this race: it only ever becomes
- * true once `windows.onRemoved` has actually been processed for this
- * window id, in the same serialized `enqueue` order every other handler
- * observes—so a window mid-close is (correctly) still restored here, and
- * whichever handler is already queued to finish tearing it down does so
- * against its real data, not a blank one this function manufactured.
- *
- * The flip side is that this store also ends up holding the saved trees of
- * windows closed long ago (e.g. in a previous browser session), which
- * `isDeletedWindow` knows nothing about. So only windows actually open are
- * marked in `initializedWindowIds`: marking a closed window's tree there too
- * would read as "already claimed by a live window" to `initializeWindow`,
- * which would then never offer it as a match for a window reopened later.
- * A window mid-close isn't marked either, which is fine—it's about to
- * become one of those closed windows anyway.
+ * properly. A window's tree-id record doesn't have this race: it's only
+ * removed once `windows.onRemoved` has actually been processed for it, in
+ * the same serialized `enqueue` order every other handler observes—so a
+ * window mid-close is (correctly) still restored here, and whichever
+ * handler is already queued to finish tearing it down does so against its
+ * real data, not a blank one this function manufactured. Closed windows'
+ * saved trees, on the other hand, have no such record, so they stay out of
+ * the store (and out of `initializedWindowIds`).
  */
 async function reloadFromStorage(): Promise<void> {
-  const [savedTrees, openWindowIds] = await Promise.all([
+  const [savedTrees, treeIdsByWindowId] = await Promise.all([
     loadAllTrees(),
-    queryOpenWindowIds(),
+    loadTreeIdsByWindowId(),
   ]);
-  const openWindowIdSet = new Set(openWindowIds);
 
   await Promise.all(
-    Object.entries(savedTrees)
-      .map(
-        ([windowIdString, stored]) => [Number(windowIdString), stored] as const,
-      )
+    treeIdsByWindowId
+      .entries()
       .filter(([windowId]) => !isDeletedWindow(windowId))
-      .map(async ([windowId, stored]) => {
-        setTree(windowId, stored.tree);
-        if (openWindowIdSet.has(windowId)) {
-          initializedWindowIds.add(windowId);
+      .map(async ([windowId, treeId]) => {
+        setTreeId(windowId, treeId);
+        const stored = savedTrees.get(treeId);
+        if (stored !== undefined) {
+          setTree(windowId, stored.tree);
         }
+        initializedWindowIds.add(windowId);
 
         // The *persisted* active tab id, not a fresh `chrome.tabs.query`:
         // whichever event just woke the service worker up may itself have
@@ -829,6 +872,9 @@ const ensureInitialized = (() => {
   // the same promise as before.
   return async (excludeTabId?: number): Promise<void> => {
     initializationPromise ??= (async () => {
+      // Before either path below reads any saved tree, so both only ever see
+      // the current key scheme.
+      await migrateLegacyTrees(await queryOpenWindowIds());
       const isReconciled = await hasReconciledThisBrowserSession();
       debugLog("ensureInitialized", { isReconciled, excludeTabId });
       if (isReconciled) {
@@ -945,14 +991,14 @@ async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
     }
 
     setTree(tab.windowId, updated);
-    await saveTree(tab.windowId, updated);
+    await saveWindowTree(tab.windowId, updated);
     return;
   }
 
   const parentId = getActiveTabId(tab.windowId) ?? null;
   const updated = addTab(tree, actualTab, parentId);
   setTree(tab.windowId, updated);
-  await saveTree(tab.windowId, updated);
+  await saveWindowTree(tab.windowId, updated);
 
   // `addTab` places the tab in the tree (e.g. as its parent's last child),
   // but Chrome creates it wherever it likes natively—often the far end of
@@ -985,7 +1031,7 @@ async function handleTabRemoved(
   const tree = getTree(info.windowId);
   const updated = removeTab(tree, tabId);
   setTree(info.windowId, updated);
-  await saveTree(info.windowId, updated);
+  await saveWindowTree(info.windowId, updated);
 
   settlePendingClose(info.windowId);
 }
@@ -1013,7 +1059,7 @@ async function handleTabMoved(
   const tree = getTree(info.windowId);
   const updated = reorderFromNativeMove(tree, tabId, newOrder);
   setTree(info.windowId, updated);
-  await saveTree(info.windowId, updated);
+  await saveWindowTree(info.windowId, updated);
 }
 
 async function handleTabAttached(
@@ -1030,7 +1076,7 @@ async function handleTabAttached(
   const tree = getTree(info.newWindowId);
   const updated = addTab(tree, toActualTab(tab), null);
   setTree(info.newWindowId, updated);
-  await saveTree(info.newWindowId, updated);
+  await saveWindowTree(info.newWindowId, updated);
 
   // Part of a "move tab(s)/tree(s) to window" batch (see
   // `pending-tree-move.ts`)—once every tab in it has landed here as a root,
@@ -1039,7 +1085,7 @@ async function handleTabAttached(
   const reparented = noteTreeMoveAttached(tabId, info.newWindowId);
   if (reparented !== undefined) {
     setTree(info.newWindowId, reparented);
-    await saveTree(info.newWindowId, reparented);
+    await saveWindowTree(info.newWindowId, reparented);
     await syncNativeOrder(reparented, info.newWindowId);
   }
 }
@@ -1057,7 +1103,7 @@ async function handleTabDetached(
   const tree = getTree(info.oldWindowId);
   const updated = removeTab(tree, tabId);
   setTree(info.oldWindowId, updated);
-  await saveTree(info.oldWindowId, updated);
+  await saveWindowTree(info.oldWindowId, updated);
 }
 
 /**
@@ -1087,7 +1133,7 @@ async function handleTabReplaced(
     suspended: actualTab.suspended,
   });
   setTree(tab.windowId, updated);
-  await saveTree(tab.windowId, updated);
+  await saveWindowTree(tab.windowId, updated);
 
   if (getActiveTabId(tab.windowId) === removedTabId) {
     setAndPersistActiveTabId(tab.windowId, addedTabId);
@@ -1127,7 +1173,7 @@ async function handleTabUpdated(
   }
 
   setTree(tab.windowId, updated);
-  await saveTree(tab.windowId, updated);
+  await saveWindowTree(tab.windowId, updated);
 }
 
 /**
@@ -1160,7 +1206,7 @@ async function handleTabActivated(
   const tree = getTree(activeInfo.windowId);
   const updated = updateTab(tree, activeInfo.tabId, toSelfHealingUpdate(tab));
   setTree(activeInfo.windowId, updated);
-  await saveTree(activeInfo.windowId, updated);
+  await saveWindowTree(activeInfo.windowId, updated);
 }
 
 async function handleToggleCollapsed(tabId: number): Promise<void> {
@@ -1175,7 +1221,7 @@ async function handleToggleCollapsed(tabId: number): Promise<void> {
 
   const updated = updateTab(tree, tabId, { collapsed: !node.collapsed });
   setTree(tab.windowId, updated);
-  await saveTree(tab.windowId, updated);
+  await saveWindowTree(tab.windowId, updated);
 }
 
 async function handleUpdateNote(
@@ -1193,7 +1239,7 @@ async function handleUpdateNote(
 
   const updated = updateTab(tree, tabId, { note });
   setTree(tab.windowId, updated);
-  await saveTree(tab.windowId, updated);
+  await saveWindowTree(tab.windowId, updated);
 }
 
 /**
@@ -1293,7 +1339,7 @@ async function handleRestoreBackup(
   const backup = await loadBackup(timestamp);
   const savedWindows: SavedWindow[] = Object.entries(backup ?? {}).map(
     ([savedWindowId, tree]) => ({
-      windowId: Number(savedWindowId),
+      id: savedWindowId,
       tree,
       // The whole snapshot was saved at once, so every window in it shares
       // this same `savedAt`—see `matchWindows`'s use of it.
@@ -1311,38 +1357,40 @@ async function handleRestoreBackup(
 
   const restored = restoreTree(savedTree, actualTabs);
   setTree(windowId, restored);
-  await saveTree(windowId, restored);
+  await saveWindowTree(windowId, restored);
   await syncNativeOrder(restored, windowId);
 }
 
 /**
  * Removes the saved trees the user picked out as belonging to windows that
  * are no longer open (see `RemoveSavedTreesMessage`). Re-checks against the
- * windows open right now rather than trusting the side panel's list, which
- * may be stale by the time this runs, so a live window's tree is never
- * removed.
- *
- * Whether this store holds a tree for a window says nothing about whether
- * it's open: `reloadFromStorage` loads every saved tree after an idle-wake
- * restart, closed windows' included. So each removed tree is dropped from
- * the store too (`deleteWindow`, as `windows.onRemoved` does for a window
- * that just closed), not just from storage—otherwise it would linger in
- * memory, and in every backup snapshot taken from it, until the next
- * restart.
+ * trees open windows hold right now rather than trusting the side panel's
+ * list, which may be stale by the time this runs, so a live window's tree is
+ * never removed.
  */
-async function handleRemoveSavedTrees(windowIds: number[]): Promise<void> {
+async function handleRemoveSavedTrees(treeIds: string[]): Promise<void> {
   await ensureInitialized();
 
-  const removable = selectOrphanedWindowIds(
-    windowIds,
-    await queryOpenWindowIds(),
-  );
-  await Promise.all(
-    removable.map((windowId) => {
-      deleteWindow(windowId);
-      return removeTree(windowId);
-    }),
-  );
+  const openWindowIds = new Set(await queryOpenWindowIds());
+  const heldTreeIds = getAllTreeIds()
+    .entries()
+    .filter(([windowId]) => openWindowIds.has(windowId))
+    .map(([, treeId]) => treeId);
+  const removable = new Set(selectOrphanedTreeIds(treeIds, heldTreeIds));
+
+  // A window mid-close (its `windows.onRemoved` not handled yet) may still
+  // hold one of these in the store; drop it the same way that handler will,
+  // so none of its in-flight events saves the removed tree right back.
+  for (const [windowId, treeId] of getAllTreeIds()) {
+    if (!removable.has(treeId)) {
+      continue;
+    }
+    deleteWindow(windowId);
+    initializedWindowIds.delete(windowId);
+    await removeTreeIdForWindow(windowId);
+  }
+
+  await Promise.all(removable.values().map((treeId) => removeTree(treeId)));
 }
 
 async function handleMoveNode(
@@ -1370,7 +1418,7 @@ async function handleMoveNode(
   }
 
   setTree(tab.windowId, updated);
-  await saveTree(tab.windowId, updated);
+  await saveWindowTree(tab.windowId, updated);
   await syncNativeOrder(updated, tab.windowId);
 }
 
@@ -1521,6 +1569,9 @@ chrome.windows.onRemoved.addListener((windowId) =>
     deleteWindow(windowId);
     initializedWindowIds.delete(windowId);
     clearPendingClose(windowId);
+    // Its tree stays saved, now as a closed window's (see
+    // `TREE_ID_KEY_PREFIX`), for a window reopened later to be matched to.
+    await removeTreeIdForWindow(windowId);
 
     const remainingNormalWindows = await chrome.windows.getAll({
       windowTypes: ["normal"],
@@ -1592,7 +1643,7 @@ chrome.runtime.onMessage.addListener((message: TaborMessage) => {
       break;
     }
     case "removeSavedTrees": {
-      void enqueue(() => handleRemoveSavedTrees(message.windowIds));
+      void enqueue(() => handleRemoveSavedTrees(message.treeIds));
       break;
     }
   }

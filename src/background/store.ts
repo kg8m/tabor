@@ -4,6 +4,7 @@ import type { TreeState } from "../shared/tree/types";
 const EMPTY_TREE: TreeState = { nodes: {}, rootIds: [] };
 
 const trees = new Map<number, TreeState>();
+const treeIds = new Map<number, string>();
 const activeTabIds = new Map<number, number>();
 const previousActiveTabIds = new Map<number, number>();
 const restoreSessions = new Map<number, RestoreSession>();
@@ -28,6 +29,28 @@ export function setTree(windowId: number, tree: TreeState): void {
  */
 export function getAllTrees(): Record<number, TreeState> {
   return Object.fromEntries(trees);
+}
+
+/**
+ * The id of the tree a window holds (see `WINDOW_TREE_KEY_PREFIX`), or
+ * `undefined` if it hasn't been assigned one yet.
+ */
+export function getTreeId(windowId: number): string | undefined {
+  return treeIds.get(windowId);
+}
+
+/**
+ * Record which tree a window holds.
+ */
+export function setTreeId(windowId: number, treeId: string): void {
+  treeIds.set(windowId, treeId);
+}
+
+/**
+ * Every window's tree id, keyed by window id.
+ */
+export function getAllTreeIds(): Map<number, string> {
+  return new Map(treeIds);
 }
 
 /**
@@ -105,6 +128,7 @@ export function removeRestoreSession(windowId: number): void {
  */
 export function deleteWindow(windowId: number): void {
   trees.delete(windowId);
+  treeIds.delete(windowId);
   activeTabIds.delete(windowId);
   previousActiveTabIds.delete(windowId);
   restoreSessions.delete(windowId);

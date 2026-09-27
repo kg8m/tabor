@@ -12,24 +12,38 @@
 // ---- chrome.storage.local ----
 
 /**
- * `tabor:tree:<windowId>` → `StoredTree`. Written on every tree change (see
- * `shared/tree/storage.ts`). Not removed when its window closes, so it can be
- * matched back up after a browser restart; `initializeAllWindows` removes it
- * once superseded by a match under a new window id, right away if it went
- * unmatched and has no parent/child structure, or otherwise after
- * `PENDING_REMOVAL_GRACE_MS` of staying unmatched.
+ * `tabor:windowTree:<treeId>` → `StoredTree`, one per window's tree. Written
+ * on every tree change (see `shared/tree/storage.ts`).
+ *
+ * Keyed by a tree id of its own (a UUID, see `createTreeId`) rather than by
+ * window id: window ids aren't stable across browser restarts, and nothing
+ * guarantees a new window's id won't match one a closed window's saved tree
+ * was last known by. A window
+ * matched to a saved tree takes over that tree's id (see
+ * `initializeAllWindows`), so the tree stays under the same key for as long
+ * as it exists. Which window currently holds which tree is tracked
+ * separately, in `TREE_ID_KEY_PREFIX`.
+ *
+ * Not removed when its window closes, so it can be matched back up to a
+ * window reopened later; `initializeAllWindows` removes it right away if it
+ * went unmatched and has no parent/child structure, or otherwise after
+ * `PENDING_REMOVAL_GRACE_MS` of staying unmatched. It can also be removed by
+ * hand from the side panel (see `removeSavedTrees`).
  */
-export const TREE_KEY_PREFIX = "tabor:tree:";
+export const WINDOW_TREE_KEY_PREFIX = "tabor:windowTree:";
 
 /**
- * `tabor:pendingTreeRemoval:<windowId>` → timestamp it was first marked at.
+ * `tabor:tree:<windowId>` → `StoredTree`: where window trees were saved
+ * before `WINDOW_TREE_KEY_PREFIX` replaced it. Only read to migrate them
+ * over (see `migrateLegacyTrees`), which removes each one once moved.
+ */
+export const LEGACY_TREE_KEY_PREFIX = "tabor:tree:";
+
+/**
+ * `tabor:pendingTreeRemoval:<treeId>` → timestamp it was first marked at.
  * Marks a saved tree that went unmatched on startup (see
  * `markPendingRemoval`); cleared when it matches again or when the tree
  * itself is removed.
- *
- * Deliberately not nested under `TREE_KEY_PREFIX` (e.g.
- * "tabor:tree:pending..."): `loadAllTrees` matches any key starting with
- * that prefix, so a mark key nested under it would get picked up there too.
  */
 export const PENDING_TREE_REMOVAL_KEY_PREFIX = "tabor:pendingTreeRemoval:";
 
@@ -73,11 +87,23 @@ export const NORMAL_WINDOWS_GAP_KEY = "tabor:session:normalWindowsGapPending";
 export const ACTIVE_TAB_KEY_PREFIX = "tabor:session:activeTab:";
 
 /**
+ * `tabor:session:treeId:<windowId>` → the tree id (see
+ * `WINDOW_TREE_KEY_PREFIX`) of the tree that open window currently holds.
+ * Keyed by window id, which—unlike across restarts—is never reused within a
+ * session. Removed once the window closes, which is what makes its tree a
+ * closed window's saved tree. Read back after an idle-wake restart (see
+ * `reloadFromStorage`) and by the side panel to find its own window's tree.
+ */
+export const TREE_ID_KEY_PREFIX = "tabor:session:treeId:";
+
+/**
  * Parses a key suffix, returning `undefined` if it isn't well-formed.
  */
 export type SuffixParser<T> = (suffix: string) => T | undefined;
 
 const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
+const TREE_ID_PATTERN =
+  /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/;
 
 /**
  * `value` as a number if it's made up only of digits (e.g. a window id or
@@ -87,6 +113,14 @@ const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
  */
 export function parseNonNegativeInteger(value: string): number | undefined {
   return NON_NEGATIVE_INTEGER_PATTERN.test(value) ? Number(value) : undefined;
+}
+
+/**
+ * `value` as-is if it's shaped like a tree id (a UUID, see
+ * `createTreeId`)—`undefined` otherwise.
+ */
+export function parseTreeId(value: string): string | undefined {
+  return TREE_ID_PATTERN.test(value) ? value : undefined;
 }
 
 /**
@@ -154,10 +188,13 @@ export async function loadValuesBySuffix<T>(
 }
 
 // The shape each of Tabor's `chrome.storage.local` prefixes expects its
-// whole suffix to have.
+// whole suffix to have. Legacy tree keys are still expected to be numeric,
+// so any not yet migrated (see `migrateLegacyTrees`) aren't mistaken for
+// malformed ones.
 const SUFFIX_PARSERS_BY_PREFIX: [string, SuffixParser<unknown>][] = [
-  [TREE_KEY_PREFIX, parseNonNegativeInteger],
-  [PENDING_TREE_REMOVAL_KEY_PREFIX, parseNonNegativeInteger],
+  [WINDOW_TREE_KEY_PREFIX, parseTreeId],
+  [LEGACY_TREE_KEY_PREFIX, parseNonNegativeInteger],
+  [PENDING_TREE_REMOVAL_KEY_PREFIX, parseTreeId],
   [BACKUP_KEY_PREFIX, parseNonNegativeInteger],
 ];
 
