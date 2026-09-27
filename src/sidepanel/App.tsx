@@ -1,6 +1,7 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import { BackupHistoryView } from "./components/BackupHistoryView";
 import { ContextMenu } from "./components/ContextMenu";
+import { HeaderButton } from "./components/HeaderButton";
 import { HistoryIcon, SavedTreesIcon } from "./components/icons";
 import { PinnedTabsView } from "./components/PinnedTabsView";
 import { SavedTreesView } from "./components/SavedTreesView";
@@ -83,22 +84,18 @@ export function App() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <button
-          type="button"
-          className="app-header__button"
-          aria-label="Closed windows"
+        <HeaderButton
+          label="Closed windows"
+          description="View or remove the trees saved for them"
+          icon={<SavedTreesIcon />}
           onClick={() => setOpenSubview("savedTrees")}
-        >
-          <SavedTreesIcon />
-        </button>
-        <button
-          type="button"
-          className="app-header__button"
-          aria-label="Backup history"
+        />
+        <HeaderButton
+          label="Backup history"
+          description="Preview or restore an earlier state of this window’s tree"
+          icon={<HistoryIcon />}
           onClick={() => setOpenSubview("backupHistory")}
-        >
-          <HistoryIcon />
-        </button>
+        />
       </header>
       <div className="app" onClick={handleBackgroundClick}>
         {isLoading ? (
