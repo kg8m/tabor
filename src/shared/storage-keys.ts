@@ -22,7 +22,8 @@
  * matched to a saved tree takes over that tree's id (see
  * `initializeAllWindows`), so the tree stays under the same key for as long
  * as it exists. Which window currently holds which tree is tracked
- * separately, in `TREE_ID_KEY_PREFIX`.
+ * separately, in `TREE_ID_KEY_PREFIX`. An incognito window's tree is marked
+ * as such (see `StoredTree`).
  *
  * Not removed when its window closes, so it can be matched back up to a
  * window reopened later; `initializeAllWindows` removes it right away if it

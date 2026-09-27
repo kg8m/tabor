@@ -127,6 +127,26 @@ describe("saveTree / loadTree", () => {
 
     expect(await loadTree(TREE_A)).toEqual({ tree, savedAt: 0 });
   });
+
+  it("marks an incognito window's tree as such", async () => {
+    const tree = singleTabTree(1);
+
+    await saveTree(TREE_A, tree, { incognito: true });
+
+    expect(await loadTree(TREE_A)).toEqual({
+      tree,
+      savedAt: ANY_NUMBER,
+      incognito: true,
+    });
+  });
+
+  it("leaves the incognito mark out altogether for a normal window's tree", async () => {
+    await saveTree(TREE_A, singleTabTree(1), { incognito: false });
+    await saveTree(TREE_B, singleTabTree(2));
+
+    expect(await loadTree(TREE_A)).not.toHaveProperty("incognito");
+    expect(await loadTree(TREE_B)).not.toHaveProperty("incognito");
+  });
 });
 
 describe("removeTree", () => {
@@ -158,6 +178,16 @@ describe("loadAllTrees", () => {
         [TREE_B, { tree: treeB, savedAt: ANY_NUMBER }],
       ]),
     );
+  });
+
+  it("keeps each tree's incognito mark", async () => {
+    await saveTree(TREE_A, singleTabTree(1), { incognito: true });
+    await saveTree(TREE_B, singleTabTree(2));
+
+    const trees = await loadAllTrees();
+
+    expect(trees.get(TREE_A)?.incognito).toBe(true);
+    expect(trees.get(TREE_B)).not.toHaveProperty("incognito");
   });
 
   it("returns an empty map when nothing has been saved", async () => {

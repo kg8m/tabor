@@ -15,10 +15,17 @@ import type { TreeState } from "./types";
  * A saved tree together with when it was last written—used by `matchWindows`
  * to prefer a more recently saved candidate when two score close to each
  * other (see its own comments).
+ *
+ * `incognito` marks an incognito window's tree, so it can be told apart from
+ * the saved data alone—even once its window is gone, e.g. after a crash kept
+ * it from being removed when that window closed. Left out altogether for a
+ * normal window's tree, which a tree saved before this field existed also
+ * reads as.
  */
 export interface StoredTree {
   tree: TreeState;
   savedAt: number;
+  incognito?: true;
 }
 
 /**
@@ -41,7 +48,11 @@ export function unwrapStoredTree(value: unknown): StoredTree {
     "savedAt" in value
   ) {
     const stored = value as StoredTree;
-    return { tree: normalizeTree(stored.tree), savedAt: stored.savedAt };
+    return {
+      tree: normalizeTree(stored.tree),
+      savedAt: stored.savedAt,
+      ...(stored.incognito === true && { incognito: true }),
+    };
   }
   return { tree: normalizeTree(value as TreeState), savedAt: 0 };
 }
@@ -91,9 +102,14 @@ export function getTreeIdStorageKey(windowId: number): string {
 // entries, and pruned along with them by `pruneOldDebugLogs`.
 
 /**
- * Persist a tree, stamped with the current time (see `StoredTree`).
+ * Persist a tree, stamped with the current time and marked as an incognito
+ * window's if it is one (see `StoredTree`).
  */
-export async function saveTree(treeId: string, tree: TreeState): Promise<void> {
+export async function saveTree(
+  treeId: string,
+  tree: TreeState,
+  { incognito = false }: { incognito?: boolean } = {},
+): Promise<void> {
   if (Object.keys(tree.nodes).length === 0) {
     const key = `${DEBUG_LOG_KEY_PREFIX}${Date.now()}-emptySave-${treeId}`;
     void chrome.storage.local.set({
@@ -106,7 +122,11 @@ export async function saveTree(treeId: string, tree: TreeState): Promise<void> {
     });
   }
 
-  const stored: StoredTree = { tree, savedAt: Date.now() };
+  const stored: StoredTree = {
+    tree,
+    savedAt: Date.now(),
+    ...(incognito && { incognito: true }),
+  };
   await chrome.storage.local.set({ [getStorageKey(treeId)]: stored });
 }
 

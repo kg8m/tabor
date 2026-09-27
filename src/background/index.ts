@@ -81,8 +81,10 @@ import {
   getTree,
   getTreeId,
   isDeletedWindow,
+  isIncognitoWindow,
   removeRestoreSession,
   setActiveTabId,
+  setIncognitoWindow,
   setRestoreSession,
   setTree,
   setTreeId,
@@ -125,7 +127,7 @@ async function saveWindowTree(
     treeId = createTreeId();
     await assignTreeId(windowId, treeId);
   }
-  await saveTree(treeId, tree);
+  await saveTree(treeId, tree, { incognito: isIncognitoWindow(windowId) });
 }
 
 // TODO(debug): temporary instrumentation for two intermittent, hard-to-
@@ -383,12 +385,16 @@ async function queryTabsWithResolvedUrls(
  * this window's own restore right after `initializeAllWindows` already did it
  * is at best wasted work reconciling the same tabs a second time.
  */
-async function initializeWindow(windowId: number): Promise<void> {
+async function initializeWindow(
+  windowId: number,
+  isIncognito: boolean,
+): Promise<void> {
   if (initializedWindowIds.has(windowId)) {
     return;
   }
   initializedWindowIds.add(windowId);
   clearDeletedWindow(windowId);
+  setIncognitoWindow(windowId, isIncognito);
 
   const settled = restoreTracking.track();
   await waitForTabCreationToSettle();
@@ -466,7 +472,7 @@ async function initializeWindow(windowId: number): Promise<void> {
   setTree(windowId, tree);
   setRestoreSession(windowId, session);
   await assignTreeId(windowId, treeId);
-  await saveTree(treeId, tree);
+  await saveTree(treeId, tree, { incognito: isIncognito });
   await clearPendingRemoval(treeId);
 
   // A tree this window held before being matched to a different one (see
@@ -526,6 +532,9 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   const windowIds = windows
     .map((window) => window.id)
     .filter((id): id is number => id !== undefined);
+  const incognitoWindowIds = new Set(
+    windows.filter((window) => window.incognito).map((window) => window.id),
+  );
 
   const tabsByWindowId = new Map<number, chrome.tabs.Tab[]>();
   await Promise.all(
@@ -659,10 +668,12 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
           ? createTreeId()
           : heldTreeId);
 
+      const isIncognito = incognitoWindowIds.has(actualWindow.windowId);
       setTree(actualWindow.windowId, tree);
+      setIncognitoWindow(actualWindow.windowId, isIncognito);
       setRestoreSession(actualWindow.windowId, session);
       await assignTreeId(actualWindow.windowId, treeId);
-      await saveTree(treeId, tree);
+      await saveTree(treeId, tree, { incognito: isIncognito });
       initializedWindowIds.add(actualWindow.windowId);
       clearDeletedWindow(actualWindow.windowId);
 
@@ -829,6 +840,7 @@ async function reloadFromStorage(): Promise<void> {
         const stored = savedTrees.get(treeId);
         if (stored !== undefined) {
           setTree(windowId, stored.tree);
+          setIncognitoWindow(windowId, stored.incognito === true);
         }
         initializedWindowIds.add(windowId);
 
@@ -1559,7 +1571,7 @@ chrome.windows.onCreated.addListener((window) =>
       await clearNormalWindowsGapPending();
       await initializeAllWindows();
     } else {
-      await initializeWindow(window.id);
+      await initializeWindow(window.id, window.incognito);
     }
   }),
 );

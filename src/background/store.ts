@@ -9,6 +9,7 @@ const activeTabIds = new Map<number, number>();
 const previousActiveTabIds = new Map<number, number>();
 const restoreSessions = new Map<number, RestoreSession>();
 const deletedWindowIds = new Set<number>();
+const incognitoWindowIds = new Set<number>();
 
 /**
  * The in-memory tree for a window, or an empty tree if none has been set yet.
@@ -51,6 +52,29 @@ export function setTreeId(windowId: number, treeId: string): void {
  */
 export function getAllTreeIds(): Map<number, string> {
   return new Map(treeIds);
+}
+
+/**
+ * Whether a window is an incognito one. Kept in memory rather than queried
+ * from `chrome.windows` when needed, since by `windows.onRemoved` the window
+ * can no longer be looked up.
+ */
+export function isIncognitoWindow(windowId: number): boolean {
+  return incognitoWindowIds.has(windowId);
+}
+
+/**
+ * Record whether a window is an incognito one (see `isIncognitoWindow`).
+ */
+export function setIncognitoWindow(
+  windowId: number,
+  isIncognito: boolean,
+): void {
+  if (isIncognito) {
+    incognitoWindowIds.add(windowId);
+  } else {
+    incognitoWindowIds.delete(windowId);
+  }
 }
 
 /**
@@ -132,6 +156,7 @@ export function deleteWindow(windowId: number): void {
   activeTabIds.delete(windowId);
   previousActiveTabIds.delete(windowId);
   restoreSessions.delete(windowId);
+  incognitoWindowIds.delete(windowId);
   deletedWindowIds.add(windowId);
 }
 
