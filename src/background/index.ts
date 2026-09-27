@@ -1566,12 +1566,22 @@ chrome.windows.onCreated.addListener((window) =>
 
 chrome.windows.onRemoved.addListener((windowId) =>
   enqueue(async () => {
+    const treeId = getTreeId(windowId);
+    const isTreeEmpty = Object.keys(getTree(windowId).nodes).length === 0;
     deleteWindow(windowId);
     initializedWindowIds.delete(windowId);
     clearPendingClose(windowId);
     // Its tree stays saved, now as a closed window's (see
     // `TREE_ID_KEY_PREFIX`), for a window reopened later to be matched to.
     await removeTreeIdForWindow(windowId);
+    // Unless it's empty: closing a window's last tab (rather than the window
+    // itself) fires that tab's `tabs.onRemoved` with `isWindowClosing: false`
+    // before this, so `handleTabRemoved` has already saved the tree without
+    // it. An empty tree can never be matched to anything, so it would only
+    // linger as a tabless entry among closed windows' saved trees.
+    if (treeId !== undefined && isTreeEmpty) {
+      await removeTree(treeId);
+    }
 
     const remainingNormalWindows = await chrome.windows.getAll({
       windowTypes: ["normal"],
