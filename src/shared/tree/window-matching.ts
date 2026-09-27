@@ -7,20 +7,24 @@ import type { TreeState } from "./types";
  * `WINDOW_TREE_KEY_PREFIX`) for a saved tree, or a stringified window id for
  * a window within one backup snapshot—along with when it was last saved (see
  * `StoredTree`), used to prefer a more recently saved candidate when two
- * score close to each other (see `SCORE_TIE_EPSILON`).
+ * score close to each other (see `SCORE_TIE_EPSILON`). `incognito` marks an
+ * incognito window's (see `StoredTree`); left out, it's a normal window's.
  */
 export interface SavedWindow {
   id: string;
   tree: TreeState;
   savedAt: number;
+  incognito?: boolean;
 }
 
 /**
  * A window actually open right now, with the tabs it currently contains.
+ * `incognito` works the same as `SavedWindow`'s.
  */
 export interface ActualWindow {
   windowId: number;
   tabs: ActualTab[];
+  incognito?: boolean;
 }
 
 /**
@@ -94,6 +98,11 @@ function scoreCandidate(
  * saved windows left) gets an empty tree, to be built up fresh. A saved
  * window with no matching actual window is simply left out of the result;
  * the caller is expected to clean up its storage entry.
+ *
+ * An incognito window is only ever paired with an incognito one, and a
+ * normal window with a normal one, however much their URLs overlap: an
+ * incognito window's tabs shouldn't carry over into a normal window, nor a
+ * normal window's into an incognito one.
  */
 export function matchWindows(
   savedWindows: SavedWindow[],
@@ -114,15 +123,12 @@ export function matchWindows(
     savedAt: number;
   }[] = [];
   for (const [savedIndex, savedWindow] of savedWindows.entries()) {
-    for (
-      let actualIndex = 0;
-      actualIndex < actualWindows.length;
-      actualIndex++
-    ) {
-      const score = scoreCandidate(
-        savedUrlSets[savedIndex],
-        actualUrlSets[actualIndex],
-      );
+    for (const [actualIndex, actualWindow] of actualWindows.entries()) {
+      const isSameKind =
+        (savedWindow.incognito ?? false) === (actualWindow.incognito ?? false);
+      const score = isSameKind
+        ? scoreCandidate(savedUrlSets[savedIndex], actualUrlSets[actualIndex])
+        : 0;
       if (score > 0) {
         candidates.push({
           savedIndex,

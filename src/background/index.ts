@@ -421,10 +421,13 @@ async function initializeWindow(
       id: treeId,
       tree: stored.tree,
       savedAt: stored.savedAt,
+      incognito: stored.incognito,
     }))
     .toArray();
 
-  const [match] = matchWindows(savedWindows, [{ windowId, tabs: actualTabs }]);
+  const [match] = matchWindows(savedWindows, [
+    { windowId, tabs: actualTabs, incognito: isIncognito },
+  ]);
   const savedTree = match?.savedTree ?? { nodes: {}, rootIds: [] };
 
   const savedNodeCount = Object.keys(savedTree.nodes).length;
@@ -560,6 +563,7 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   const actualWindows: ActualWindow[] = windowIds.map((windowId) => ({
     windowId,
     tabs: (tabsByWindowId.get(windowId) ?? []).map((tab) => toActualTab(tab)),
+    incognito: incognitoWindowIds.has(windowId),
   }));
 
   const savedTrees = await loadAllTrees();
@@ -581,6 +585,7 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
       id: treeId,
       tree: stored.tree,
       savedAt: stored.savedAt,
+      incognito: stored.incognito,
     }))
     .toArray();
 
@@ -714,6 +719,11 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   // windows that keep never quite matching (e.g. a one-off popup or
   // print-preview window whose exact tab set never recurs).
   //
+  // An incognito window's saved tree is deleted right away too, whatever its
+  // structure: it's only still around because its window closed without
+  // `windows.onRemoved` getting to remove it (e.g. a crash), and incognito
+  // windows are never restored, so there's nothing to wait for.
+  //
   // A saved tree a window did take over may still carry a stale
   // pending-removal mark from an earlier pass that missed it (e.g. a
   // transient unresolved-tab-URL race in `queryTabsWithResolvedUrls`).
@@ -740,6 +750,7 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
     // earlier (via the in-memory `getAllTrees`) showed for the same window.
     ...unmatchedSavedWindows.map((saved) => {
       const hasTreeHierarchy = hasHierarchy(saved.tree);
+      const isIncognito = saved.incognito ?? false;
       const markedAt = previouslyPendingRemoval.get(saved.id);
       const isExpired =
         markedAt !== undefined &&
@@ -750,15 +761,17 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
         nodeCount: Object.keys(saved.tree.nodes).length,
         rootCount: saved.tree.rootIds.length,
         hasHierarchy: hasTreeHierarchy,
+        isIncognito,
         markedAt,
-        action: hasTreeHierarchy
-          ? isExpired
-            ? "removeExpired"
-            : "markPending"
-          : "removeImmediately",
+        action:
+          hasTreeHierarchy && !isIncognito
+            ? isExpired
+              ? "removeExpired"
+              : "markPending"
+            : "removeImmediately",
       });
 
-      if (!hasTreeHierarchy || isExpired) {
+      if (!hasTreeHierarchy || isIncognito || isExpired) {
         return removeTree(saved.id);
       }
       return markPendingRemoval(saved.id);

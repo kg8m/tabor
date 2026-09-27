@@ -259,4 +259,68 @@ describe("matchWindows", () => {
     expect(result[0]?.savedId).toBeUndefined();
     expect(result[0]?.savedTree).toEqual({ nodes: {}, rootIds: [] });
   });
+
+  describe("incognito windows", () => {
+    const urls = ["https://a.com", "https://b.com"];
+
+    it("matches an incognito window to an incognito saved window", () => {
+      const saved: SavedWindow[] = [
+        { ...savedWindow("100", urls), incognito: true },
+      ];
+      const actual: ActualWindow[] = [
+        { ...actualWindow(1, ...urls), incognito: true },
+      ];
+
+      const result = matchWindows(saved, actual);
+
+      expect(result[0]?.savedId).toBe("100");
+    });
+
+    it("doesn't match a normal window to an incognito saved window, even on identical urls", () => {
+      const saved: SavedWindow[] = [
+        { ...savedWindow("100", urls), incognito: true },
+      ];
+      const actual: ActualWindow[] = [actualWindow(1, ...urls)];
+
+      const result = matchWindows(saved, actual);
+
+      expect(result[0]?.savedId).toBeUndefined();
+      expect(result[0]?.savedTree).toEqual({ nodes: {}, rootIds: [] });
+    });
+
+    it("doesn't match an incognito window to a normal saved window, even on identical urls", () => {
+      const saved: SavedWindow[] = [savedWindow("100", urls)];
+      const actual: ActualWindow[] = [
+        { ...actualWindow(1, ...urls), incognito: true },
+      ];
+
+      const result = matchWindows(saved, actual);
+
+      expect(result[0]?.savedId).toBeUndefined();
+      expect(result[0]?.savedTree).toEqual({ nodes: {}, rootIds: [] });
+    });
+
+    it("pairs each window with a saved window of its own kind, even where a better url match is of the other kind", () => {
+      const saved: SavedWindow[] = [
+        { ...savedWindow("incognito", urls), incognito: true },
+        savedWindow("normal", ["https://a.com"]),
+      ];
+      const actual: ActualWindow[] = [actualWindow(1, ...urls)];
+
+      const result = matchWindows(saved, actual);
+
+      expect(result[0]?.savedId).toBe("normal");
+    });
+
+    it("treats a window whose `incognito` is left out as a normal one", () => {
+      const saved: SavedWindow[] = [
+        { ...savedWindow("100", urls), incognito: false },
+      ];
+      const actual: ActualWindow[] = [actualWindow(1, ...urls)];
+
+      const result = matchWindows(saved, actual);
+
+      expect(result[0]?.savedId).toBe("100");
+    });
+  });
 });
