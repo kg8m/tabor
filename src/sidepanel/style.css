@@ -883,6 +883,13 @@ body {
   opacity: 0.7;
 }
 
+/* `.subview__preview` has 8px of padding of its own where `.subview__list`
+   has only 4px, so trim this to keep the message at the same 12px inset
+   in both. */
+.subview__preview .subview__empty {
+  padding: 4px;
+}
+
 .subview__footer {
   flex: none;
   display: flex;
