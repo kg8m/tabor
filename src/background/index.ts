@@ -1580,6 +1580,7 @@ chrome.windows.onRemoved.addListener((windowId) =>
   enqueue(async () => {
     const treeId = getTreeId(windowId);
     const isTreeEmpty = Object.keys(getTree(windowId).nodes).length === 0;
+    const isIncognito = isIncognitoWindow(windowId);
     deleteWindow(windowId);
     initializedWindowIds.delete(windowId);
     clearPendingClose(windowId);
@@ -1591,7 +1592,9 @@ chrome.windows.onRemoved.addListener((windowId) =>
     // before this, so `handleTabRemoved` has already saved the tree without
     // it. An empty tree can never be matched to anything, so it would only
     // linger as a tabless entry among closed windows' saved trees.
-    if (treeId !== undefined && isTreeEmpty) {
+    // An incognito window's tree is removed regardless: nothing about it
+    // should outlive the window itself.
+    if (treeId !== undefined && (isTreeEmpty || isIncognito)) {
       await removeTree(treeId);
     }
 

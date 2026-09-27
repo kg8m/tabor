@@ -26,7 +26,8 @@
  * as such (see `StoredTree`).
  *
  * Not removed when its window closes, so it can be matched back up to a
- * window reopened later; `initializeAllWindows` removes it right away if it
+ * window reopened later—except an incognito window's, removed right away by
+ * `windows.onRemoved`; `initializeAllWindows` removes it right away if it
  * went unmatched and has no parent/child structure, or otherwise after
  * `PENDING_REMOVAL_GRACE_MS` of staying unmatched. It can also be removed by
  * hand from the side panel (see `removeSavedTrees`).
