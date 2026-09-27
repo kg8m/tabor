@@ -2,7 +2,8 @@ import {
   DEBUG_LOG_KEY_PREFIX,
   PENDING_TREE_REMOVAL_KEY_PREFIX,
   TREE_KEY_PREFIX,
-  loadValuesByNumericSuffix,
+  loadValuesBySuffix,
+  parseNonNegativeInteger,
 } from "../storage-keys";
 import { normalizeTree } from "./normalize";
 import type { TreeState } from "./types";
@@ -150,8 +151,9 @@ export async function clearPendingRemoval(windowId: number): Promise<void> {
  * was first marked at (see `markPendingRemoval`).
  */
 export async function loadPendingRemovals(): Promise<Map<number, number>> {
-  const marks = await loadValuesByNumericSuffix(
+  const marks = await loadValuesBySuffix(
     PENDING_TREE_REMOVAL_KEY_PREFIX,
+    parseNonNegativeInteger,
   );
   return marks as Map<number, number>;
 }
@@ -164,7 +166,10 @@ export async function loadPendingRemovals(): Promise<Map<number, number>> {
  * with the windows actually open (see `matchWindows`).
  */
 export async function loadAllTrees(): Promise<Record<number, StoredTree>> {
-  const stored = await loadValuesByNumericSuffix(TREE_KEY_PREFIX);
+  const stored = await loadValuesBySuffix(
+    TREE_KEY_PREFIX,
+    parseNonNegativeInteger,
+  );
   const trees: Record<number, StoredTree> = {};
 
   for (const [windowId, value] of stored) {

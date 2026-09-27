@@ -22,7 +22,7 @@ function createStorageLocalMock() {
       return Promise.resolve();
     }),
     // No `get(null)`: nothing should read every stored value anymore (see
-    // `loadValuesByNumericSuffix`), so a regression back to it fails here.
+    // `loadValuesBySuffix`), so a regression back to it fails here.
     get: vi.fn((keys: string | string[]) => {
       const keyList = Array.isArray(keys) ? keys : [keys];
       return Promise.resolve(

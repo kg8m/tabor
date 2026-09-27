@@ -1,7 +1,8 @@
 import {
   BACKUP_KEY_PREFIX,
-  loadKeysByNumericSuffix,
-  loadValuesByNumericSuffix,
+  loadKeysBySuffix,
+  loadValuesBySuffix,
+  parseNonNegativeInteger,
 } from "../storage-keys";
 import { normalizeTree } from "./normalize";
 import type { TreeState } from "./types";
@@ -58,7 +59,10 @@ export async function loadBackup(
  * Load every backup snapshot currently in storage, in no particular order.
  */
 export async function loadAllBackups(): Promise<BackupSnapshot[]> {
-  const stored = await loadValuesByNumericSuffix(BACKUP_KEY_PREFIX);
+  const stored = await loadValuesBySuffix(
+    BACKUP_KEY_PREFIX,
+    parseNonNegativeInteger,
+  );
   const backups: BackupSnapshot[] = [];
 
   for (const [timestamp, value] of stored) {
@@ -77,7 +81,10 @@ export async function loadAllBackups(): Promise<BackupSnapshot[]> {
  * need to decide which to keep (see `selectBackupTimestampsToKeep`).
  */
 export async function loadBackupTimestamps(): Promise<number[]> {
-  const keysByTimestamp = await loadKeysByNumericSuffix(BACKUP_KEY_PREFIX);
+  const keysByTimestamp = await loadKeysBySuffix(
+    BACKUP_KEY_PREFIX,
+    parseNonNegativeInteger,
+  );
   return keysByTimestamp.keys().toArray();
 }
 

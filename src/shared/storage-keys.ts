@@ -3,7 +3,7 @@
  * the full set and each entry's retention policy can be seen at a glance.
  * The modules that actually read/write each entry build their own concrete
  * keys from these; the helpers at the bottom cover what they share (parsing
- * a key's numeric suffix, loading every entry under a prefix).
+ * a key's suffix, loading every entry under a prefix).
  *
  * Changing any value here orphans whatever is already stored under the old
  * one, so a rename needs a migration.
@@ -73,38 +73,52 @@ export const NORMAL_WINDOWS_GAP_KEY = "tabor:session:normalWindowsGapPending";
 export const ACTIVE_TAB_KEY_PREFIX = "tabor:session:activeTab:";
 
 /**
- * The numeric part after `prefix` in `key` (a window id or timestamp), or
- * `undefined` if `key` doesn't start with `prefix` or the rest isn't a
- * non-negative integer—so a malformed or foreign key is skipped rather than
- * being read back as `NaN` (or as `0`, which is what `Number("")` gives).
+ * Parses a key suffix, returning `undefined` if it isn't well-formed.
  */
-export function extractNumericSuffix(
-  key: string,
-  prefix: string,
-): number | undefined {
-  if (!key.startsWith(prefix)) {
-    return undefined;
-  }
-  const suffix = key.slice(prefix.length);
-  return /^\d+$/.test(suffix) ? Number(suffix) : undefined;
+export type SuffixParser<T> = (suffix: string) => T | undefined;
+
+const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
+
+/**
+ * `value` as a number if it's made up only of digits (e.g. a window id or
+ * timestamp in a key suffix)—`undefined` otherwise, so a malformed or
+ * foreign key is skipped rather than being read back as `NaN` (or as `0`,
+ * which is what `Number("")` gives).
+ */
+export function parseNonNegativeInteger(value: string): number | undefined {
+  return NON_NEGATIVE_INTEGER_PATTERN.test(value) ? Number(value) : undefined;
 }
 
 /**
- * Every well-formed key under `prefix` in `chrome.storage.local`, mapped from
- * its numeric suffix (see `extractNumericSuffix`) to its full key.
+ * The part after `prefix` in `key`, parsed by `parse`—or `undefined` if
+ * `key` doesn't start with `prefix` or the rest isn't well-formed.
+ */
+export function extractSuffix<T>(
+  key: string,
+  prefix: string,
+  parse: SuffixParser<T>,
+): T | undefined {
+  return key.startsWith(prefix) ? parse(key.slice(prefix.length)) : undefined;
+}
+
+/**
+ * Every well-formed key under `prefix` in `storageArea`, mapped from its
+ * parsed suffix to its full key.
  *
  * Uses `getKeys()` rather than `get(null)`, so callers that only need keys
  * (or ids/timestamps) don't read every stored value—including every backup
  * snapshot's full tree—just to throw them away.
  */
-export async function loadKeysByNumericSuffix(
+export async function loadKeysBySuffix<T>(
   prefix: string,
-): Promise<Map<number, string>> {
-  const keys = await chrome.storage.local.getKeys();
-  const keysBySuffix = new Map<number, string>();
+  parse: SuffixParser<T>,
+  storageArea: chrome.storage.StorageArea = chrome.storage.local,
+): Promise<Map<T, string>> {
+  const keys = await storageArea.getKeys();
+  const keysBySuffix = new Map<T, string>();
 
   for (const key of keys) {
-    const suffix = extractNumericSuffix(key, prefix);
+    const suffix = extractSuffix(key, prefix, parse);
     if (suffix !== undefined) {
       keysBySuffix.set(suffix, key);
     }
@@ -114,22 +128,22 @@ export async function loadKeysByNumericSuffix(
 }
 
 /**
- * Every well-formed entry under `prefix` in `chrome.storage.local`, mapped
- * from its numeric suffix to its stored value. Reads only those entries'
- * values, not everything in storage (see `loadKeysByNumericSuffix`).
+ * Every well-formed entry under `prefix` in `storageArea`, mapped from its
+ * parsed suffix to its stored value. Reads only those entries' values, not
+ * everything in storage (see `loadKeysBySuffix`).
  */
-export async function loadValuesByNumericSuffix(
+export async function loadValuesBySuffix<T>(
   prefix: string,
-): Promise<Map<number, unknown>> {
-  const keysBySuffix = await loadKeysByNumericSuffix(prefix);
-  const valuesBySuffix = new Map<number, unknown>();
+  parse: SuffixParser<T>,
+  storageArea: chrome.storage.StorageArea = chrome.storage.local,
+): Promise<Map<T, unknown>> {
+  const keysBySuffix = await loadKeysBySuffix(prefix, parse, storageArea);
+  const valuesBySuffix = new Map<T, unknown>();
   if (keysBySuffix.size === 0) {
     return valuesBySuffix;
   }
 
-  const stored = await chrome.storage.local.get(
-    keysBySuffix.values().toArray(),
-  );
+  const stored = await storageArea.get(keysBySuffix.values().toArray());
   for (const [suffix, key] of keysBySuffix) {
     if (Object.hasOwn(stored, key)) {
       valuesBySuffix.set(suffix, stored[key]);
@@ -139,29 +153,30 @@ export async function loadValuesByNumericSuffix(
   return valuesBySuffix;
 }
 
-// The `chrome.storage.local` prefixes whose whole suffix is a window id or
-// timestamp (see `extractNumericSuffix`).
-const NUMERIC_SUFFIX_KEY_PREFIXES = [
-  TREE_KEY_PREFIX,
-  PENDING_TREE_REMOVAL_KEY_PREFIX,
-  BACKUP_KEY_PREFIX,
+// The shape each of Tabor's `chrome.storage.local` prefixes expects its
+// whole suffix to have.
+const SUFFIX_PARSERS_BY_PREFIX: [string, SuffixParser<unknown>][] = [
+  [TREE_KEY_PREFIX, parseNonNegativeInteger],
+  [PENDING_TREE_REMOVAL_KEY_PREFIX, parseNonNegativeInteger],
+  [BACKUP_KEY_PREFIX, parseNonNegativeInteger],
 ];
 
 /**
  * The keys among `keys` that sit under one of Tabor's `chrome.storage.local`
- * prefixes but don't fit its shape—a `NUMERIC_SUFFIX_KEY_PREFIXES` key whose
- * suffix isn't numeric, or a `DEBUG_LOG_KEY_PREFIX` key without a leading
- * numeric timestamp. Every reader skips these, and nothing ever writes them,
- * so they're pure clutter that would otherwise stay in storage forever.
- * Keys outside those prefixes are left alone.
+ * prefixes but don't fit its shape (see `SUFFIX_PARSERS_BY_PREFIX`), or
+ * `DEBUG_LOG_KEY_PREFIX` keys without a leading numeric timestamp. Every
+ * reader skips these, and nothing ever writes them, so they're pure clutter
+ * that would otherwise stay in storage forever. Keys outside those prefixes
+ * are left alone.
  */
 export function selectMalformedKeys(keys: string[]): string[] {
   return keys.filter((key) => {
-    const numericSuffixPrefix = NUMERIC_SUFFIX_KEY_PREFIXES.find((prefix) =>
+    const entry = SUFFIX_PARSERS_BY_PREFIX.find(([prefix]) =>
       key.startsWith(prefix),
     );
-    if (numericSuffixPrefix !== undefined) {
-      return extractNumericSuffix(key, numericSuffixPrefix) === undefined;
+    if (entry !== undefined) {
+      const [prefix, parse] = entry;
+      return extractSuffix(key, prefix, parse) === undefined;
     }
     if (key.startsWith(DEBUG_LOG_KEY_PREFIX)) {
       return !/^\d+(?:-|$)/.test(key.slice(DEBUG_LOG_KEY_PREFIX.length));

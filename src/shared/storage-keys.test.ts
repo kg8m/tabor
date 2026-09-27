@@ -1,28 +1,50 @@
 import { describe, expect, it } from "vitest";
-import { extractNumericSuffix, selectMalformedKeys } from "./storage-keys";
+import {
+  extractSuffix,
+  parseNonNegativeInteger,
+  selectMalformedKeys,
+} from "./storage-keys";
 
-describe("extractNumericSuffix", () => {
-  it("returns the numeric suffix after the prefix", () => {
-    expect(extractNumericSuffix("tabor:tree:42", "tabor:tree:")).toBe(42);
+describe("parseNonNegativeInteger", () => {
+  it("parses a string of digits", () => {
+    expect(parseNonNegativeInteger("42")).toBe(42);
+  });
+
+  it("rejects a non-numeric or partly numeric string", () => {
+    expect(parseNonNegativeInteger("abc")).toBeUndefined();
+    expect(parseNonNegativeInteger("1x")).toBeUndefined();
+  });
+
+  it("rejects an empty string rather than parsing it as 0", () => {
+    expect(parseNonNegativeInteger("")).toBeUndefined();
+  });
+});
+
+describe("extractSuffix", () => {
+  it("returns the suffix after the prefix, parsed", () => {
+    expect(
+      extractSuffix(
+        "tabor:backup:42",
+        "tabor:backup:",
+        parseNonNegativeInteger,
+      ),
+    ).toBe(42);
   });
 
   it("returns undefined for a key with a different prefix", () => {
     expect(
-      extractNumericSuffix("tabor:backup:42", "tabor:tree:"),
+      extractSuffix("tabor:tree:42", "tabor:backup:", parseNonNegativeInteger),
     ).toBeUndefined();
   });
 
-  it("returns undefined for a non-numeric suffix", () => {
+  it("returns undefined for a suffix the parser rejects", () => {
     expect(
-      extractNumericSuffix("tabor:tree:abc", "tabor:tree:"),
+      extractSuffix(
+        "tabor:backup:abc",
+        "tabor:backup:",
+        parseNonNegativeInteger,
+      ),
     ).toBeUndefined();
-    expect(
-      extractNumericSuffix("tabor:tree:1x", "tabor:tree:"),
-    ).toBeUndefined();
-  });
-
-  it("returns undefined for an empty suffix rather than 0", () => {
-    expect(extractNumericSuffix("tabor:tree:", "tabor:tree:")).toBeUndefined();
   });
 });
 
