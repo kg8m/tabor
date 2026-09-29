@@ -29,6 +29,11 @@ Chrome and Vivaldi are the only officially supported browsers, but it may also w
 - Incognito windows get their own tree too, but it’s discarded as soon as the window closes and never backed up
 - Light/dark theme following the OS’s `prefers-color-scheme`
 
+## Limitations
+
+- Native tab groups (Chrome) and tab stacks (Vivaldi) aren’t supported. Tabor doesn’t account for them when syncing its
+  tree’s order with the native tab bar, so using them together may break a group/stack or scramble the tree.
+
 ## Install
 
 Requires Chrome 130+ (or a Vivaldi version based on it) and Node.js 24 (the exact version is pinned in `package.json`’s
