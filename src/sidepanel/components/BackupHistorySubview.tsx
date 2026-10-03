@@ -160,6 +160,17 @@ export function BackupHistorySubview({
     setSelectedTimestamp(nextBackup.timestamp);
   };
 
+  const handlePreviewKeyDown = (
+    event: React.KeyboardEvent<HTMLDivElement>,
+  ): void => {
+    if (event.key !== "Escape") {
+      return;
+    }
+
+    event.preventDefault();
+    onClose();
+  };
+
   const handleRestore = (): void => {
     if (windowId === undefined || selectedTimestamp === null) {
       return;
@@ -228,7 +239,13 @@ export function BackupHistorySubview({
           </li>
         ))}
       </ul>
-      <div className="subview__preview">
+      <div
+        className="subview__preview"
+        // Focusable even when it doesn't overflow, so a click on it still
+        // keeps focus inside the subview for Escape to reach.
+        tabIndex={-1}
+        onKeyDown={handlePreviewKeyDown}
+      >
         {selectedTimestamp === null ? (
           <p className="subview__empty">Select a backup to preview it.</p>
         ) : previewTree === undefined ? (

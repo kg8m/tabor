@@ -200,6 +200,17 @@ export function SavedTreesSubview({ onClose }: SavedTreesSubviewProps) {
     select(nextTree.treeId);
   };
 
+  const handlePreviewKeyDown = (
+    event: React.KeyboardEvent<HTMLDivElement>,
+  ): void => {
+    if (event.key !== "Escape") {
+      return;
+    }
+
+    event.preventDefault();
+    onClose();
+  };
+
   const handleRemove = (): void => {
     if (selectedTreeId === null) {
       return;
@@ -299,7 +310,12 @@ export function SavedTreesSubview({ onClose }: SavedTreesSubviewProps) {
           </li>
         ))}
       </ul>
-      <div className="subview__preview">
+      <div
+        className="subview__preview"
+        // See `BackupHistorySubview` for why this is focusable.
+        tabIndex={-1}
+        onKeyDown={handlePreviewKeyDown}
+      >
         {selectedTree === undefined ? (
           <p className="subview__empty">Select a saved tree to preview it.</p>
         ) : (
