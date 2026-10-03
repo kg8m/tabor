@@ -21,12 +21,27 @@ import type { TreeState } from "./types";
  * it from being removed when that window closed. Left out altogether for a
  * normal window's tree, which a tree saved before this field existed also
  * reads as.
+ *
+ * `windowType` likewise records the type of a window other than a normal one
+ * (e.g. an installed PWA's or a `window.open()` popup's), for the same
+ * reason. Left out for a normal window's tree.
  */
 export interface StoredTree {
   tree: TreeState;
   savedAt: number;
   incognito?: true;
+  windowType?: NonNormalWindowType;
 }
+
+/**
+ * A `chrome.windows.Window`'s `type`.
+ */
+export type WindowType = `${chrome.windows.WindowType}`;
+
+/**
+ * The type of any window other than a normal one (see `StoredTree`).
+ */
+export type NonNormalWindowType = Exclude<WindowType, "normal">;
 
 /**
  * A tree saved before `savedAt` existed comes back as a bare `TreeState`
@@ -52,6 +67,9 @@ export function unwrapStoredTree(value: unknown): StoredTree {
       tree: normalizeTree(stored.tree),
       savedAt: stored.savedAt,
       ...(stored.incognito === true && { incognito: true }),
+      ...(stored.windowType !== undefined && {
+        windowType: stored.windowType,
+      }),
     };
   }
   return { tree: normalizeTree(value as TreeState), savedAt: 0 };
@@ -105,12 +123,15 @@ export function getTreeIdStorageKey(windowId: number): string {
 
 /**
  * Persist a tree, stamped with the current time and marked as an incognito
- * window's if it is one (see `StoredTree`).
+ * and/or non-normal window's if it is one (see `StoredTree`).
  */
 export async function saveTree(
   treeId: string,
   tree: TreeState,
-  { incognito = false }: { incognito?: boolean } = {},
+  {
+    incognito = false,
+    windowType = "normal",
+  }: { incognito?: boolean; windowType?: WindowType } = {},
 ): Promise<void> {
   if (!incognito && Object.keys(tree.nodes).length === 0) {
     const key = `${DEBUG_LOG_KEY_PREFIX}${Date.now()}-emptySave-${treeId}`;
@@ -128,6 +149,7 @@ export async function saveTree(
     tree,
     savedAt: Date.now(),
     ...(incognito && { incognito: true }),
+    ...(windowType !== "normal" && { windowType }),
   };
   await chrome.storage.local.set({ [getStorageKey(treeId)]: stored });
 }

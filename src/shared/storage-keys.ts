@@ -23,11 +23,12 @@
  * `initializeAllWindows`), so the tree stays under the same key for as long
  * as it exists. Which window currently holds which tree is tracked
  * separately, in `TREE_ID_KEY_PREFIX`. An incognito window's tree is marked
- * as such (see `StoredTree`).
+ * as such, and a non-normal window's with its window type (see
+ * `StoredTree`).
  *
  * Not removed when its window closes, so it can be matched back up to a
- * window reopened later—except an incognito window's, removed right away by
- * `windows.onRemoved`; `initializeAllWindows` removes it right away if it
+ * window reopened later—except an incognito or non-normal window's, removed
+ * right away by `windows.onRemoved`; `initializeAllWindows` removes it right away if it
  * went unmatched and has no parent/child structure, or otherwise after
  * `PENDING_REMOVAL_GRACE_MS` of staying unmatched. It can also be removed by
  * hand from the side panel (see `removeSavedTrees`).

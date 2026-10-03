@@ -60,6 +60,7 @@ import {
   removeTreeIdForWindow,
   saveTree,
   saveTreeIdForWindow,
+  type WindowType,
 } from "../shared/tree/storage";
 import type { TreeState } from "../shared/tree/types";
 import {
@@ -80,6 +81,7 @@ import {
   getRestoreSession,
   getTree,
   getTreeId,
+  getWindowType,
   isDeletedWindow,
   isIncognitoWindow,
   removeRestoreSession,
@@ -88,6 +90,7 @@ import {
   setRestoreSession,
   setTree,
   setTreeId,
+  setWindowType,
 } from "./store";
 import { toSelfHealingUpdate, toTabUpdate } from "./tab-update";
 import { isTaborOwnTab, toActualTab } from "../shared/tabs";
@@ -127,7 +130,10 @@ async function saveWindowTree(
     treeId = createTreeId();
     await assignTreeId(windowId, treeId);
   }
-  await saveTree(treeId, tree, { incognito: isIncognitoWindow(windowId) });
+  await saveTree(treeId, tree, {
+    incognito: isIncognitoWindow(windowId),
+    windowType: getWindowType(windowId),
+  });
 }
 
 // TODO(debug): temporary instrumentation for two intermittent, hard-to-
@@ -397,6 +403,7 @@ async function queryTabsWithResolvedUrls(
 async function initializeWindow(
   windowId: number,
   isIncognito: boolean,
+  windowType: WindowType,
 ): Promise<void> {
   if (initializedWindowIds.has(windowId)) {
     return;
@@ -404,6 +411,7 @@ async function initializeWindow(
   initializedWindowIds.add(windowId);
   clearDeletedWindow(windowId);
   setIncognitoWindow(windowId, isIncognito);
+  setWindowType(windowId, windowType);
 
   const settled = restoreTracking.track();
   await waitForTabCreationToSettle();
@@ -488,7 +496,7 @@ async function initializeWindow(
   setTree(windowId, tree);
   setRestoreSession(windowId, session);
   await assignTreeId(windowId, treeId);
-  await saveTree(treeId, tree, { incognito: isIncognito });
+  await saveTree(treeId, tree, { incognito: isIncognito, windowType });
   await clearPendingRemoval(treeId);
 
   // A tree this window held before being matched to a different one (see
@@ -550,6 +558,9 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
     .filter((id): id is number => id !== undefined);
   const incognitoWindowIds = new Set(
     windows.filter((window) => window.incognito).map((window) => window.id),
+  );
+  const windowTypesById = new Map(
+    windows.map((window) => [window.id, window.type ?? "normal"]),
   );
 
   const tabsByWindowId = new Map<number, chrome.tabs.Tab[]>();
@@ -691,11 +702,13 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
           : heldTreeId);
 
       const isIncognito = incognitoWindowIds.has(actualWindow.windowId);
+      const windowType = windowTypesById.get(actualWindow.windowId) ?? "normal";
       setTree(actualWindow.windowId, tree);
       setIncognitoWindow(actualWindow.windowId, isIncognito);
+      setWindowType(actualWindow.windowId, windowType);
       setRestoreSession(actualWindow.windowId, session);
       await assignTreeId(actualWindow.windowId, treeId);
-      await saveTree(treeId, tree, { incognito: isIncognito });
+      await saveTree(treeId, tree, { incognito: isIncognito, windowType });
       initializedWindowIds.add(actualWindow.windowId);
       clearDeletedWindow(actualWindow.windowId);
 
@@ -739,7 +752,8 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   // An incognito window's saved tree is deleted right away too, whatever its
   // structure: it's only still around because its window closed without
   // `windows.onRemoved` getting to remove it (e.g. a crash), and incognito
-  // windows are never restored, so there's nothing to wait for.
+  // windows are never restored, so there's nothing to wait for. The same
+  // goes for a non-normal window's (see `windows.onRemoved` below).
   //
   // A saved tree a window did take over may still carry a stale
   // pending-removal mark from an earlier pass that missed it (e.g. a
@@ -768,6 +782,7 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
     ...unmatchedSavedWindows.map((saved) => {
       const hasTreeHierarchy = hasHierarchy(saved.tree);
       const isIncognito = saved.incognito ?? false;
+      const windowType = savedTrees.get(saved.id)?.windowType ?? "normal";
       const markedAt = previouslyPendingRemoval.get(saved.id);
       const isExpired =
         markedAt !== undefined &&
@@ -781,9 +796,10 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
           rootCount: saved.tree.rootIds.length,
           hasHierarchy: hasTreeHierarchy,
           isIncognito,
+          windowType,
           markedAt,
           action:
-            hasTreeHierarchy && !isIncognito
+            hasTreeHierarchy && !isIncognito && windowType === "normal"
               ? isExpired
                 ? "removeExpired"
                 : "markPending"
@@ -792,7 +808,12 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
         { isIncognito },
       );
 
-      if (!hasTreeHierarchy || isIncognito || isExpired) {
+      if (
+        !hasTreeHierarchy ||
+        isIncognito ||
+        windowType !== "normal" ||
+        isExpired
+      ) {
         return removeTree(saved.id);
       }
       return markPendingRemoval(saved.id);
@@ -875,6 +896,7 @@ async function reloadFromStorage(): Promise<void> {
         if (stored !== undefined) {
           setTree(windowId, stored.tree);
           setIncognitoWindow(windowId, stored.incognito === true);
+          setWindowType(windowId, stored.windowType ?? "normal");
         }
         initializedWindowIds.add(windowId);
 
@@ -1625,7 +1647,11 @@ chrome.windows.onCreated.addListener((window) =>
       await clearNormalWindowsGapPending();
       await initializeAllWindows();
     } else {
-      await initializeWindow(window.id, window.incognito);
+      await initializeWindow(
+        window.id,
+        window.incognito,
+        window.type ?? "normal",
+      );
     }
   }),
 );
@@ -1635,6 +1661,7 @@ chrome.windows.onRemoved.addListener((windowId) =>
     const treeId = getTreeId(windowId);
     const isTreeEmpty = Object.keys(getTree(windowId).nodes).length === 0;
     const isIncognito = isIncognitoWindow(windowId);
+    const windowType = getWindowType(windowId);
     deleteWindow(windowId);
     initializedWindowIds.delete(windowId);
     clearPendingClose(windowId);
@@ -1647,8 +1674,13 @@ chrome.windows.onRemoved.addListener((windowId) =>
     // it. An empty tree can never be matched to anything, so it would only
     // linger as a tabless entry among closed windows' saved trees.
     // An incognito window's tree is removed regardless: nothing about it
-    // should outlive the window itself.
-    if (treeId !== undefined && (isTreeEmpty || isIncognito)) {
+    // should outlive the window itself. So is a non-normal window's (e.g. an
+    // installed PWA's): with no toolbar to open the side panel from, it can't
+    // hold anything added through Tabor, so there's nothing worth keeping.
+    if (
+      treeId !== undefined &&
+      (isTreeEmpty || isIncognito || windowType !== "normal")
+    ) {
       await removeTree(treeId);
     }
 

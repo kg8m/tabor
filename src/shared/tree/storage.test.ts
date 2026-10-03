@@ -173,6 +173,26 @@ describe("saveTree / loadTree", () => {
     expect(await loadTree(TREE_A)).not.toHaveProperty("incognito");
     expect(await loadTree(TREE_B)).not.toHaveProperty("incognito");
   });
+
+  it("records a non-normal window's type", async () => {
+    const tree = singleTabTree(1);
+
+    await saveTree(TREE_A, tree, { windowType: "popup" });
+
+    expect(await loadTree(TREE_A)).toEqual({
+      tree,
+      savedAt: ANY_NUMBER,
+      windowType: "popup",
+    });
+  });
+
+  it("leaves the window type out altogether for a normal window's tree", async () => {
+    await saveTree(TREE_A, singleTabTree(1), { windowType: "normal" });
+    await saveTree(TREE_B, singleTabTree(2));
+
+    expect(await loadTree(TREE_A)).not.toHaveProperty("windowType");
+    expect(await loadTree(TREE_B)).not.toHaveProperty("windowType");
+  });
 });
 
 describe("removeTree", () => {
@@ -214,6 +234,16 @@ describe("loadAllTrees", () => {
 
     expect(trees.get(TREE_A)?.incognito).toBe(true);
     expect(trees.get(TREE_B)).not.toHaveProperty("incognito");
+  });
+
+  it("keeps each tree's window type", async () => {
+    await saveTree(TREE_A, singleTabTree(1), { windowType: "popup" });
+    await saveTree(TREE_B, singleTabTree(2));
+
+    const trees = await loadAllTrees();
+
+    expect(trees.get(TREE_A)?.windowType).toBe("popup");
+    expect(trees.get(TREE_B)).not.toHaveProperty("windowType");
   });
 
   it("returns an empty map when nothing has been saved", async () => {

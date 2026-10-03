@@ -1,4 +1,5 @@
 import type { RestoreSession } from "../shared/tree/restore";
+import type { NonNormalWindowType, WindowType } from "../shared/tree/storage";
 import type { TreeState } from "../shared/tree/types";
 
 const EMPTY_TREE: TreeState = { nodes: {}, rootIds: [] };
@@ -10,6 +11,7 @@ const previousActiveTabIds = new Map<number, number>();
 const restoreSessions = new Map<number, RestoreSession>();
 const deletedWindowIds = new Set<number>();
 const incognitoWindowIds = new Set<number>();
+const nonNormalWindowTypes = new Map<number, NonNormalWindowType>();
 
 /**
  * The in-memory tree for a window, or an empty tree if none has been set yet.
@@ -74,6 +76,26 @@ export function setIncognitoWindow(
     incognitoWindowIds.add(windowId);
   } else {
     incognitoWindowIds.delete(windowId);
+  }
+}
+
+/**
+ * A window's type (an installed PWA's window isn't a `"normal"` one, for
+ * instance). Kept in memory for the same reason as `isIncognitoWindow`;
+ * `"normal"` if never recorded.
+ */
+export function getWindowType(windowId: number): WindowType {
+  return nonNormalWindowTypes.get(windowId) ?? "normal";
+}
+
+/**
+ * Record a window's type (see `getWindowType`).
+ */
+export function setWindowType(windowId: number, windowType: WindowType): void {
+  if (windowType === "normal") {
+    nonNormalWindowTypes.delete(windowId);
+  } else {
+    nonNormalWindowTypes.set(windowId, windowType);
   }
 }
 
@@ -157,6 +179,7 @@ export function deleteWindow(windowId: number): void {
   previousActiveTabIds.delete(windowId);
   restoreSessions.delete(windowId);
   incognitoWindowIds.delete(windowId);
+  nonNormalWindowTypes.delete(windowId);
   deletedWindowIds.add(windowId);
 }
 
