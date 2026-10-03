@@ -31,7 +31,6 @@ import {
   flattenDepthFirst,
   getNativeOrder,
   getPinnedNodes,
-  hasHierarchy,
   hasTaborSpecificInfo,
 } from "../shared/tree/queries";
 import {
@@ -731,9 +730,8 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   });
 
   // A saved tree no window took over just now is a removal *candidate*—but,
-  // unless it has no parent/child structure worth losing (see
-  // `hasHierarchy`), not deleted outright (see `markPendingRemoval`): a
-  // window whose session
+  // unless it holds nothing worth losing (see `hasTaborSpecificInfo`), not
+  // deleted outright (see `markPendingRemoval`): a window whose session
   // restore hadn't finished recreating it in time for this pass's own
   // snapshot (e.g. because another window, like a lightweight installed-PWA
   // window, was recreated first—possibly repeatedly across several browser
@@ -743,15 +741,15 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   // `PENDING_REMOVAL_GRACE_MS`, not merely on the next miss—an installed-PWA
   // window reopening on every restart ahead of a real window the user only
   // opens occasionally would otherwise still rack up two straight misses
-  // for it in no time at all. A flat tree has nothing to lose that way—
-  // reopening those same tabs later would rebuild an identical flat tree
+  // for it in no time at all. A flat tree with no notes has nothing to lose
+  // that way—reopening those same tabs later would rebuild an identical tree
   // regardless of whether this saved one still exists—so it's simply
   // deleted right away instead of accumulating pending-removal clutter for
   // windows that keep never quite matching (e.g. a one-off popup or
   // print-preview window whose exact tab set never recurs).
   //
-  // An incognito window's saved tree is deleted right away too, whatever its
-  // structure: it's only still around because its window closed without
+  // An incognito window's saved tree is deleted right away too, whatever it
+  // holds: it's only still around because its window closed without
   // `windows.onRemoved` getting to remove it (e.g. a crash), and incognito
   // windows are never restored, so there's nothing to wait for. The same
   // goes for a non-normal window's (see `windows.onRemoved` below).
@@ -781,7 +779,7 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
     // snapshot) unexpectedly disagrees with what a backup taken moments
     // earlier (via the in-memory `getAllTrees`) showed for the same window.
     ...unmatchedSavedWindows.map((saved) => {
-      const hasTreeHierarchy = hasHierarchy(saved.tree);
+      const isWorthKeeping = hasTaborSpecificInfo(saved.tree);
       const isIncognito = saved.incognito ?? false;
       const windowType = savedTrees.get(saved.id)?.windowType ?? "normal";
       const markedAt = previouslyPendingRemoval.get(saved.id);
@@ -795,12 +793,12 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
           savedAt: saved.savedAt,
           nodeCount: Object.keys(saved.tree.nodes).length,
           rootCount: saved.tree.rootIds.length,
-          hasHierarchy: hasTreeHierarchy,
+          isWorthKeeping,
           isIncognito,
           windowType,
           markedAt,
           action:
-            hasTreeHierarchy && !isIncognito && windowType === "normal"
+            isWorthKeeping && !isIncognito && windowType === "normal"
               ? isExpired
                 ? "removeExpired"
                 : "markPending"
@@ -810,7 +808,7 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
       );
 
       if (
-        !hasTreeHierarchy ||
+        !isWorthKeeping ||
         isIncognito ||
         windowType !== "normal" ||
         isExpired

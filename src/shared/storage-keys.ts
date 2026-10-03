@@ -30,10 +30,10 @@
  * window reopened later—except an incognito or non-normal window's, or one
  * holding nothing only Tabor knows about (see `hasTaborSpecificInfo`),
  * removed right away by `windows.onRemoved`; `initializeAllWindows` removes
- * it right away if it went unmatched and has no parent/child structure, or
- * otherwise after
- * `PENDING_REMOVAL_GRACE_MS` of staying unmatched. It can also be removed by
- * hand from the side panel (see `removeSavedTrees`).
+ * it right away if it went unmatched and holds nothing only Tabor knows
+ * about either, or otherwise after `PENDING_REMOVAL_GRACE_MS` of staying
+ * unmatched. It can also be removed by hand from the side panel (see
+ * `removeSavedTrees`).
  */
 export const WINDOW_TREE_KEY_PREFIX = "tabor:windowTree:";
 

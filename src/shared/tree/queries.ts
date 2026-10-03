@@ -163,11 +163,7 @@ export function getVisibleOrder(tree: TreeState): TabNode[] {
 /**
  * Whether the tree has any parent/child relationship at all, rather than
  * being just a flat list of root-level tabs (every node is its own root,
- * i.e. `rootIds.length === Object.keys(nodes).length`). Used to decide
- * whether a saved tree is worth keeping around once it goes unmatched (see
- * `initializeAllWindows`): with no parent/child structure to lose,
- * rebuilding the window flat from its actual tabs later would look
- * identical regardless of whether this saved tree still exists.
+ * i.e. `rootIds.length === Object.keys(nodes).length`).
  */
 export function hasHierarchy(tree: TreeState): boolean {
   return Object.keys(tree.nodes).length > tree.rootIds.length;
@@ -178,8 +174,9 @@ export function hasHierarchy(tree: TreeState): boolean {
  * what the native tab bar shows too: a parent/child relationship (see
  * `hasHierarchy`; which nodes are collapsed only matters along with one) or
  * a note. Used to decide whether a closed window's tree is worth keeping
- * (see `windows.onRemoved`): without either, reopening the same tabs later
- * would rebuild an identical tree regardless.
+ * (see `windows.onRemoved`), and likewise a saved tree that went unmatched
+ * (see `initializeAllWindows`): without either, reopening the same tabs
+ * later would rebuild an identical tree regardless.
  */
 export function hasTaborSpecificInfo(tree: TreeState): boolean {
   return (
