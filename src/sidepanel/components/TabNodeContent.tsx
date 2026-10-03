@@ -12,14 +12,16 @@ import {
 interface TabNodeContentProps {
   node: TabNode;
   hasChildren: boolean;
-  onToggleCollapsed: (event: MouseEvent) => void;
+  // Omitted for a read-only row (see `ReadOnlyTabNodeView`), whose chevron
+  // then only shows `node.collapsed` rather than toggling it.
+  onToggleCollapsed?: (event: MouseEvent) => void;
 }
 
 /**
- * The parts of a `.tab-node` row that don't depend on interacting with it
- * beyond the collapse toggle: the toggle (or pin/leaf marker), favicon,
- * title, audible indicator, and note text. Laid out as direct flex children
- * of whichever `.tab-node` element renders it (see `TabNodeView`).
+ * The parts of a `.tab-node` row shared by the live tree's `TabNodeView` and
+ * a saved tree preview's `ReadOnlyTabNodeView`: the collapse toggle (or
+ * pin/leaf marker), favicon, title, audible indicator, and note text. Laid
+ * out as direct flex children of whichever `.tab-node` element renders it.
  */
 export function TabNodeContent({
   node,
@@ -34,15 +36,25 @@ export function TabNodeContent({
   return (
     <>
       {hasChildren ? (
-        <button
-          type="button"
-          className="tab-node__toggle"
-          aria-label={node.collapsed ? "Expand" : "Collapse"}
-          draggable={false}
-          onClick={onToggleCollapsed}
-        >
-          <ChevronIcon collapsed={node.collapsed} />
-        </button>
+        onToggleCollapsed ? (
+          <button
+            type="button"
+            className="tab-node__toggle"
+            aria-label={node.collapsed ? "Expand" : "Collapse"}
+            draggable={false}
+            onClick={onToggleCollapsed}
+          >
+            <ChevronIcon collapsed={node.collapsed} />
+          </button>
+        ) : (
+          <span
+            className="tab-node__toggle tab-node__chevron"
+            role="img"
+            aria-label={node.collapsed ? "Collapsed" : "Expanded"}
+          >
+            <ChevronIcon collapsed={node.collapsed} />
+          </span>
+        )
       ) : node.pinned ? (
         <span
           className="tab-node__toggle tab-node__pin"

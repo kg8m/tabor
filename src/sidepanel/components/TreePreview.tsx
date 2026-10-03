@@ -4,12 +4,14 @@ import {
   getUnpinnedRootNodes,
 } from "../../shared/tree/queries";
 import type { TreeState } from "../../shared/tree/types";
-import { DefaultFaviconIcon } from "./icons";
+import { ReadOnlyTabNodeView } from "./ReadOnlyTabNodeView";
 
 /**
  * A read-only rendering of a saved tree (pinned tabs first, then the
  * unpinned hierarchy), for previewing one inside a `Subview` before acting
- * on it.
+ * on it. Laid out the same as the live tree (`PinnedTabsView`/`TreeView`),
+ * minus anything interactive, and with every node expanded regardless of
+ * its saved collapsed state.
  */
 export function TreePreview({ tree }: { tree: TreeState }) {
   const pinnedNodes = getPinnedNodes(tree);
@@ -20,44 +22,62 @@ export function TreePreview({ tree }: { tree: TreeState }) {
   }
 
   return (
-    <ul className="tree-preview">
-      {[...pinnedNodes, ...rootNodes].map((node) => (
-        <TreePreviewNode key={node.id} tree={tree} nodeId={node.id} />
-      ))}
-    </ul>
+    <>
+      {pinnedNodes.length > 0 && (
+        <ul className="pinned-tabs">
+          {pinnedNodes.map((node) => (
+            <li key={node.id} className="pinned-tabs__item">
+              <ReadOnlyTabNodeView node={node} hasChildren={false} />
+            </li>
+          ))}
+        </ul>
+      )}
+      <ul className="tree-view">
+        {rootNodes.map((node) => (
+          <TreePreviewNode
+            key={node.id}
+            tree={tree}
+            nodeId={node.id}
+            ancestorIds={new Set()}
+          />
+        ))}
+      </ul>
+    </>
   );
 }
 
 function TreePreviewNode({
   tree,
   nodeId,
+  ancestorIds,
 }: {
   tree: TreeState;
   nodeId: number;
+  ancestorIds: Set<number>;
 }) {
   const node = tree.nodes[nodeId];
-  if (node === undefined) {
+  // Same cycle guard as `TreeView`'s own `TreeNode`.
+  if (node === undefined || ancestorIds.has(nodeId)) {
     return null;
   }
+
+  const childAncestorIds = new Set(ancestorIds);
+  childAncestorIds.add(nodeId);
 
   const children = getChildren(tree, nodeId);
 
   return (
-    <li className="tree-preview__item">
-      <div className="tree-preview__row">
-        {node.favIconUrl ? (
-          <img className="tree-preview__favicon" src={node.favIconUrl} alt="" />
-        ) : (
-          <span className="tree-preview__favicon tree-preview__favicon--default">
-            <DefaultFaviconIcon />
-          </span>
-        )}
-        <span className="tree-preview__title">{node.title}</span>
-      </div>
+    <li className="tree-view__item">
+      <ReadOnlyTabNodeView node={node} hasChildren={children.length > 0} />
       {children.length > 0 && (
-        <ul className="tree-preview__children">
+        <ul className="tree-view__children">
           {children.map((child) => (
-            <TreePreviewNode key={child.id} tree={tree} nodeId={child.id} />
+            <TreePreviewNode
+              key={child.id}
+              tree={tree}
+              nodeId={child.id}
+              ancestorIds={childAncestorIds}
+            />
           ))}
         </ul>
       )}

@@ -583,6 +583,37 @@ body {
   visibility: visible;
 }
 
+/* A read-only row (see `ReadOnlyTabNodeView`) has no `.tab-node__actions` to
+   make room for on hover, so its spacers stay at their unhovered widths: none
+   for a note-less row, and just `.tab-node__note-indicator`'s for a
+   note-having one. */
+.tab-node--readonly:hover .tab-node__note-spacer {
+  width: 0;
+}
+
+.tab-node--readonly:hover .tab-node__note-icon-spacer {
+  width: 16px;
+}
+
+/* A read-only row's chevron can't be toggled, so it shouldn't look
+   clickable like the live tree's toggle button. */
+.tab-node__chevron {
+  cursor: default;
+}
+
+/* Stands in for the live tree's always-visible note button, at the same
+   spot: `.tab-node__actions`' 1px inset from the row's right edge, plus the
+   button's own 4px padding around its 12px icon. */
+.tab-node__note-indicator {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+}
+
 .note-editor {
   position: fixed;
   z-index: 1;
@@ -738,7 +769,11 @@ body {
 
 .tooltip {
   position: fixed;
-  z-index: 1;
+  /* Above `.subview`'s, so a saved tree preview's rows (see
+     `ReadOnlyTabNodeView`) can show one too: it's portaled to
+     `document.body`, outside the subview, and would otherwise be painted
+     beneath it. */
+  z-index: 3;
   /* Same shrink-to-fit problem as `.context-menu`’s, but worse here: the
      header buttons sit at the panel’s right edge, so without this the
      tooltip wraps into a narrow column before being clamped back left. The
@@ -926,51 +961,6 @@ body {
 
 .subview__secondary-action:hover {
   background: color-mix(in srgb, currentColor 10%, transparent);
-}
-
-.tree-preview,
-.tree-preview__children {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.tree-preview__children {
-  /* `margin-left` centers the guide line under the parent row's favicon
-     (16px wide, starting at the row's own left edge since this row has no
-     toggle/pin icon like `.tab-node` does). `padding-left`, combined with
-     the border and margin above, keeps the overall indent at 21px, matching
-     the pre-fix visual spacing. */
-  margin-left: 8px;
-  padding-left: 12px;
-  border-left: 1px solid color-mix(in srgb, currentColor 15%, transparent);
-}
-
-.tree-preview__row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 0;
-}
-
-.tree-preview__favicon {
-  flex: none;
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.tree-preview__favicon--default {
-  opacity: 0.5;
-}
-
-.tree-preview__title {
-  flex: 1 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .backup-history__item-index {
