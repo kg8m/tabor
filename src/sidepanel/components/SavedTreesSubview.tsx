@@ -270,6 +270,7 @@ export function SavedTreesSubview({ onClose }: SavedTreesSubviewProps) {
       <p className="saved-trees__note">
         Saved trees of windows that aren’t open right now. Removing one means
         that window’s tab hierarchy can’t be restored if it’s reopened later.
+        This list updates automatically as windows close or reopen.
       </p>
       <ul
         className="subview__list"

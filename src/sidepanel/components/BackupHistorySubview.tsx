@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { TaborMessage } from "../../shared/messages";
+import { BACKUP_KEY_PREFIX } from "../../shared/storage-keys";
 import { isTaborOwnTab, toActualTab } from "../../shared/tabs";
 import { loadAllBackups, type BackupSnapshot } from "../../shared/tree/backup";
 import type { ActualTab } from "../../shared/tree/restore";
@@ -22,6 +23,7 @@ interface BackupHistorySubviewProps {
  * Reading the snapshots directly via `loadAllBackups` rather than through
  * the background service worker: `chrome.storage` is available in every
  * extension context, so there's nothing background-only about a read.
+ * Reloads whenever a backup is saved or removed, like `SavedTreesSubview`.
  * Restoring goes through the background service worker instead (see
  * `restoreBackup` message), since only it holds the live in-memory tree
  * store `setTree` needs to update in place, and it alone can safely
@@ -69,14 +71,38 @@ export function BackupHistorySubview({
     async function load() {
       const loaded = await loadAllBackups();
       loaded.sort((a, b) => b.timestamp - a.timestamp);
-      if (!isCancelled) {
-        setBackups(loaded);
+      if (isCancelled) {
+        return;
       }
+      setBackups(loaded);
+      // Drop the selection once its backup is gone (e.g. thinned out by
+      // `selectBackupTimestampsToKeep`).
+      setSelectedTimestamp((current) =>
+        current !== null &&
+        loaded.some((backup) => backup.timestamp === current)
+          ? current
+          : null,
+      );
     }
+
+    // Reloads as the periodic alarm saves a new snapshot or thins out old
+    // ones, so the list stays current while this subview is open.
+    const listener = (
+      changes: Record<string, chrome.storage.StorageChange>,
+    ): void => {
+      if (
+        Object.keys(changes).some((key) => key.startsWith(BACKUP_KEY_PREFIX))
+      ) {
+        void load();
+      }
+    };
+
     void load();
+    chrome.storage.local.onChanged.addListener(listener);
 
     return () => {
       isCancelled = true;
+      chrome.storage.local.onChanged.removeListener(listener);
     };
   }, []);
 
@@ -200,6 +226,10 @@ export function BackupHistorySubview({
         </button>
       }
     >
+      <p className="backup-history__note">
+        A backup of the open windows’ trees is taken every 5 minutes. This list
+        updates automatically.
+      </p>
       <ul
         className="subview__list"
         ref={listElement}
