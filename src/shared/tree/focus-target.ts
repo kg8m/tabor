@@ -10,7 +10,7 @@ import type { TabNode, TreeState } from "./types";
 /**
  * The tree in the order it's actually displayed: pinned tabs first (their
  * own section, always rendered above the regular tree — see
- * `PinnedTabsView`/`TreeView` in `App.tsx`), then the unpinned tree in
+ * `PinnedTabList`/`TabTree` in `App.tsx`), then the unpinned tree in
  * depth-first order. `rootIds` itself doesn't guarantee pinned tabs sort
  * before unpinned ones, so this can't just be `flattenDepthFirst`.
  */

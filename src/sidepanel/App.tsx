@@ -3,9 +3,9 @@ import { BackupHistoryView } from "./components/BackupHistoryView";
 import { ContextMenu } from "./components/ContextMenu";
 import { HeaderButton } from "./components/HeaderButton";
 import { HistoryIcon, SavedTreesIcon } from "./components/icons";
-import { PinnedTabsView } from "./components/PinnedTabsView";
+import { PinnedTabList } from "./components/PinnedTabList";
 import { SavedTreesView } from "./components/SavedTreesView";
-import { TreeView } from "./components/TreeView";
+import { TabTree } from "./components/TabTree";
 import { useActiveTabId } from "./hooks/useActiveTabId";
 import { useContextMenu } from "./hooks/useContextMenu";
 import { useDragAndDrop } from "./hooks/useDragAndDrop";
@@ -35,7 +35,7 @@ export function App() {
   );
   const dragAndDrop = useDragAndDrop(selectedIds, tree);
   // A separate instance from `dragAndDrop`, so a pinned tab's drag state
-  // never leaks into `TreeView`'s handlers or vice versa—each side only ever
+  // never leaks into `TabTree`'s handlers or vice versa—each side only ever
   // sees a drag that started within its own area.
   const pinnedDragAndDrop = useDragAndDrop(selectedIds, tree);
   const { menu, openMenu, closeMenu } = useContextMenu();
@@ -105,7 +105,7 @@ export function App() {
           </div>
         ) : (
           <>
-            <PinnedTabsView
+            <PinnedTabList
               tree={tree}
               windowId={windowId}
               selectedIds={selectedIds}
@@ -120,7 +120,7 @@ export function App() {
               onOpenNoteEditor={openEditor}
               onCloseNoteEditor={closeEditor}
             />
-            <TreeView
+            <TabTree
               tree={tree}
               windowId={windowId}
               selectedIds={selectedIds}

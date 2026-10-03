@@ -3,9 +3,9 @@ import type { DragAndDrop } from "../hooks/useDragAndDrop";
 import type { NoteEditorAnchor, NoteEditorState } from "../hooks/useNoteEditor";
 import { getPinnedNodes } from "../../shared/tree/queries";
 import type { TreeState } from "../../shared/tree/types";
-import { TabNodeView } from "./TabNodeView";
+import { TabNodeRow } from "./TabNodeRow";
 
-interface PinnedTabsViewProps {
+interface PinnedTabListProps {
   tree: TreeState;
   windowId: number | undefined;
   selectedIds: Set<number>;
@@ -23,10 +23,10 @@ interface PinnedTabsViewProps {
  * Pinned tabs, shown above the regular tree in their own flat list—no
  * collapse toggle, since per spec they have no parent/child relationships to
  * fold into, but still reorderable among themselves via drag-and-drop (see
- * `dragAndDrop`, a separate instance from the one `TreeView` uses so a drag
+ * `dragAndDrop`, a separate instance from the one `TabTree` uses so a drag
  * can never cross between the two areas).
  */
-export function PinnedTabsView({
+export function PinnedTabList({
   tree,
   windowId,
   selectedIds,
@@ -38,7 +38,7 @@ export function PinnedTabsView({
   noteEditor,
   onOpenNoteEditor,
   onCloseNoteEditor,
-}: PinnedTabsViewProps) {
+}: PinnedTabListProps) {
   const pinnedNodes = getPinnedNodes(tree);
   if (pinnedNodes.length === 0) {
     return null;
@@ -52,15 +52,15 @@ export function PinnedTabsView({
 
   return (
     <ul
-      className="pinned-tabs"
+      className="pinned-tab-list"
       onDragOver={(event) =>
         dragAndDrop.onContainerDragOver(lastPinnedId, event)
       }
       onDrop={(event) => dragAndDrop.onContainerDrop(lastPinnedId, event)}
     >
       {pinnedNodes.map((node) => (
-        <li key={node.id} className="pinned-tabs__item">
-          <TabNodeView
+        <li key={node.id} className="pinned-tab-list__item">
+          <TabNodeRow
             node={node}
             windowId={windowId}
             selected={selectedIds.has(node.id)}
@@ -88,7 +88,7 @@ export function PinnedTabsView({
         </li>
       ))}
       {dropIndicator?.kind === "end" && (
-        <li className="pinned-tabs__end-indicator" aria-hidden="true" />
+        <li className="pinned-tab-list__end-indicator" aria-hidden="true" />
       )}
     </ul>
   );

@@ -5,7 +5,7 @@ import type { TaborMessage } from "../shared/messages";
  * (see `RegisterPendingCloseMessage`) so the background can resolve the next
  * focus target as soon as every `onRemoved` for the batch has arrived,
  * instead of falling back to debouncing an unregistered close. Shared by
- * `TabNodeView`'s own close button and `ContextMenu`'s "Close"/"Close tree".
+ * `TabNodeRow`'s own close button and `ContextMenu`'s "Close"/"Close tree".
  */
 export async function closeTabs(
   windowId: number | undefined,

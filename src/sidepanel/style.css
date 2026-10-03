@@ -80,9 +80,9 @@ body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  /* Lets `.tree-view` below stretch to fill any leftover height (see its own
+  /* Lets `.tab-tree` below stretch to fill any leftover height (see its own
      `flex: 1`)—needed so dragging into the empty space below the last row,
-     when there are too few tabs to fill the panel, lands on `.tree-view`
+     when there are too few tabs to fill the panel, lands on `.tab-tree`
      itself rather than on nothing. */
   display: flex;
   flex-direction: column;
@@ -111,22 +111,22 @@ body {
   margin: 0;
 }
 
-.pinned-tabs,
-.tree-view,
-.tree-view__children {
+.pinned-tab-list,
+.tab-tree,
+.tab-tree__children {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.tree-view {
+.tab-tree {
   /* Stretches to fill any leftover height in `.app` below the last row (see
      `.app`'s own comment), so dropping in that empty space—when there are
-     too few tabs to fill the panel—lands on `.tree-view` itself. */
+     too few tabs to fill the panel—lands on `.tab-tree` itself. */
   flex: 1;
 }
 
-.pinned-tabs {
+.pinned-tab-list {
   flex-shrink: 0;
   border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
   padding-bottom: 4px;
@@ -137,21 +137,21 @@ body {
    height in JS: an `1fr`-sized grid row sizes itself to its content like a
    normal block would, but unlike a block's `height`, `grid-template-rows` is
    itself an animatable property, so transitioning it to `0fr` smoothly
-   shrinks the row to nothing. That only works because `.tree-view__children`
+   shrinks the row to nothing. That only works because `.tab-tree__children`
    (the grid item) has `overflow: hidden`—a grid item's automatic minimum
    size otherwise floors at its content's own height, which would stop the
    row from ever shrinking past that regardless of the `0fr` target. */
-.tree-view__children-outer {
+.tab-tree__children-outer {
   display: grid;
   grid-template-rows: 1fr;
   transition: grid-template-rows 0.15s ease;
 }
 
-.tree-view__children-outer--collapsed {
+.tab-tree__children-outer--collapsed {
   grid-template-rows: 0fr;
 }
 
-.tree-view__children {
+.tab-tree__children {
   overflow: hidden;
   /* `margin-left` aligns the guide line under the parent row's toggle/pin
      icon (which sits at roughly half its 14px width past the row's 8px
@@ -163,17 +163,17 @@ body {
   border-left: 1px solid color-mix(in srgb, currentColor 15%, transparent);
 }
 
-/* Only between top-level root groups (via the `.tree-view >` child
+/* Only between top-level root groups (via the `.tab-tree >` child
    combinator)—never inside a subtree, where it would visually separate
    closely related rows (siblings, or a parent from its own child) more
    than a merely-nested pair some levels down. On the `<li>` rather than
    `.tab-node` itself, since a `<li>`'s box naturally extends past its own
-   row to include any nested `.tree-view__children`: this renders after a
+   row to include any nested `.tab-tree__children`: this renders after a
    root's entire subtree, at that subtree's own unindented width, instead of
    appearing right under an indented child row and looking like it belongs
    to whatever shallower row happens to follow. */
-.tree-view > .tree-view__item:not(:last-child),
-.pinned-tabs__item:not(:last-child) {
+.tab-tree > .tab-tree__item:not(:last-child),
+.pinned-tab-list__item:not(:last-child) {
   border-bottom: 1px solid color-mix(in srgb, currentColor 8%, transparent);
 }
 
@@ -183,8 +183,8 @@ body {
    dragged tab a new top-level (or last pinned) tab—unlike
    `.tab-node--drop-after`, which is indented to match whatever row it's
    actually attached to. */
-.tree-view__end-indicator,
-.pinned-tabs__end-indicator {
+.tab-tree__end-indicator,
+.pinned-tab-list__end-indicator {
   height: 2px;
   margin-top: 1px;
   background: currentColor;
@@ -583,7 +583,7 @@ body {
   visibility: visible;
 }
 
-/* A read-only row (see `ReadOnlyTabNodeView`) has no `.tab-node__actions` to
+/* A read-only row (see `ReadOnlyTabNodeRow`) has no `.tab-node__actions` to
    make room for on hover, so its spacers stay at their unhovered widths: none
    for a note-less row, and just `.tab-node__note-indicator`'s for a
    note-having one. */
@@ -770,7 +770,7 @@ body {
 .tooltip {
   position: fixed;
   /* Above `.subview`'s, so a saved tree preview's rows (see
-     `ReadOnlyTabNodeView`) can show one too: it's portaled to
+     `ReadOnlyTabNodeRow`) can show one too: it's portaled to
      `document.body`, outside the subview, and would otherwise be painted
      beneath it. */
   z-index: 3;

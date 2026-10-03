@@ -5,21 +5,21 @@ import { NoteIcon } from "./icons";
 import { TabNodeContent } from "./TabNodeContent";
 import { Tooltip } from "./Tooltip";
 
-interface ReadOnlyTabNodeViewProps {
+interface ReadOnlyTabNodeRowProps {
   node: TabNode;
   hasChildren: boolean;
 }
 
 /**
  * A single tab row in a saved tree's preview (see `TreePreview`): the same
- * `TabNodeContent` and hover tooltip as the live tree's `TabNodeView`, minus
+ * `TabNodeContent` and hover tooltip as the live tree's `TabNodeRow`, minus
  * anything interactive. A note-having row shows a non-clickable note icon
- * where `TabNodeView` shows its note button.
+ * where `TabNodeRow` shows its note button.
  */
-export function ReadOnlyTabNodeView({
+export function ReadOnlyTabNodeRow({
   node,
   hasChildren,
-}: ReadOnlyTabNodeViewProps) {
+}: ReadOnlyTabNodeRowProps) {
   const rowReference = useRef<HTMLDivElement>(null);
   const rowTooltip = useTooltip(rowReference);
 

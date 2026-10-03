@@ -12,14 +12,14 @@ import {
 interface TabNodeContentProps {
   node: TabNode;
   hasChildren: boolean;
-  // Omitted for a read-only row (see `ReadOnlyTabNodeView`), whose chevron
+  // Omitted for a read-only row (see `ReadOnlyTabNodeRow`), whose chevron
   // then only shows `node.collapsed` rather than toggling it.
   onToggleCollapsed?: (event: MouseEvent) => void;
 }
 
 /**
- * The parts of a `.tab-node` row shared by the live tree's `TabNodeView` and
- * a saved tree preview's `ReadOnlyTabNodeView`: the collapse toggle (or
+ * The parts of a `.tab-node` row shared by the live tree's `TabNodeRow` and
+ * a saved tree preview's `ReadOnlyTabNodeRow`: the collapse toggle (or
  * pin/leaf marker), favicon, title, audible indicator, and note text. Laid
  * out as direct flex children of whichever `.tab-node` element renders it.
  */

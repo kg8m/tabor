@@ -3,9 +3,9 @@ import type { DragAndDrop } from "../hooks/useDragAndDrop";
 import type { NoteEditorAnchor, NoteEditorState } from "../hooks/useNoteEditor";
 import { getChildren, getUnpinnedRootNodes } from "../../shared/tree/queries";
 import type { TreeState } from "../../shared/tree/types";
-import { TabNodeView } from "./TabNodeView";
+import { TabNodeRow } from "./TabNodeRow";
 
-interface TreeViewProps {
+interface TabTreeProps {
   tree: TreeState;
   windowId: number | undefined;
   selectedIds: Set<number>;
@@ -21,9 +21,9 @@ interface TreeViewProps {
 
 /**
  * Renders every unpinned root node (and its descendants) as the tree,
- * delegating each row's own rendering to `TabNodeView`.
+ * delegating each row's own rendering to `TabNodeRow`.
  */
-export function TreeView({
+export function TabTree({
   tree,
   windowId,
   selectedIds,
@@ -35,7 +35,7 @@ export function TreeView({
   noteEditor,
   onOpenNoteEditor,
   onCloseNoteEditor,
-}: TreeViewProps) {
+}: TabTreeProps) {
   const unpinnedRootNodes = getUnpinnedRootNodes(tree);
   // The last top-level (unpinned root) tab, so a drop in the empty space
   // below the tree—e.g. when there are too few tabs to fill the panel—
@@ -45,7 +45,7 @@ export function TreeView({
 
   return (
     <ul
-      className="tree-view"
+      className="tab-tree"
       onDragOver={(event) => dragAndDrop.onContainerDragOver(lastRootId, event)}
       onDrop={(event) => dragAndDrop.onContainerDrop(lastRootId, event)}
     >
@@ -68,7 +68,7 @@ export function TreeView({
         />
       ))}
       {dragAndDrop.dropIndicator?.kind === "end" && (
-        <li className="tree-view__end-indicator" aria-hidden="true" />
+        <li className="tab-tree__end-indicator" aria-hidden="true" />
       )}
     </ul>
   );
@@ -119,8 +119,8 @@ function TreeNode({
   const { dropIndicator } = dragAndDrop;
 
   return (
-    <li className="tree-view__item">
-      <TabNodeView
+    <li className="tab-tree__item">
+      <TabNodeRow
         node={node}
         windowId={windowId}
         hasChildren={children.length > 0}
@@ -148,11 +148,11 @@ function TreeNode({
       {children.length > 0 && (
         <div
           className={
-            "tree-view__children-outer" +
-            (node.collapsed ? " tree-view__children-outer--collapsed" : "")
+            "tab-tree__children-outer" +
+            (node.collapsed ? " tab-tree__children-outer--collapsed" : "")
           }
         >
-          <ul className="tree-view__children">
+          <ul className="tab-tree__children">
             {children.map((child) => (
               <TreeNode
                 key={child.id}

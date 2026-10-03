@@ -12,7 +12,7 @@ import { NoteEditor } from "./NoteEditor";
 import { TabNodeContent } from "./TabNodeContent";
 import { Tooltip } from "./Tooltip";
 
-interface TabNodeViewProps {
+interface TabNodeRowProps {
   node: TabNode;
   windowId: number | undefined;
   hasChildren?: boolean;
@@ -41,7 +41,7 @@ interface TabNodeViewProps {
  * collapse toggle, plus the drag-and-drop handlers, hover tooltip, note
  * editor, and pause/close/note buttons shown per its state.
  */
-export function TabNodeView({
+export function TabNodeRow({
   node,
   windowId,
   hasChildren = false,
@@ -59,7 +59,7 @@ export function TabNodeView({
   onDragLeave,
   onDrop,
   onDragEnd,
-}: TabNodeViewProps) {
+}: TabNodeRowProps) {
   const rowReference = useRef<HTMLDivElement>(null);
   const rowTooltip = useTooltip(rowReference);
 
