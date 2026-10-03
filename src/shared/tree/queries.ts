@@ -172,3 +172,18 @@ export function getVisibleOrder(tree: TreeState): TabNode[] {
 export function hasHierarchy(tree: TreeState): boolean {
   return Object.keys(tree.nodes).length > tree.rootIds.length;
 }
+
+/**
+ * Whether the tree holds anything only Tabor knows about, rather than just
+ * what the native tab bar shows too: a parent/child relationship (see
+ * `hasHierarchy`; which nodes are collapsed only matters along with one) or
+ * a note. Used to decide whether a closed window's tree is worth keeping
+ * (see `windows.onRemoved`): without either, reopening the same tabs later
+ * would rebuild an identical tree regardless.
+ */
+export function hasTaborSpecificInfo(tree: TreeState): boolean {
+  return (
+    hasHierarchy(tree) ||
+    Object.values(tree.nodes).some((node) => node.note !== null)
+  );
+}

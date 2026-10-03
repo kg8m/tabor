@@ -9,6 +9,7 @@ import {
   getUnpinnedRootNodes,
   getVisibleOrder,
   hasHierarchy,
+  hasTaborSpecificInfo,
   isSelfOrDescendant,
 } from "./queries";
 import { createNode } from "./test-helpers";
@@ -211,6 +212,34 @@ describe("hasHierarchy", () => {
   it("returns false for an empty tree", () => {
     const tree: TreeState = { nodes: {}, rootIds: [] };
     expect(hasHierarchy(tree)).toBe(false);
+  });
+});
+
+describe("hasTaborSpecificInfo", () => {
+  it("returns true when at least one node has a parent", () => {
+    const tree = createSampleTree();
+    expect(hasTaborSpecificInfo(tree)).toBe(true);
+  });
+
+  it("returns true for a flat tree when at least one node has a note", () => {
+    const a = createNode({ id: 1 });
+    const b = createNode({ id: 2, note: "memo" });
+    const tree: TreeState = { nodes: { 1: a, 2: b }, rootIds: [1, 2] };
+
+    expect(hasTaborSpecificInfo(tree)).toBe(true);
+  });
+
+  it("returns false for a flat tree with no notes", () => {
+    const a = createNode({ id: 1 });
+    const b = createNode({ id: 2, pinned: true });
+    const tree: TreeState = { nodes: { 1: a, 2: b }, rootIds: [1, 2] };
+
+    expect(hasTaborSpecificInfo(tree)).toBe(false);
+  });
+
+  it("returns false for an empty tree", () => {
+    const tree: TreeState = { nodes: {}, rootIds: [] };
+    expect(hasTaborSpecificInfo(tree)).toBe(false);
   });
 });
 

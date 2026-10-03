@@ -32,6 +32,7 @@ import {
   getNativeOrder,
   getPinnedNodes,
   hasHierarchy,
+  hasTaborSpecificInfo,
 } from "../shared/tree/queries";
 import {
   clearPendingClose,
@@ -1659,7 +1660,7 @@ chrome.windows.onCreated.addListener((window) =>
 chrome.windows.onRemoved.addListener((windowId) =>
   enqueue(async () => {
     const treeId = getTreeId(windowId);
-    const isTreeEmpty = Object.keys(getTree(windowId).nodes).length === 0;
+    const isWorthKeeping = hasTaborSpecificInfo(getTree(windowId));
     const isIncognito = isIncognitoWindow(windowId);
     const windowType = getWindowType(windowId);
     deleteWindow(windowId);
@@ -1668,18 +1669,20 @@ chrome.windows.onRemoved.addListener((windowId) =>
     // Its tree stays saved, now as a closed window's (see
     // `TREE_ID_KEY_PREFIX`), for a window reopened later to be matched to.
     await removeTreeIdForWindow(windowId);
-    // Unless it's empty: closing a window's last tab (rather than the window
-    // itself) fires that tab's `tabs.onRemoved` with `isWindowClosing: false`
-    // before this, so `handleTabRemoved` has already saved the tree without
-    // it. An empty tree can never be matched to anything, so it would only
-    // linger as a tabless entry among closed windows' saved trees.
+    // Unless it holds nothing only Tabor knows about (see
+    // `hasTaborSpecificInfo`): reopening the same tabs later would rebuild
+    // an identical tree regardless, so it would only linger among closed
+    // windows' saved trees. That includes an empty tree: closing a window's
+    // last tab (rather than the window itself) fires that tab's
+    // `tabs.onRemoved` with `isWindowClosing: false` before this, so
+    // `handleTabRemoved` has already saved the tree without it.
     // An incognito window's tree is removed regardless: nothing about it
     // should outlive the window itself. So is a non-normal window's (e.g. an
     // installed PWA's): with no toolbar to open the side panel from, it can't
     // hold anything added through Tabor, so there's nothing worth keeping.
     if (
       treeId !== undefined &&
-      (isTreeEmpty || isIncognito || windowType !== "normal")
+      (!isWorthKeeping || isIncognito || windowType !== "normal")
     ) {
       await removeTree(treeId);
     }
