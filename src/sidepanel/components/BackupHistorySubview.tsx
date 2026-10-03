@@ -8,10 +8,10 @@ import {
   type SavedWindow,
 } from "../../shared/tree/window-matching";
 import { formatTimestamp } from "../format";
-import { Subview } from "./Subview";
+import { SubviewFrame } from "./SubviewFrame";
 import { TreePreview } from "./TreePreview";
 
-interface BackupHistoryViewProps {
+interface BackupHistorySubviewProps {
   windowId: number | undefined;
   onClose: () => void;
 }
@@ -27,10 +27,10 @@ interface BackupHistoryViewProps {
  * store `setTree` needs to update in place, and it alone can safely
  * re-sync the native tab order afterward.
  */
-export function BackupHistoryView({
+export function BackupHistorySubview({
   windowId,
   onClose,
-}: BackupHistoryViewProps) {
+}: BackupHistorySubviewProps) {
   const [backups, setBackups] = useState<BackupSnapshot[] | undefined>(
     undefined,
   );
@@ -175,7 +175,7 @@ export function BackupHistoryView({
   };
 
   return (
-    <Subview
+    <SubviewFrame
       title="Backup history"
       onClose={onClose}
       footer={
@@ -237,6 +237,6 @@ export function BackupHistoryView({
           <TreePreview tree={previewTree} />
         )}
       </div>
-    </Subview>
+    </SubviewFrame>
   );
 }

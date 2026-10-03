@@ -14,10 +14,10 @@ import {
 } from "../../shared/tree/storage";
 import { queryOpenWindowIds } from "../../shared/windows";
 import { formatTimestamp } from "../format";
-import { Subview } from "./Subview";
+import { SubviewFrame } from "./SubviewFrame";
 import { TreePreview } from "./TreePreview";
 
-interface SavedTreesViewProps {
+interface SavedTreesSubviewProps {
   onClose: () => void;
 }
 
@@ -68,14 +68,14 @@ async function loadOrphanedTrees(): Promise<OrphanedTree[]> {
  * automatic cleanup in `initializeAllWindows` would otherwise keep around
  * for a long time.
  *
- * Reads storage directly, like `BackupHistoryView`, and reloads whenever a
+ * Reads storage directly, like `BackupHistorySubview`, and reloads whenever a
  * saved tree, pending-removal mark, or window's tree-id record changes, so
  * the list stays current both after a removal here and as windows
  * open/close meanwhile. Removal
  * itself goes through the background service worker (`removeSavedTrees`),
  * the only writer of tree state.
  */
-export function SavedTreesView({ onClose }: SavedTreesViewProps) {
+export function SavedTreesSubview({ onClose }: SavedTreesSubviewProps) {
   const [trees, setTrees] = useState<OrphanedTree[] | undefined>(undefined);
   const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
   // Removal asks for confirmation as a second step in the footer, the same
@@ -108,7 +108,7 @@ export function SavedTreesView({ onClose }: SavedTreesViewProps) {
   }, [selectedTreeId]);
 
   useEffect(() => {
-    // See `BackupHistoryView` for why this isn't JSX's `autoFocus`.
+    // See `BackupHistorySubview` for why this isn't JSX's `autoFocus`.
     listElement.current?.focus();
   }, []);
 
@@ -220,7 +220,7 @@ export function SavedTreesView({ onClose }: SavedTreesViewProps) {
   };
 
   return (
-    <Subview
+    <SubviewFrame
       title="Closed windows"
       onClose={onClose}
       footer={
@@ -314,6 +314,6 @@ export function SavedTreesView({ onClose }: SavedTreesViewProps) {
           </>
         )}
       </div>
-    </Subview>
+    </SubviewFrame>
   );
 }

@@ -8,8 +8,8 @@ import { ReadOnlyTabNodeRow } from "./ReadOnlyTabNodeRow";
 
 /**
  * A read-only rendering of a saved tree (pinned tabs first, then the
- * unpinned hierarchy), for previewing one inside a `Subview` before acting
- * on it. Laid out the same as the live tree (`PinnedTabList`/`TabTree`),
+ * unpinned hierarchy), for previewing one inside a subview (see
+ * `SubviewFrame`) before acting on it. Laid out the same as the live tree (`PinnedTabList`/`TabTree`),
  * minus anything interactive, and with every node expanded regardless of
  * its saved collapsed state.
  */

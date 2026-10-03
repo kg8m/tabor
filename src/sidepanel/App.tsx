@@ -1,10 +1,10 @@
 import { useEffect, useState, type MouseEvent } from "react";
-import { BackupHistoryView } from "./components/BackupHistoryView";
+import { BackupHistorySubview } from "./components/BackupHistorySubview";
 import { ContextMenu } from "./components/ContextMenu";
 import { HeaderButton } from "./components/HeaderButton";
 import { HistoryIcon, SavedTreesIcon } from "./components/icons";
 import { PinnedTabList } from "./components/PinnedTabList";
-import { SavedTreesView } from "./components/SavedTreesView";
+import { SavedTreesSubview } from "./components/SavedTreesSubview";
 import { TabTree } from "./components/TabTree";
 import { useActiveTabId } from "./hooks/useActiveTabId";
 import { useContextMenu } from "./hooks/useContextMenu";
@@ -177,13 +177,13 @@ export function App() {
         )}
       </div>
       {openSubview === "backupHistory" && (
-        <BackupHistoryView
+        <BackupHistorySubview
           windowId={windowId}
           onClose={() => setOpenSubview(null)}
         />
       )}
       {openSubview === "savedTrees" && (
-        <SavedTreesView onClose={() => setOpenSubview(null)} />
+        <SavedTreesSubview onClose={() => setOpenSubview(null)} />
       )}
     </div>
   );

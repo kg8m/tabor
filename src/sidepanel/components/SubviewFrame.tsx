@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { CloseIcon } from "./icons";
 
-interface SubviewProps {
+interface SubviewFrameProps {
   title: string;
   onClose: () => void;
   footer?: ReactNode;
@@ -9,12 +9,17 @@ interface SubviewProps {
 }
 
 /**
- * The shared frame for a view shown in place of the tab tree for a while
- * (e.g. backup history): a title bar with a close button, a body (typically
- * a `.subview__list` above a `.subview__preview`), and an optional footer
- * for the view's actions.
+ * The shared frame for a subview, shown in place of the tab tree for a while
+ * (e.g. `BackupHistorySubview`): a title bar with a close button, a body
+ * (typically a `.subview__list` above a `.subview__preview`), and an
+ * optional footer for the subview's actions.
  */
-export function Subview({ title, onClose, footer, children }: SubviewProps) {
+export function SubviewFrame({
+  title,
+  onClose,
+  footer,
+  children,
+}: SubviewFrameProps) {
   return (
     <div className="subview">
       <div className="subview__header">
