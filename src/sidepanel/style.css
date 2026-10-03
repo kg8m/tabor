@@ -355,7 +355,7 @@ body {
 }
 
 /* Fades the tail into transparency instead of `text-overflow: ellipsis`'s
-   abrupt "…". Applied only via `useOverflowDetection` (in `TabNodeView`)
+   abrupt "…". Applied only via `useOverflowDetection` (in `TabNodeContent`)
    actually detecting the text as wider than the box—rather than
    unconditionally on `.tab-node__title` itself—because a mask is a static
    gradient over the box's own edge, regardless of whether the content
@@ -455,7 +455,7 @@ body {
 }
 
 /* Fades the tail into transparency instead of `text-overflow: ellipsis`'s
-   abrupt "…". Applied only via `useOverflowDetection` (in `TabNodeView`)
+   abrupt "…". Applied only via `useOverflowDetection` (in `TabNodeContent`)
    actually detecting the text as wider than the box—see
    `.tab-node__title--overflowing` above for why an unconditional mask on
    `.tab-node__note-text` itself would wrongly fade a short note's last

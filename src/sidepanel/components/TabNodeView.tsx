@@ -5,20 +5,11 @@ import type { DropPosition } from "../../shared/tree/drop";
 import type { TabNode } from "../../shared/tree/types";
 import { useRef } from "react";
 import { closeTabs } from "../close-tabs";
-import { useOverflowDetection } from "../hooks/useOverflowDetection";
 import type { NoteEditorAnchor } from "../hooks/useNoteEditor";
 import { useTooltip } from "../hooks/useTooltip";
-import {
-  AudibleIcon,
-  ChevronIcon,
-  CloseIcon,
-  DefaultFaviconIcon,
-  LeafIcon,
-  NoteIcon,
-  PauseIcon,
-  PinIcon,
-} from "./icons";
+import { CloseIcon, NoteIcon, PauseIcon } from "./icons";
 import { NoteEditor } from "./NoteEditor";
+import { TabNodeContent } from "./TabNodeContent";
 import { Tooltip } from "./Tooltip";
 
 interface TabNodeViewProps {
@@ -46,9 +37,9 @@ interface TabNodeViewProps {
 }
 
 /**
- * A single tab row in the tree, with its favicon/title, drag-and-drop
- * handlers, and the pin/pause/audible/note/collapse affordances shown per
- * its state.
+ * A single tab row in the tree: `TabNodeContent`'s favicon/title/note and
+ * collapse toggle, plus the drag-and-drop handlers, hover tooltip, note
+ * editor, and pause/close/note buttons shown per its state.
  */
 export function TabNodeView({
   node,
@@ -69,10 +60,6 @@ export function TabNodeView({
   onDrop,
   onDragEnd,
 }: TabNodeViewProps) {
-  const { ref: titleReference, isOverflowing: isTitleOverflowing } =
-    useOverflowDetection<HTMLSpanElement>(node.title);
-  const { ref: noteReference, isOverflowing: isNoteOverflowing } =
-    useOverflowDetection<HTMLSpanElement>(node.note ?? "");
   const rowReference = useRef<HTMLDivElement>(null);
   const rowTooltip = useTooltip(rowReference);
 
@@ -182,82 +169,11 @@ export function TabNodeView({
       onDrop={onDrop}
       onDragEnd={onDragEnd}
     >
-      {hasChildren ? (
-        <button
-          type="button"
-          className="tab-node__toggle"
-          aria-label={node.collapsed ? "Expand" : "Collapse"}
-          draggable={false}
-          onClick={handleToggleCollapsed}
-        >
-          <ChevronIcon collapsed={node.collapsed} />
-        </button>
-      ) : node.pinned ? (
-        <span
-          className="tab-node__toggle tab-node__pin"
-          role="img"
-          aria-label="Pinned"
-        >
-          <PinIcon />
-        </span>
-      ) : (
-        <span
-          className="tab-node__toggle tab-node__leaf"
-          role="img"
-          aria-label="No children"
-        >
-          <LeafIcon />
-        </span>
-      )}
-      {node.loading ? (
-        <span className="tab-node__favicon tab-node__spinner" />
-      ) : node.favIconUrl ? (
-        <img className="tab-node__favicon" src={node.favIconUrl} alt="" />
-      ) : (
-        // Falsy rather than `=== undefined`: a tree saved before favIconUrl
-        // started normalizing an empty string to `undefined` (see
-        // `toActualTab`) can still have one on disk, which would otherwise
-        // render as `<img src="">`.
-        <span className="tab-node__favicon tab-node__favicon--default">
-          <DefaultFaviconIcon />
-        </span>
-      )}
-      <span
-        ref={titleReference}
-        className={
-          isTitleOverflowing
-            ? "tab-node__title tab-node__title--overflowing"
-            : "tab-node__title"
-        }
-      >
-        {node.title}
-      </span>
-      {node.audible && (
-        <span
-          className="tab-node__audible"
-          role="img"
-          aria-label="Playing audio"
-        >
-          <AudibleIcon />
-        </span>
-      )}
-      {node.note === null ? (
-        <span className="tab-node__note-spacer" aria-hidden="true" />
-      ) : (
-        <span
-          ref={noteReference}
-          className={
-            isNoteOverflowing
-              ? "tab-node__note-text tab-node__note-text--overflowing"
-              : "tab-node__note-text"
-          }
-        >
-          {node.note}
-        </span>
-      )}
-      {node.note !== null && (
-        <span className="tab-node__note-icon-spacer" aria-hidden="true" />
-      )}
+      <TabNodeContent
+        node={node}
+        hasChildren={hasChildren}
+        onToggleCollapsed={handleToggleCollapsed}
+      />
       {/* Suppressed while this row’s note editor is open: the editor is
           portaled but still a child of this row in the React tree, and React
           dispatches `mouseenter`/`mouseleave` by that tree rather than the
