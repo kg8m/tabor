@@ -291,6 +291,32 @@ body {
   padding: 0;
 }
 
+/* Anchors `.tab-node__hidden-count` below. */
+button.tab-node__toggle {
+  position: relative;
+}
+
+/* A collapsed row’s hidden tab count, overlaid on its chevron’s lower right.
+   Anchored at the chevron’s middle and growing rightward, so a multi-digit
+   count (at most “99+”—see `TabNodeContent`) spills over the row’s gap and
+   the favicon’s left edge rather than past the row’s left side. Inverted
+   colors keep it legible wherever it lands on top of the favicon, and
+   `pointer-events: none` leaves clicks to whatever is underneath it. */
+.tab-node__hidden-count {
+  position: absolute;
+  left: 7px;
+  bottom: -3px;
+  padding: 0 2px;
+  border-radius: 5px;
+  background: var(--tabor-fg);
+  color: var(--tabor-bg);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 10px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .tab-node__pin {
   cursor: default;
 }

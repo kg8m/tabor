@@ -16,6 +16,8 @@ interface TabNodeRowProps {
   node: TabNode;
   windowId: number | undefined;
   hasChildren?: boolean;
+  // See `TabNodeContent`.
+  hiddenDescendantCount?: number;
   selected: boolean;
   onClick: (event: MouseEvent) => void;
   onContextMenu: (event: MouseEvent) => void;
@@ -45,6 +47,7 @@ export function TabNodeRow({
   node,
   windowId,
   hasChildren = false,
+  hiddenDescendantCount,
   selected,
   onClick,
   onContextMenu,
@@ -173,6 +176,7 @@ export function TabNodeRow({
         node={node}
         hasChildren={hasChildren}
         onToggleCollapsed={handleToggleCollapsed}
+        hiddenDescendantCount={hiddenDescendantCount}
       />
       {/* Suppressed while this row’s note editor is open: the editor is
           portaled but still a child of this row in the React tree, and React

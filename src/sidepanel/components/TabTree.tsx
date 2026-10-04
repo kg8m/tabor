@@ -1,7 +1,11 @@
 import type { MouseEvent } from "react";
 import type { DragAndDrop } from "../hooks/useDragAndDrop";
 import type { NoteEditorAnchor, NoteEditorState } from "../hooks/useNoteEditor";
-import { getChildren, getUnpinnedRootNodes } from "../../shared/tree/queries";
+import {
+  getChildren,
+  getDescendantIds,
+  getUnpinnedRootNodes,
+} from "../../shared/tree/queries";
 import type { TreeState } from "../../shared/tree/types";
 import { TabNodeRow } from "./TabNodeRow";
 
@@ -124,6 +128,11 @@ function TreeNode({
         node={node}
         windowId={windowId}
         hasChildren={children.length > 0}
+        hiddenDescendantCount={
+          node.collapsed && children.length > 0
+            ? getDescendantIds(tree, nodeId).length
+            : undefined
+        }
         selected={selectedIds.has(nodeId)}
         isContextMenuTarget={contextMenuTargetIds.has(nodeId)}
         onClick={(event) => onNodeClick(nodeId, event)}

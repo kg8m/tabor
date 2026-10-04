@@ -15,7 +15,15 @@ interface TabNodeContentProps {
   // Omitted for a read-only row (see `ReadOnlyTabNodeRow`), whose chevron
   // then only shows `node.collapsed` rather than toggling it.
   onToggleCollapsed?: (event: MouseEvent) => void;
+  // How many tabs a collapsed row hides beneath it, shown as a badge over
+  // its chevron. Omitted when there’s nothing hidden to count (an expanded
+  // row, or a read-only one, which is always shown expanded).
+  hiddenDescendantCount?: number;
 }
+
+// Caps the badge’s width, so it doesn’t spill any further over the favicon
+// next to it.
+const MAX_SHOWN_HIDDEN_DESCENDANT_COUNT = 99;
 
 /**
  * The parts of a `.tab-node` row shared by the live tree's `TabNodeRow` and
@@ -27,6 +35,7 @@ export function TabNodeContent({
   node,
   hasChildren,
   onToggleCollapsed,
+  hiddenDescendantCount,
 }: TabNodeContentProps) {
   const { ref: titleReference, isOverflowing: isTitleOverflowing } =
     useOverflowDetection<HTMLSpanElement>(node.title);
@@ -40,11 +49,24 @@ export function TabNodeContent({
           <button
             type="button"
             className="tab-node__toggle"
-            aria-label={node.collapsed ? "Expand" : "Collapse"}
+            aria-label={
+              node.collapsed
+                ? hiddenDescendantCount === undefined
+                  ? "Expand"
+                  : `Expand (${hiddenDescendantCount} hidden tabs)`
+                : "Collapse"
+            }
             draggable={false}
             onClick={onToggleCollapsed}
           >
             <ChevronIcon collapsed={node.collapsed} />
+            {hiddenDescendantCount !== undefined && (
+              <span className="tab-node__hidden-count" aria-hidden="true">
+                {hiddenDescendantCount > MAX_SHOWN_HIDDEN_DESCENDANT_COUNT
+                  ? `${MAX_SHOWN_HIDDEN_DESCENDANT_COUNT}+`
+                  : hiddenDescendantCount}
+              </span>
+            )}
           </button>
         ) : (
           <span
