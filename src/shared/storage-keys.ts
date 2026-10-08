@@ -34,6 +34,15 @@
  * about either, or otherwise after `PENDING_REMOVAL_GRACE_MS` of staying
  * unmatched. It can also be removed by hand from the side panel (see
  * `removeSavedTrees`).
+ *
+ * An incognito window’s tree is written here too, so it does hit disk for as
+ * long as its window stays open. Deliberately not kept in
+ * `chrome.storage.session` instead: that’s cleared whenever the extension is
+ * reloaded or updated (auto-updates included), which would flatten every
+ * open incognito window’s tree—losing its parent/child structure, collapsed
+ * state, and notes—with nothing left to restore it from. Removing it as soon
+ * as its window closes (or on the next startup, after a crash) is the
+ * trade-off taken instead.
  */
 export const WINDOW_TREE_KEY_PREFIX = "tabor:windowTree:";
 
