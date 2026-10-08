@@ -36,7 +36,7 @@ body {
 
 .app-shell {
   /* `position: relative` gives `.subview` (positioned with `inset: 0`) an
-     explicit ancestor to fill, rather than the document's own root. */
+     explicit ancestor to fill, rather than the document’s own root. */
   position: relative;
   height: 100%;
   display: flex;
@@ -44,8 +44,8 @@ body {
 }
 
 .app-header {
-  /* Matches `.subview__header`'s own padding, so the header's total
-     height doesn't visibly change when a subview opens in its place. */
+  /* Matches `.subview__header`’s own padding, so the header’s total
+     height doesn’t visibly change when a subview opens in its place. */
   flex: none;
   display: flex;
   justify-content: flex-end;
@@ -72,8 +72,8 @@ body {
 
 .app {
   /* The actual scroll container, so `scroll-margin` on `.tab-node` has an
-     explicit `overflow` ancestor to apply against—unlike the document's own
-     root scroller, which didn't reliably respect it. Sized via `flex: 1`
+     explicit `overflow` ancestor to apply against—unlike the document’s own
+     root scroller, which didn’t reliably respect it. Sized via `flex: 1`
      (rather than `height: 100%`, back when this was the outermost element)
      so it shares `.app-shell` with `.app-header` above it instead of
      overflowing past it. */
@@ -121,7 +121,7 @@ body {
 
 .tab-tree {
   /* Stretches to fill any leftover height in `.app` below the last row (see
-     `.app`'s own comment), so dropping in that empty space—when there are
+     `.app`’s own comment), so dropping in that empty space—when there are
      too few tabs to fill the panel—lands on `.tab-tree` itself. */
   flex: 1;
 }
@@ -133,13 +133,13 @@ body {
   margin-bottom: 4px;
 }
 
-/* Animates collapse/expand without ever measuring the children's rendered
+/* Animates collapse/expand without ever measuring the children’s rendered
    height in JS: an `1fr`-sized grid row sizes itself to its content like a
-   normal block would, but unlike a block's `height`, `grid-template-rows` is
+   normal block would, but unlike a block’s `height`, `grid-template-rows` is
    itself an animatable property, so transitioning it to `0fr` smoothly
    shrinks the row to nothing. That only works because `.tab-tree__children`
-   (the grid item) has `overflow: hidden`—a grid item's automatic minimum
-   size otherwise floors at its content's own height, which would stop the
+   (the grid item) has `overflow: hidden`—a grid item’s automatic minimum
+   size otherwise floors at its content’s own height, which would stop the
    row from ever shrinking past that regardless of the `0fr` target. */
 .tab-tree__children-outer {
   display: grid;
@@ -153,11 +153,11 @@ body {
 
 .tab-tree__children {
   overflow: hidden;
-  /* `margin-left` aligns the guide line under the parent row's toggle/pin
-     icon (which sits at roughly half its 14px width past the row's 8px
-     padding). `padding-left`, combined with a child row's own 8px padding,
-     puts a child's own toggle/pin icon under the parent's favicon (8px
-     padding + 14px toggle + 6px gap past the parent row's own left edge). */
+  /* `margin-left` aligns the guide line under the parent row’s toggle/pin
+     icon (which sits at roughly half its 14px width past the row’s 8px
+     padding). `padding-left`, combined with a child row’s own 8px padding,
+     puts a child’s own toggle/pin icon under the parent’s favicon (8px
+     padding + 14px toggle + 6px gap past the parent row’s own left edge). */
   margin-left: 15px;
   padding-left: 5px;
   border-left: 1px solid color-mix(in srgb, currentColor 15%, transparent);
@@ -167,9 +167,9 @@ body {
    combinator)—never inside a subtree, where it would visually separate
    closely related rows (siblings, or a parent from its own child) more
    than a merely-nested pair some levels down. On the `<li>` rather than
-   `.tab-node` itself, since a `<li>`'s box naturally extends past its own
+   `.tab-node` itself, since a `<li>`’s box naturally extends past its own
    row to include any nested `.tab-tree__children`: this renders after a
-   root's entire subtree, at that subtree's own unindented width, instead of
+   root’s entire subtree, at that subtree’s own unindented width, instead of
    appearing right under an indented child row and looking like it belongs
    to whatever shallower row happens to follow. */
 .tab-tree > .tab-tree__item:not(:last-child),
@@ -181,7 +181,7 @@ body {
    pinned tabs list (see `onContainerDragOver`). Deliberately unindented, at
    the same width as a root-level row, to signal that dropping here makes the
    dragged tab a new top-level (or last pinned) tab—unlike
-   `.tab-node--drop-after`, which is indented to match whatever row it's
+   `.tab-node--drop-after`, which is indented to match whatever row it’s
    actually attached to. */
 .tab-tree__end-indicator,
 .pinned-tab-list__end-indicator {
@@ -198,15 +198,15 @@ body {
   gap: 6px;
   padding: 4px 4px 4px 8px;
   border-radius: 4px;
-  /* Matches the native tab strip's own cursor (a plain arrow, not a hand)
+  /* Matches the native tab strip’s own cursor (a plain arrow, not a hand)
      rather than leaving this unset, which would otherwise fall back to the
-     browser's default text-select cursor wherever the pointer happens to
+     browser’s default text-select cursor wherever the pointer happens to
      land on the title text. Child elements with their own specific cursor
      (the toggle button, the pin icon, the action buttons) still win over
      this within their own bounds. */
   cursor: default;
-  /* Leaves breathing room (a few rows' worth) above/below when
-     useScrollActiveIntoView's scrollIntoView() brings this row to the edge
+  /* Leaves breathing room (a few rows’ worth) above/below when
+     useScrollActiveIntoView’s scrollIntoView() brings this row to the edge
      of the `.app` scroll container. */
   scroll-margin-block: 64px;
 }
@@ -221,8 +221,8 @@ body {
 
 /* Selection is marked with an outline rather than (or in addition to) a
    background tint, since `.tab-node--active` below sets its own background
-   that would otherwise fully replace a selected-but-not-active row's tint
-   for a row that's both—leaving no way to tell it's still selected. The
+   that would otherwise fully replace a selected-but-not-active row’s tint
+   for a row that’s both—leaving no way to tell it’s still selected. The
    outline is a separate property, so it stays visible either way. */
 .tab-node--selected {
   background: color-mix(in srgb, currentColor 15%, transparent);
@@ -236,8 +236,8 @@ body {
 
 /* Tinted with the accent color rather than the neutral currentColor tint
    `.tab-node--selected` uses, so the active tab still reads as active at a
-   glance even when it's also selected—the later rule in source order wins
-   the background for a row that's both. */
+   glance even when it’s also selected—the later rule in source order wins
+   the background for a row that’s both. */
 .tab-node--active {
   background: color-mix(in srgb, var(--tabor-accent) 12%, transparent);
 }
@@ -246,10 +246,10 @@ body {
   background: color-mix(in srgb, var(--tabor-accent) 18%, transparent);
 }
 
-/* Marks the row(s) an open context menu targets, so it's clear at a glance
+/* Marks the row(s) an open context menu targets, so it’s clear at a glance
    which tab the menu applies to. Uses box-shadow rather than outline so it
-   stacks on top of `.tab-node--selected`'s outline instead of overriding it
-   when a row is both selected and the menu's target. */
+   stacks on top of `.tab-node--selected`’s outline instead of overriding it
+   when a row is both selected and the menu’s target. */
 .tab-node--context-target {
   box-shadow: inset 0 0 0 2px var(--tabor-accent);
 }
@@ -338,7 +338,7 @@ button.tab-node__toggle {
   justify-content: center;
 }
 
-/* Muted so the fallback glyph (see `DefaultFaviconIcon`) doesn't compete for
+/* Muted so the fallback glyph (see `DefaultFaviconIcon`) doesn’t compete for
    attention with rows that do have a real favicon or a loading spinner. */
 .tab-node__favicon--default {
   opacity: 0.5;
@@ -373,22 +373,22 @@ button.tab-node__toggle {
   white-space: nowrap;
   /* Pins the line box to the same height as the favicon/toggle regardless
      of script: a title containing e.g. Japanese falls back to whichever CJK
-     font the browser picks (`system-ui, sans-serif` above doesn't cover
-     those glyphs), and that font's own line-height metrics run taller than
-     the Latin one's—inflating the row's height for that title alone if
-     left to the browser's default. */
+     font the browser picks (`system-ui, sans-serif` above doesn’t cover
+     those glyphs), and that font’s own line-height metrics run taller than
+     the Latin one’s—inflating the row’s height for that title alone if
+     left to the browser’s default. */
   line-height: 16px;
 }
 
-/* Fades the tail into transparency instead of `text-overflow: ellipsis`'s
-   abrupt "…". Applied only via `useOverflowDetection` (in `TabNodeContent`)
+/* Fades the tail into transparency instead of `text-overflow: ellipsis`’s
+   abrupt “…”. Applied only via `useOverflowDetection` (in `TabNodeContent`)
    actually detecting the text as wider than the box—rather than
    unconditionally on `.tab-node__title` itself—because a mask is a static
-   gradient over the box's own edge, regardless of whether the content
-   inside actually reaches it: unconditional, it would fade a short title's
+   gradient over the box’s own edge, regardless of whether the content
+   inside actually reaches it: unconditional, it would fade a short title’s
    last character too whenever the box happens to hug the text tightly (e.g.
    `.tab-node--has-note .tab-node__title` below, whose `flex-grow: 0` sizes
-   it to the title's own width instead of the row's leftover space). */
+   it to the title’s own width instead of the row’s leftover space). */
 .tab-node__title--overflowing {
   mask-image: linear-gradient(to right, black calc(100% - 20px), transparent);
   -webkit-mask-image: linear-gradient(
@@ -398,43 +398,43 @@ button.tab-node__toggle {
   );
 }
 
-/* A note-having tab's title claims only its own natural width instead of
-   growing into the row's remaining space (`.tab-node__note-wrapper` right
+/* A note-having tab’s title claims only its own natural width instead of
+   growing into the row’s remaining space (`.tab-node__note-wrapper` right
    after it does that growing instead, below)—so the note starts right where
-   the title text actually ends, not wherever the title's *flex box* happens
+   the title text actually ends, not wherever the title’s *flex box* happens
    to end after soaking up leftover space it had nothing to show in. Also
-   what makes `.tab-node__note-wrapper`'s own width state-independent (see
+   what makes `.tab-node__note-wrapper`’s own width state-independent (see
    its comment): with the title no longer competing for growth, changing how
-   much of that wrapper's width its icon spacer claims never has anything
+   much of that wrapper’s width its icon spacer claims never has anything
    left over for the title to grow into. */
 .tab-node--has-note .tab-node__title {
   flex-grow: 0;
 }
 
-/* A note-less row's flex child right after the title, reserving room for
+/* A note-less row’s flex child right after the title, reserving room for
    `.tab-node__actions` (which now also holds the note button—see below)
-   only while it's actually shown, so the title's fade-out mask (see
+   only while it’s actually shown, so the title’s fade-out mask (see
    `.tab-node__title`) is measured against the space really available—rather
-   than it claiming the row's full width regardless and just having its
+   than it claiming the row’s full width regardless and just having its
    last few characters silently covered by the (unrelated, absolutely
    positioned) actions box.
-   This still doesn't move the actions box itself or any other part of the
-   row, so it doesn't risk the hover-state flicker a layout change driven by
+   This still doesn’t move the actions box itself or any other part of the
+   row, so it doesn’t risk the hover-state flicker a layout change driven by
    its own appearance could cause. Fine to grow only on hover here: with no
-   note text to its left, there's nothing whose *start* would shift—only the
-   title's own end moves, exactly like this item's other edge.
-   `.tab-node__actions` sits flush with `.tab-node`'s own right edge
+   note text to its left, there’s nothing whose *start* would shift—only the
+   title’s own end moves, exactly like this item’s other edge.
+   `.tab-node__actions` sits flush with `.tab-node`’s own right edge
    (`right: 0` against its padding box), while this, as a normal flex child,
-   already sits `.tab-node`'s own 4px padding-right inward from that edge.
-   So the width needed here is the actions box's width *minus* that 4px, not
+   already sits `.tab-node`’s own 4px padding-right inward from that edge.
+   So the width needed here is the actions box’s width *minus* that 4px, not
    its full width: three 20px buttons (12px icon + 4px horizontal padding
    each side) side by side make a 60px box, so 60 - 4 = 56px (see below for
    the narrower 36px case).
-   This item also costs the row's own `gap: 6px` on its left (`.tab-node`'s
-   `gap` applies between every flex child regardless of that child's own
+   This item also costs the row’s own `gap: 6px` on its left (`.tab-node`’s
+   `gap` applies between every flex child regardless of that child’s own
    width), on top of the width set above—space the title/actions math never
    accounts for. A permanent negative `margin-left` cancels exactly that gap
-   in every state (idle and hovered alike), so this item's width alone
+   in every state (idle and hovered alike), so this item’s width alone
    matches the actions box math above with nothing extra in between. */
 .tab-node__note-spacer {
   flex: none;
@@ -447,13 +447,13 @@ button.tab-node__toggle {
 }
 
 /* Only the close and note buttons show for a suspended or the active tab
-   (see `.tab-node__actions`' contents): two 20px buttons, so 40 - 4 = 36px. */
+   (see `.tab-node__actions`’ contents): two 20px buttons, so 40 - 4 = 36px. */
 .tab-node--suspended:hover .tab-node__note-spacer,
 .tab-node--active:hover .tab-node__note-spacer {
   width: 36px;
 }
 
-/* A note-having row's flex child right after the title, in place of
+/* A note-having row’s flex child right after the title, in place of
    `.tab-node__note-spacer` above. Grows into whatever space the (now
    non-growing, see above) title left on the table, so a short title still
    lets the note use most of the row; shrinks far more eagerly than the
@@ -462,11 +462,11 @@ button.tab-node__toggle {
    fade-out mask (see below) has to eat into it.
    Because the title no longer grows, changing `.tab-node__note-icon-spacer`
    below on hover/suspended/active never has anything for the title to grow
-   into—so the note's own start, right after the title text, stays put no
+   into—so the note’s own start, right after the title text, stays put no
    matter how many icons are currently showing.
    Slightly smaller and dimmer than the title, so the note reads as
    secondary, at-a-glance-distinguishable annotation rather than a second
-   title. Line-height matches the title's own for the same reason theirs is
+   title. Line-height matches the title’s own for the same reason theirs is
    pinned (see `.tab-node__title`)—plus, without it, the two would each fall
    back to their own font-size-relative default and no longer share a
    baseline, visibly offsetting the note from the title next to it. */
@@ -480,11 +480,11 @@ button.tab-node__toggle {
   opacity: 0.6;
 }
 
-/* Fades the tail into transparency instead of `text-overflow: ellipsis`'s
-   abrupt "…". Applied only via `useOverflowDetection` (in `TabNodeContent`)
+/* Fades the tail into transparency instead of `text-overflow: ellipsis`’s
+   abrupt “…”. Applied only via `useOverflowDetection` (in `TabNodeContent`)
    actually detecting the text as wider than the box—see
    `.tab-node__title--overflowing` above for why an unconditional mask on
-   `.tab-node__note-text` itself would wrongly fade a short note's last
+   `.tab-node__note-text` itself would wrongly fade a short note’s last
    character too whenever the box happens to hug the text tightly. */
 .tab-node__note-text--overflowing {
   mask-image: linear-gradient(to right, black calc(100% - 20px), transparent);
@@ -503,16 +503,16 @@ button.tab-node__toggle {
    title, freed from competing with the note text, would keep growing right
    into where the (still hidden, but about to appear on hover) note button
    sits.
-   Claims however much of the row the actions box's buttons actually need
+   Claims however much of the row the actions box’s buttons actually need
    right now, leaving the rest to the note text next to it—so the note text
    visibly shrinks (or grows back) exactly in step with how many icons are
    currently showing. Safe to vary with hover/suspended/active here, unlike
    `.tab-node__note-spacer` before the title stopped growing: this only ever
    trades space with the note text next to it, never with the title.
-   16px unhovered: just the note button's own 20px, 16 = 20 - 4 (see
+   16px unhovered: just the note button’s own 20px, 16 = 20 - 4 (see
    `.tab-node__note-spacer` above for where that 4px comes from). Also
-   permanently cancels the row's own `gap: 6px` on its left the same way
-   `.tab-node__note-spacer` does—see that rule's comment for why. */
+   permanently cancels the row’s own `gap: 6px` on its left the same way
+   `.tab-node__note-spacer` does—see that rule’s comment for why. */
 .tab-node__note-icon-spacer {
   flex: none;
   width: 16px;
@@ -528,16 +528,16 @@ button.tab-node__toggle {
   width: 36px;
 }
 
-/* Absolutely positioned so it takes no space in the row's flex layout: the
-   title always gets the row's full remaining width, rather than having
+/* Absolutely positioned so it takes no space in the row’s flex layout: the
+   title always gets the row’s full remaining width, rather than having
    permanently reserved (but usually invisible) room carved out of it for
-   these buttons regardless of whether they're currently shown. An opaque
+   these buttons regardless of whether they’re currently shown. An opaque
    background (rather than the same transparent tint `.tab-node:hover`
    uses) is needed here specifically to mask the title text that would
    otherwise render underneath before being clipped. */
 /* Inset 1px on the three edges this element covers, always (not just while
-   `.tab-node--selected`), so its position doesn't shift by 1px the moment a
-   row is selected/deselected. The inset leaves room for `.tab-node--selected`'s
+   `.tab-node--selected`), so its position doesn’t shift by 1px the moment a
+   row is selected/deselected. The inset leaves room for `.tab-node--selected`’s
    1px outline (drawn 1px inside the row via `outline-offset: -1px`) — without
    it, this opaque, later-painted layer would hide that segment of the outline. */
 .tab-node__actions {
@@ -558,9 +558,9 @@ button.tab-node__toggle {
 
 /* Mirrors the row background formulas above (still opaque against
    `--tabor-bg`, for the same title-masking reason), so the actions column
-   doesn't sit as a visibly mismatched patch over a selected or active row's
-   tint. Source order matches `.tab-node--active`'s below so it likewise wins
-   over `.tab-node--selected` for a row that's both. */
+   doesn’t sit as a visibly mismatched patch over a selected or active row’s
+   tint. Source order matches `.tab-node--active`’s below so it likewise wins
+   over `.tab-node--selected` for a row that’s both. */
 .tab-node--selected .tab-node__actions {
   background: color-mix(in srgb, currentColor 15%, var(--tabor-bg));
 }
@@ -599,11 +599,11 @@ button.tab-node__toggle {
 }
 
 /* The note button sits last (rightmost) in `.tab-node__actions`, past the
-   close button—rather than sharing a fixed offset from the row's edge on
-   its own—so its position always tracks `.tab-node__actions`' own actual
+   close button—rather than sharing a fixed offset from the row’s edge on
+   its own—so its position always tracks `.tab-node__actions`’ own actual
    width instead of assuming a particular button count. Kept visible even
    while `.tab-node__actions` itself is hidden (`visibility` inherits, but a
-   descendant can still opt back in) whenever there's a note to show,
+   descendant can still opt back in) whenever there’s a note to show,
    regardless of hover. */
 .tab-node__note-button--has-note {
   visibility: visible;
@@ -611,7 +611,7 @@ button.tab-node__toggle {
 
 /* A read-only row (see `ReadOnlyTabNodeRow`) has no `.tab-node__actions` to
    make room for on hover, so its spacers stay at their unhovered widths: none
-   for a note-less row, and just `.tab-node__note-indicator`'s for a
+   for a note-less row, and just `.tab-node__note-indicator`’s for a
    note-having one. */
 .tab-node--readonly:hover .tab-node__note-spacer {
   width: 0;
@@ -621,15 +621,15 @@ button.tab-node__toggle {
   width: 16px;
 }
 
-/* A read-only row's chevron can't be toggled, so it shouldn't look
-   clickable like the live tree's toggle button. */
+/* A read-only row’s chevron can’t be toggled, so it shouldn’t look
+   clickable like the live tree’s toggle button. */
 .tab-node__chevron {
   cursor: default;
 }
 
-/* Stands in for the live tree's always-visible note button, at the same
-   spot: `.tab-node__actions`' 1px inset from the row's right edge, plus the
-   button's own 4px padding around its 12px icon. */
+/* Stands in for the live tree’s always-visible note button, at the same
+   spot: `.tab-node__actions`’ 1px inset from the row’s right edge, plus the
+   button’s own 4px padding around its 12px icon. */
 .tab-node__note-indicator {
   position: absolute;
   top: 1px;
@@ -795,8 +795,8 @@ button.tab-node__toggle {
 
 .tooltip {
   position: fixed;
-  /* Above `.subview`'s, so a saved tree preview's rows (see
-     `ReadOnlyTabNodeRow`) can show one too: it's portaled to
+  /* Above `.subview`’s, so a saved tree preview’s rows (see
+     `ReadOnlyTabNodeRow`) can show one too: it’s portaled to
      `document.body`, outside the subview, and would otherwise be painted
      beneath it. */
   z-index: 3;
@@ -825,8 +825,8 @@ button.tab-node__toggle {
   margin-top: 2px;
   color: color-mix(in srgb, currentColor 65%, transparent);
   /* A URL has few natural break points (e.g. the hyphen in
-     "chrome-extension://"); without this, that hyphen wins the wrap ahead of
-     the element's own width, leaving the rest of the run to break wherever
+     “chrome-extension://”); without this, that hyphen wins the wrap ahead of
+     the element’s own width, leaving the rest of the run to break wherever
      `overflow-wrap` can force it in. */
   word-break: break-all;
 }
@@ -837,15 +837,15 @@ button.tab-node__toggle {
   margin-top: 4px;
   padding-top: 4px;
   border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent);
-  /* Preserve the note's own line breaks rather than collapsing them like
-     `.tooltip`'s `white-space: normal`. */
+  /* Preserve the note’s own line breaks rather than collapsing them like
+     `.tooltip`’s `white-space: normal`. */
   white-space: pre-wrap;
 }
 
 .tooltip__note svg {
   flex-shrink: 0;
-  /* Aligns the icon with the note text's first line rather than its own
-     box's full line-height. */
+  /* Aligns the icon with the note text’s first line rather than its own
+     box’s full line-height. */
   margin-top: 0.2em;
 }
 

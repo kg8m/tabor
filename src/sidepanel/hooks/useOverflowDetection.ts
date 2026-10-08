@@ -2,12 +2,12 @@ import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Whether a `white-space: nowrap; overflow: hidden` element's content is
- * actually wider than the box it's rendered in—so a fade-out mask (or any
- * other truncation affordance) can be shown only when there's really
+ * Whether a `white-space: nowrap; overflow: hidden` element’s content is
+ * actually wider than the box it’s rendered in—so a fade-out mask (or any
+ * other truncation affordance) can be shown only when there’s really
  * something to hide, rather than clipping into content that fits.
- * `content` isn't read inside the effect; it's there purely to force a
- * recheck when the text changes without the element's own box size
+ * `content` isn’t read inside the effect; it’s there purely to force a
+ * recheck when the text changes without the element’s own box size
  * changing (e.g. a note-less title staying flex-grown to the same width
  * while its text gets shorter or longer).
  */

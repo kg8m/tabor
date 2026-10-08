@@ -53,7 +53,7 @@ describe("deleteWindow / isDeletedWindow / clearDeletedWindow", () => {
     expect(isDeletedWindow(windowId)).toBe(false);
   });
 
-  it("doesn't mark other window ids as deleted", () => {
+  it("doesn’t mark other window ids as deleted", () => {
     const deletedWindowId = 104;
     const otherWindowId = 105;
 

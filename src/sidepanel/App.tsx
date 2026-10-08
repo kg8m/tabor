@@ -17,7 +17,7 @@ import { useWindowTree } from "./hooks/useWindowTree";
 import { getDescendantIds } from "../shared/tree/queries";
 
 /**
- * The side panel's root component: wires the tree, selection, drag-and-drop,
+ * The side panel’s root component: wires the tree, selection, drag-and-drop,
  * and the context menu/note-editor popovers together.
  */
 export function App() {
@@ -34,8 +34,8 @@ export function App() {
     activeTabId,
   );
   const dragAndDrop = useDragAndDrop(selectedIds, tree);
-  // A separate instance from `dragAndDrop`, so a pinned tab's drag state
-  // never leaks into `TabTree`'s handlers or vice versa—each side only ever
+  // A separate instance from `dragAndDrop`, so a pinned tab’s drag state
+  // never leaks into `TabTree`’s handlers or vice versa—each side only ever
   // sees a drag that started within its own area.
   const pinnedDragAndDrop = useDragAndDrop(selectedIds, tree);
   const { menu, openMenu, closeMenu } = useContextMenu();
@@ -43,7 +43,7 @@ export function App() {
   const contextMenuTargetIds = menu
     ? new Set(menu.targetIds)
     : new Set<number>();
-  // The context menu's own note item only applies to a single-tab
+  // The context menu’s own note item only applies to a single-tab
   // selection, so this is `undefined` for a multi-selection.
   const contextMenuSingleTargetId =
     menu?.targetIds.length === 1 ? menu.targetIds[0] : undefined;
@@ -70,7 +70,7 @@ export function App() {
     };
   }, [menu, clearSelection]);
 
-  // Clears the selection on a click that doesn't land on any tab row—checked
+  // Clears the selection on a click that doesn’t land on any tab row—checked
   // via `closest` rather than target === currentTarget, so this also catches
   // clicks in the indentation/guide-line gutters between rows, not just the
   // empty space below the last one.

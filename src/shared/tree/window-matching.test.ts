@@ -34,7 +34,7 @@ function actualWindow(windowId: number, ...urls: string[]): ActualWindow {
   };
 }
 
-// `savedAt` defaults to an arbitrary fixed value for tests that don't care
+// `savedAt` defaults to an arbitrary fixed value for tests that don’t care
 // about recency at all (i.e. where the raw score alone already decides).
 function savedWindow(id: string, urls: string[], savedAt = 1000): SavedWindow {
   return { id, savedAt, tree: tree(...urls) };
@@ -183,7 +183,7 @@ describe("matchWindows", () => {
       },
       // Newer save, marginally lower raw score (90/100 shared urls plus 10
       // stray ones, ratio 90/110 ≈ 0.818)—within `SCORE_TIE_EPSILON` of the
-      // older window's score, so recency should decide instead.
+      // older window’s score, so recency should decide instead.
       {
         id: "b",
         savedAt: 5000,
@@ -211,7 +211,7 @@ describe("matchWindows", () => {
 
     const saved: SavedWindow[] = [
       // Higher raw score (90/100 shared, ratio 90/110 ≈ 0.818) but an older
-      // save—recency shouldn't be able to override a genuinely better url
+      // save—recency shouldn’t be able to override a genuinely better url
       // match this large.
       {
         id: "higher",
@@ -276,7 +276,7 @@ describe("matchWindows", () => {
       expect(result[0]?.savedId).toBe("100");
     });
 
-    it("doesn't match a normal window to an incognito saved window, even on identical urls", () => {
+    it("doesn’t match a normal window to an incognito saved window, even on identical urls", () => {
       const saved: SavedWindow[] = [
         { ...savedWindow("100", urls), incognito: true },
       ];
@@ -288,7 +288,7 @@ describe("matchWindows", () => {
       expect(result[0]?.savedTree).toEqual({ nodes: {}, rootIds: [] });
     });
 
-    it("doesn't match an incognito window to a normal saved window, even on identical urls", () => {
+    it("doesn’t match an incognito window to a normal saved window, even on identical urls", () => {
       const saved: SavedWindow[] = [savedWindow("100", urls)];
       const actual: ActualWindow[] = [
         { ...actualWindow(1, ...urls), incognito: true },

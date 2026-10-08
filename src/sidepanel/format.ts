@@ -1,5 +1,5 @@
 /**
- * Formats a timestamp for display, e.g. "2026/09/27 (Sun) 14:05".
+ * Formats a timestamp for display, e.g. “2026/09/27 (Sun) 14:05”.
  */
 export function formatTimestamp(timestamp: number): string {
   const date = new Date(timestamp);

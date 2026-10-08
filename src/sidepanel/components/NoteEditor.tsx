@@ -12,15 +12,15 @@ interface NoteEditorProps {
 }
 
 /**
- * A single-line popover for adding/editing a tab's note. `position: fixed`
- * off of `anchor` (its triggering button's own position), same as
+ * A single-line popover for adding/editing a tab’s note. `position: fixed`
+ * off of `anchor` (its triggering button’s own position), same as
  * `ContextMenu` off of its click point—rather than `position: absolute`
- * nested inside the tab row—so it isn't at the mercy of that row's own
+ * nested inside the tab row—so it isn’t at the mercy of that row’s own
  * stacking context, which sits at the same level as every other row and so
- * couldn't reliably render above the very next one down.
+ * couldn’t reliably render above the very next one down.
  *
  * Saving (or clearing the field) sends `updateNote` and closes; an outside
- * click discards whatever's typed instead of saving it.
+ * click discards whatever’s typed instead of saving it.
  */
 export function NoteEditor({
   tabId,
@@ -32,8 +32,8 @@ export function NoteEditor({
   const formReference = useRef<HTMLFormElement>(null);
   const position = useViewportClampedPosition(formReference, anchor);
 
-  // Excludes the form's own descendants from the scroll-closes-the-popover
-  // behavior: once typed text overflows the input's own width, the browser
+  // Excludes the form’s own descendants from the scroll-closes-the-popover
+  // behavior: once typed text overflows the input’s own width, the browser
   // scrolls its text to keep the caret visible, which fires a `scroll`
   // event of its own—not the panel scroll this is meant to guard against.
   useDismissOnOutsideActivity(formReference, onClose, {

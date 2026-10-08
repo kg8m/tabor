@@ -12,7 +12,7 @@ interface SubviewFrameProps {
  * The shared frame for a subview, shown in place of the tab tree for a while
  * (e.g. `BackupHistorySubview`): a title bar with a close button, a body
  * (typically a `.subview__list` above a `.subview__preview`), and an
- * optional footer for the subview's actions.
+ * optional footer for the subview’s actions.
  */
 export function SubviewFrame({
   title,

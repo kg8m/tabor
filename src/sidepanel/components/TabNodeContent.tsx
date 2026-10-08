@@ -26,8 +26,8 @@ interface TabNodeContentProps {
 const MAX_SHOWN_HIDDEN_DESCENDANT_COUNT = 99;
 
 /**
- * The parts of a `.tab-node` row shared by the live tree's `TabNodeRow` and
- * a saved tree preview's `ReadOnlyTabNodeRow`: the collapse toggle (or
+ * The parts of a `.tab-node` row shared by the live tree’s `TabNodeRow` and
+ * a saved tree preview’s `ReadOnlyTabNodeRow`: the collapse toggle (or
  * pin/leaf marker), favicon, title, audible indicator, and note text. Laid
  * out as direct flex children of whichever `.tab-node` element renders it.
  */

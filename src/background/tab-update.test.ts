@@ -39,8 +39,8 @@ describe("toTabUpdate", () => {
 
   it("does not set loading from a stale tab.status when this event has no status of its own", () => {
     // Some pages (observed on Google Drive) can leave `tab.status` reading
-    // "loading" indefinitely; an unrelated event (e.g. a title change)
-    // shouldn't latch onto that and force the spinner back on.
+    // “loading” indefinitely; an unrelated event (e.g. a title change)
+    // shouldn’t latch onto that and force the spinner back on.
     const update = toTabUpdate(
       { title: "New title" },
       tab({ status: "loading" }),
@@ -85,7 +85,7 @@ describe("toTabUpdate", () => {
   });
 
   it("treats a file:// favIconUrl as no favicon", () => {
-    // The side panel is an extension page and isn't allowed to load
+    // The side panel is an extension page and isn’t allowed to load
     // `file://` resources, so keeping one would just log a console error.
     const update = toTabUpdate(
       { favIconUrl: "file:///Users/example/project/favicon.ico" },
@@ -95,17 +95,17 @@ describe("toTabUpdate", () => {
     expect(update.favIconUrl).toBeUndefined();
   });
 
-  it("keeps an empty favIconUrl update from clearing an existing favicon when there's no accompanying navigation", () => {
+  it("keeps an empty favIconUrl update from clearing an existing favicon when there’s no accompanying navigation", () => {
     // Suspending a tab (chrome.tabs.discard) can fire onUpdated with an empty
-    // favIconUrl mid-discard, with no url change—that's not a real favicon
-    // loss and shouldn't wipe out the tree's existing value.
+    // favIconUrl mid-discard, with no url change—that’s not a real favicon
+    // loss and shouldn’t wipe out the tree’s existing value.
     const update = toTabUpdate({ favIconUrl: "" }, tab({ discarded: true }));
 
     expect(update).not.toHaveProperty("favIconUrl");
   });
 
   it("clears favIconUrl when an empty value arrives alongside a navigation", () => {
-    // A real navigation invalidates the previous page's favicon, so clearing
+    // A real navigation invalidates the previous page’s favicon, so clearing
     // it here (until the new one loads) is correct.
     const update = toTabUpdate(
       { url: "https://example.com/next", favIconUrl: "" },
@@ -126,8 +126,8 @@ describe("toSelfHealingUpdate", () => {
 
   it("does not set loading when the tab reads as still loading", () => {
     // A tab reactivated right after closing one opened from it (or certain
-    // pages like Google Drive) can have `tab.status` read "loading" long
-    // past when it's actually done, with nothing further ever correcting
+    // pages like Google Drive) can have `tab.status` read “loading” long
+    // past when it’s actually done, with nothing further ever correcting
     // it—so this must never turn the spinner on, only ever off.
     const update = toSelfHealingUpdate(tab({ status: "loading" }));
 

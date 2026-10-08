@@ -11,7 +11,7 @@ const DEFAULT_QUIET_MS = 800;
 const DEFAULT_MAX_WAIT_MS = 8000;
 
 /**
- * Chrome has no "session restore finished" event, so this waits for
+ * Chrome has no “session restore finished” event, so this waits for
  * `chrome.tabs.onCreated` to go quiet for a bit instead: querying tabs right
  * after `runtime.onStartup` can otherwise race session restore and return
  * before every previously open tab has been recreated. Those still-pending
@@ -20,7 +20,7 @@ const DEFAULT_MAX_WAIT_MS = 8000;
  * active) instead of being included in the tree being restored for them.
  *
  * `maxWaitMs` bounds the wait for a window that never goes quiet, so this
- * degrades to roughly today's un-settled query timing rather than hanging.
+ * degrades to roughly today’s un-settled query timing rather than hanging.
  *
  * Resolves with how many `chrome.tabs.onCreated` events it observed while
  * waiting—0 means a full `quietMs` passed with nothing created at all,
@@ -61,7 +61,7 @@ export function waitForTabCreationToSettle({
  * round observes at least one tab being created. A large session restore can
  * burst, pause, and burst again—e.g. finishing the active tab first before
  * continuing with the rest—going quiet for a full `quietMs` in between
- * without actually being done, which a single settle round can't tell apart
+ * without actually being done, which a single settle round can’t tell apart
  * from genuine completion.
  */
 export async function waitForTabCreationToFullySettle(

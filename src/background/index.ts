@@ -98,7 +98,7 @@ import { queryOpenWindowIds } from "../shared/windows";
 
 /**
  * Records a tab becoming active both in memory (for the rest of this
- * service worker's lifetime) and in `chrome.storage.session` (for the next
+ * service worker’s lifetime) and in `chrome.storage.session` (for the next
  * one, see `active-tab-storage.ts`).
  */
 function setAndPersistActiveTabId(windowId: number, tabId: number): void {
@@ -109,7 +109,7 @@ function setAndPersistActiveTabId(windowId: number, tabId: number): void {
 /**
  * Records which tree a window holds both in memory and in
  * `chrome.storage.session` (for the next service worker lifetime, see
- * `reloadFromStorage`, and for the side panel to find its window's tree).
+ * `reloadFromStorage`, and for the side panel to find its window’s tree).
  */
 async function assignTreeId(windowId: number, treeId: string): Promise<void> {
   setTreeId(windowId, treeId);
@@ -117,8 +117,8 @@ async function assignTreeId(windowId: number, treeId: string): Promise<void> {
 }
 
 /**
- * Persists a window's tree under the id of the tree it holds, assigning it a
- * fresh one first if it doesn't hold one yet (e.g. an event for a brand-new
+ * Persists a window’s tree under the id of the tree it holds, assigning it a
+ * fresh one first if it doesn’t hold one yet (e.g. an event for a brand-new
  * window arriving before `initializeWindow` has run for it).
  */
 async function saveWindowTree(
@@ -140,7 +140,7 @@ async function saveWindowTree(
 // reproduce bugs (a stuck loading spinner on an already-loaded tab; a
 // missing active-tab indicator after closing the active tab). Remove once
 // root-caused. Prefixed and timestamped so its output can be correlated
-// with the side panel's own `[Tabor:sidepanel]` logs (a separate console).
+// with the side panel’s own `[Tabor:sidepanel]` logs (a separate console).
 const DEBUG_LOG_RETENTION_MS = 12 * 60 * 60 * 1000;
 
 const debugLog = (() => {
@@ -153,7 +153,7 @@ const debugLog = (() => {
   ): void => {
     // `JSON.stringify` here (rather than logging the object directly) so a
     // copy-paste of the console output carries the actual field values—an
-    // inline console object otherwise collapses to a bare "Object" once
+    // inline console object otherwise collapses to a bare “Object” once
     // pasted as plain text outside DevTools.
     console.log(
       `[Tabor:background] ${event}`,
@@ -161,14 +161,14 @@ const debugLog = (() => {
     );
 
     // Also persisted to `chrome.storage.local`, so it can be retrieved after
-    // the fact even if nobody had the service worker's inspector open while
+    // the fact even if nobody had the service worker’s inspector open while
     // it happened—attaching that inspector itself keeps the service worker
-    // alive, which can mask a bug that only shows up when it's genuinely
+    // alive, which can mask a bug that only shows up when it’s genuinely
     // killed for going idle and restarted later. Each entry gets its own
     // unique key (timestamp + counter) rather than appending to one shared
-    // array, so concurrent `debugLog` calls can't race on a read-modify-write
+    // array, so concurrent `debugLog` calls can’t race on a read-modify-write
     // and silently drop entries—the same kind of race `enqueue` had.
-    // Pruned by `pruneOldDebugLogs` (see below) so these don't accumulate
+    // Pruned by `pruneOldDebugLogs` (see below) so these don’t accumulate
     // forever.
     //
     // Except for an event about an incognito window, which is only logged
@@ -184,12 +184,12 @@ const debugLog = (() => {
   };
 })();
 
-// TODO(debug): removes `debugLog`'s persisted entries once they're older
+// TODO(debug): removes `debugLog`’s persisted entries once they’re older
 // than `DEBUG_LOG_RETENTION_MS`, so leaving this instrumentation running for
-// an extended stretch (waiting on an intermittent bug to recur) doesn't grow
+// an extended stretch (waiting on an intermittent bug to recur) doesn’t grow
 // `chrome.storage.local` without bound. Half a day is plenty: whatever
 // triggers a bug worth digging into is almost always something done not
-// long before it's noticed. Run from the periodic alarm (see
+// long before it’s noticed. Run from the periodic alarm (see
 // `handlePeriodicAlarm`) instead of a dedicated one.
 async function pruneOldDebugLogs(): Promise<void> {
   const keys = await chrome.storage.local.getKeys();
@@ -209,7 +209,7 @@ async function pruneOldDebugLogs(): Promise<void> {
 }
 
 /**
- * Removes keys that sit under one of Tabor's own prefixes but don't fit its
+ * Removes keys that sit under one of Tabor’s own prefixes but don’t fit its
  * shape (see `selectMalformedKeys`). Run from the periodic alarm (see
  * `handlePeriodicAlarm`).
  */
@@ -224,8 +224,8 @@ async function pruneMalformedKeys(): Promise<void> {
 /**
  * Runs each queued task after the previous one settles, so that two events
  * arriving close together (e.g. both firing right as the service worker
- * wakes from being idle) can't run their tree-store read/update/save cycles
- * concurrently and clobber each other's result with a stale one.
+ * wakes from being idle) can’t run their tree-store read/update/save cycles
+ * concurrently and clobber each other’s result with a stale one.
  *
  * Deliberately NOT an `async` function: an `await settle(queue)` before
  * chaining onto `queue` would leave a window, between that `await` and the
@@ -234,15 +234,15 @@ async function pruneMalformedKeys(): Promise<void> {
  * while tearing down a window with many tabs) all read the same
  * not-yet-updated `queue` and end up chained onto *that* instead of onto
  * each other—so their bodies run concurrently instead of in the intended
- * order, racing on the same window's tree. Reassigning `queue` synchronously,
+ * order, racing on the same window’s tree. Reassigning `queue` synchronously,
  * in the same tick as the call that reads it, closes that window: whichever
  * calls happen to arrive together are still chained one after another
- * because each sees the previous one's reassignment before returning.
+ * because each sees the previous one’s reassignment before returning.
  */
 const enqueue = (() => {
   let queue: Promise<void> = Promise.resolve();
 
-  // Swallow a failure so it doesn't block the tasks queued after it; the
+  // Swallow a failure so it doesn’t block the tasks queued after it; the
   // caller of `enqueue` still sees the original error via the returned
   // promise below. `queue` itself must always be a promise that resolves
   // (never rejects)—otherwise a later `.then(task)` chained onto it would
@@ -266,7 +266,7 @@ const enqueue = (() => {
 
 /**
  * Bounds how long `handleTabMoved` suppresses reconciling the tree from a
- * window's native tab order, keyed by window id, after `syncNativeOrder`
+ * window’s native tab order, keyed by window id, after `syncNativeOrder`
  * moves tabs there itself.
  *
  * `chrome.tabs.move` given an array only actually dispatches its
@@ -278,7 +278,7 @@ const enqueue = (() => {
  * batch reports that same already-final order, so the first one to do so
  * would end the suppression while dozens more from the very same batch were
  * still on their way, each free to reconcile the tree via
- * `reorderFromNativeMove` against a move that isn't a genuine user drag at
+ * `reorderFromNativeMove` against a move that isn’t a genuine user drag at
  * all—corrupting whatever tree `syncNativeOrder` was sent out to reflect in
  * the first place. A plain expiry, generous enough to outlast the whole
  * batch, avoids needing to identify the last event at all.
@@ -298,8 +298,8 @@ const initializedWindowIds = new Set<number>();
  * Tracks how many `track()` calls currently think a restore is in progress
  * (a counter rather than a boolean, since more than one can be in flight at
  * once—e.g. the startup scan and a window opened moments later).
- * `handleTabCreated` checks `isRestoring()` before falling back to "parent =
- * whatever's active" for a tab it can't otherwise account for.
+ * `handleTabCreated` checks `isRestoring()` before falling back to “parent =
+ * whatever’s active” for a tab it can’t otherwise account for.
  *
  * `track()` keeps `isRestoring()` true until tab creation has gone fully
  * quiet (see `waitForTabCreationToFullySettle`), independently of—and
@@ -309,7 +309,7 @@ const initializedWindowIds = new Set<number>();
  * burst again well past that first round, and while `handleTabCreated` has
  * no saved history to reconnect a straggler tab to (see `matchStraggler`),
  * the next best thing is to at least not mistake it for a genuinely new tab
- * and stack it under whatever's active.
+ * and stack it under whatever’s active.
  */
 const restoreTracking = (() => {
   let count = 0;
@@ -333,11 +333,11 @@ const TAB_URL_RESOLVE_MAX_ATTEMPTS = 5;
 /**
  * `chrome.tabs.query` right after a large session restore can return tabs
  * whose `url`/`pendingUrl` are still both empty—Chrome creates the tab
- * objects (satisfying `waitForTabCreationToSettle`) before it's finished
- * populating each one's destination, especially when many of them are kept
+ * objects (satisfying `waitForTabCreationToSettle`) before it’s finished
+ * populating each one’s destination, especially when many of them are kept
  * discarded/unloaded rather than all loading at once. Matching a window
  * while any of its tabs are in that state makes every saved-tree candidate
- * score zero overlap, which `matchWindows` can't tell apart from a
+ * score zero overlap, which `matchWindows` can’t tell apart from a
  * genuinely different set of tabs—so this retries the query a few times,
  * giving Chrome a moment to fill those in, rather than risk treating a
  * real match as none at all (and, following that, the saved tree being
@@ -355,7 +355,7 @@ async function queryTabsWithResolvedUrls(
       // TODO(debug): temporary instrumentation, see the block near the top
       // of this file—only logged when a retry actually happened or gave up
       // still unresolved, since the common case (nothing unresolved on the
-      // first attempt) isn't interesting.
+      // first attempt) isn’t interesting.
       if (hasUnresolvedTab || attempt > 0) {
         debugLog(
           "queryTabsWithResolvedUrls",
@@ -374,30 +374,30 @@ async function queryTabsWithResolvedUrls(
 /**
  * Initialize a single new window, matching it by tab URL overlap (see
  * `matchWindows`) against every saved tree no other open window holds. A
- * window can show up already holding a previous session's full set of tabs
+ * window can show up already holding a previous session’s full set of tabs
  * (e.g. a profile switch recreating them for a browser process that was
  * already running, so `windows.onCreated` fires instead of
  * `runtime.onStartup`, or a closed window being reopened), and that saved
  * parent/child structure is only findable by content—nothing ties this
- * brand-new window to it yet. A match hands this window that tree's id (see
+ * brand-new window to it yet. A match hands this window that tree’s id (see
  * `WINDOW_TREE_KEY_PREFIX`); otherwise it gets a fresh one.
  *
  * Waits for its own tab creation to settle first (see
  * `waitForTabCreationToSettle`) so a window opened with several tabs at once
- * (e.g. from a bookmark folder) doesn't have the later ones missed by this
- * function's own `tabs.query` and then mishandled as ordinary new tabs by
+ * (e.g. from a bookmark folder) doesn’t have the later ones missed by this
+ * function’s own `tabs.query` and then mishandled as ordinary new tabs by
  * `handleTabCreated`. Queries via `queryTabsWithResolvedUrls`, the same as
  * `initializeAllWindows`, rather than a plain `chrome.tabs.query`: the
  * profile-switch case above recreates every tab at once, the same burst
- * `queryTabsWithResolvedUrls`'s own doc comment describes, so without this a
- * window's tabs can still have empty `url`/`pendingUrl` here—scoring every
- * saved-tree candidate at zero overlap and silently discarding this window's
+ * `queryTabsWithResolvedUrls`’s own doc comment describes, so without this a
+ * window’s tabs can still have empty `url`/`pendingUrl` here—scoring every
+ * saved-tree candidate at zero overlap and silently discarding this window’s
  * real saved hierarchy for a fresh flat one built from its current tabs.
  *
  * Also simply never reruns for a window `initializeAllWindows` already
  * restored (see `initializedWindowIds` above). Chrome fires `windows.onCreated`
  * for a startup window too, not just ones genuinely opened later, and rerunning
- * this window's own restore right after `initializeAllWindows` already did it
+ * this window’s own restore right after `initializeAllWindows` already did it
  * is at best wasted work reconciling the same tabs a second time.
  */
 async function initializeWindow(
@@ -420,7 +420,7 @@ async function initializeWindow(
   const actualTabs = tabs.map((tab) => toActualTab(tab));
 
   const savedTrees = await loadAllTrees();
-  // Excludes trees another window already holds, so this window can't steal
+  // Excludes trees another window already holds, so this window can’t steal
   // a match that rightfully belongs to one already up and running—but still
   // considers the tree this window itself already holds, if an earlier event
   // for it got it one (see `saveWindowTree`).
@@ -491,7 +491,7 @@ async function initializeWindow(
   const session = createRestoreSession(savedTree);
   const tree = restoreTree(savedTree, actualTabs, session);
 
-  // Takes over the matched tree's id, so it stays saved under the same key.
+  // Takes over the matched tree’s id, so it stays saved under the same key.
   const treeId = match?.savedId ?? ownTreeId ?? createTreeId();
   setTree(windowId, tree);
   setRestoreSession(windowId, session);
@@ -510,10 +510,10 @@ async function initializeWindow(
     setAndPersistActiveTabId(windowId, activeTab.id);
   }
 
-  // Once tab creation has gone fully quiet, this window's restore session
-  // has caught every straggler it's going to—any tab created from here on
+  // Once tab creation has gone fully quiet, this window’s restore session
+  // has caught every straggler it’s going to—any tab created from here on
   // is a genuinely new one, not a late arrival from session restore. Drop
-  // it so a tab opened much later can't be mismatched against one of its
+  // it so a tab opened much later can’t be mismatched against one of its
   // leftover saved nodes that was never consumed (see `removeRestoreSession`).
   void settled.then(() => removeRestoreSession(windowId));
 }
@@ -521,28 +521,28 @@ async function initializeWindow(
 // How long a saved tree may sit unmatched (see `markPendingRemoval`) before
 // `initializeAllWindows` treats it as genuinely stale and deletes it. Long
 // enough that a window the user only reopens occasionally—rather than every
-// single browser restart—doesn't lose its saved parent/child structure just
-// because other windows (e.g. an installed PWA's) happened to reopen ahead
+// single browser restart—doesn’t lose its saved parent/child structure just
+// because other windows (e.g. an installed PWA’s) happened to reopen ahead
 // of it a couple of times first.
 const PENDING_REMOVAL_GRACE_MS = 365 * 24 * 60 * 60 * 1000;
 
 /**
  * Initialize every window at browser startup, matching saved windows to
- * actual windows by tab URL overlap first (window ids don't survive a
- * restart, so we can't just look up each window's tree by id).
+ * actual windows by tab URL overlap first (window ids don’t survive a
+ * restart, so we can’t just look up each window’s tree by id).
  *
  * Waits for tab creation to settle first (see `waitForTabCreationToSettle`),
- * since Chrome's own session restore recreates each previously open tab
+ * since Chrome’s own session restore recreates each previously open tab
  * asynchronously and querying tabs immediately on `runtime.onStartup` can
  * catch some windows before all of their tabs exist yet—but that wait has no
  * hard guarantee of catching every one of them (how long restore actually
- * takes isn't something this can know in advance). So a `RestoreSession` is
+ * takes isn’t something this can know in advance). So a `RestoreSession` is
  * also kept around per window afterward (see `getRestoreSession`): any saved
- * tab this pass didn't find a match for is still there, ready for
+ * tab this pass didn’t find a match for is still there, ready for
  * `handleTabCreated` to match a straggler against once it actually shows up,
  * rather than that straggler falling through to being treated as an
- * ordinary brand-new tab (parented under whatever's active) and losing its
- * real saved parent. And for a tab with no saved match at all—there's
+ * ordinary brand-new tab (parented under whatever’s active) and losing its
+ * real saved parent. And for a tab with no saved match at all—there’s
  * nothing unusual about a late-arriving tab having none, since plenty of
  * tabs are new every session—`restoreTracking` keeps `handleTabCreated` from
  * treating it as an ordinary new tab either, for as long as tab creation is
@@ -569,13 +569,13 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
       const queriedTabs = await queryTabsWithResolvedUrls(windowId);
       tabsByWindowId.set(
         windowId,
-        // `excludeTabId` leaves out whichever tab's own `onCreated` event is
+        // `excludeTabId` leaves out whichever tab’s own `onCreated` event is
         // driving this call (see `handleTabCreated`): when the service
         // worker had to wake up to deliver that very event, this query can
         // otherwise already see that brand-new tab too, folding it into this
         // startup-style reconciliation—as an unmatched, parentless root,
         // since a genuinely new tab has nothing to match in the saved
-        // tree—instead of `handleTabCreated`'s own "parent = current tab"
+        // tree—instead of `handleTabCreated`’s own “parent = current tab”
         // handling for it right after this resolves.
         queriedTabs.filter(
           (tab) => !isTaborOwnTab(tab) && tab.id !== excludeTabId,
@@ -591,9 +591,9 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   }));
 
   const savedTrees = await loadAllTrees();
-  // A tree held by an open window this pass isn't reconciling (e.g. one
-  // `chrome.windows.getAll()`'s default window types leave out, during a
-  // normal-windows gap) stays that window's: neither offered to another
+  // A tree held by an open window this pass isn’t reconciling (e.g. one
+  // `chrome.windows.getAll()`’s default window types leave out, during a
+  // normal-windows gap) stays that window’s: neither offered to another
   // window as a match nor cleaned up below as unmatched.
   const reconciledWindowIds = new Set(windowIds);
   const heldElsewhere = new Set(
@@ -690,7 +690,7 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
         { isIncognito: actualWindow.incognito },
       );
 
-      // A matched window takes over its saved tree's id, so the tree stays
+      // A matched window takes over its saved tree’s id, so the tree stays
       // saved under the same key. An unmatched one keeps the tree id it
       // already holds (e.g. during a normal-windows gap), unless another
       // window was just matched to that tree, and otherwise gets a fresh one.
@@ -732,7 +732,7 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   // A saved tree no window took over just now is a removal *candidate*—but,
   // unless it holds nothing worth losing (see `hasTaborSpecificInfo`), not
   // deleted outright (see `markPendingRemoval`): a window whose session
-  // restore hadn't finished recreating it in time for this pass's own
+  // restore hadn’t finished recreating it in time for this pass’s own
   // snapshot (e.g. because another window, like a lightweight installed-PWA
   // window, was recreated first—possibly repeatedly across several browser
   // restarts before the real window ever reopens) would otherwise have its
@@ -743,16 +743,16 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   // opens occasionally would otherwise still rack up two straight misses
   // for it in no time at all. A flat tree with no notes has nothing to lose
   // that way—reopening those same tabs later would rebuild an identical tree
-  // regardless of whether this saved one still exists—so it's simply
+  // regardless of whether this saved one still exists—so it’s simply
   // deleted right away instead of accumulating pending-removal clutter for
   // windows that keep never quite matching (e.g. a one-off popup or
   // print-preview window whose exact tab set never recurs).
   //
-  // An incognito window's saved tree is deleted right away too, whatever it
-  // holds: it's only still around because its window closed without
+  // An incognito window’s saved tree is deleted right away too, whatever it
+  // holds: it’s only still around because its window closed without
   // `windows.onRemoved` getting to remove it (e.g. a crash), and incognito
-  // windows are never restored, so there's nothing to wait for. The same
-  // goes for a non-normal window's (see `windows.onRemoved` below).
+  // windows are never restored, so there’s nothing to wait for. The same
+  // goes for a non-normal window’s (see `windows.onRemoved` below).
   //
   // A saved tree a window did take over may still carry a stale
   // pending-removal mark from an earlier pass that missed it (e.g. a
@@ -775,7 +775,7 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
     // TODO(debug): temporary instrumentation, see the block near the top of
     // this file—records exactly what this pass saw for each unmatched saved
     // window at the moment it decided whether to keep, mark, or delete it,
-    // to catch a case where `saved.tree` (from this call's own `loadAllTrees`
+    // to catch a case where `saved.tree` (from this call’s own `loadAllTrees`
     // snapshot) unexpectedly disagrees with what a backup taken moments
     // earlier (via the in-memory `getAllTrees`) showed for the same window.
     ...unmatchedSavedWindows.map((saved) => {
@@ -824,10 +824,10 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
 // Whether the one genuine, URL-matching startup reconciliation
 // (`initializeAllWindows`) has already happened this browser session.
 // `chrome.storage.session` is the right place to track it: unlike
-// `chrome.storage.local`, it's cleared when the browser itself restarts,
+// `chrome.storage.local`, it’s cleared when the browser itself restarts,
 // but—unlike an in-memory flag here—it survives the service worker being
 // killed and restarted for merely going idle, which happens constantly
-// during ordinary use and isn't a real restart at all.
+// during ordinary use and isn’t a real restart at all.
 async function hasReconciledThisBrowserSession(): Promise<boolean> {
   const result = await chrome.storage.session.get(SESSION_RECONCILED_KEY);
   return result[SESSION_RECONCILED_KEY] === true;
@@ -840,19 +840,19 @@ async function markReconciledThisBrowserSession(): Promise<void> {
 /**
  * Hydrates the in-memory store from `chrome.storage.local` as-is, without
  * the URL-based reconciliation `initializeAllWindows` does. Used once this
- * browser session's one genuine startup reconciliation has already
+ * browser session’s one genuine startup reconciliation has already
  * happened (see `hasReconciledThisBrowserSession`): the service worker
  * going idle and being killed, then waking back up for the next event,
- * doesn't change any window's or tab's identity the way an actual browser
- * restart does, so there's no need to re-match anything by URL—the
+ * doesn’t change any window’s or tab’s identity the way an actual browser
+ * restart does, so there’s no need to re-match anything by URL—the
  * persisted trees are already accurate as of the last save, and just need
  * to be read back into memory.
  *
  * Doing this instead of `initializeAllWindows` also sidesteps
  * `restoreTracking`: that call would otherwise mark tab creation as
- * "restoring" for a good several hundred milliseconds after every single
+ * “restoring” for a good several hundred milliseconds after every single
  * idle wake-up—including the wake-up caused by an entirely ordinary new
- * tab's own `onCreated` event—which left `handleTabCreated` unable to tell
+ * tab’s own `onCreated` event—which left `handleTabCreated` unable to tell
  * that case apart from a genuine session-restore burst, and made it treat
  * that one ordinary tab as parentless instead of a child of the current
  * tab.
@@ -860,22 +860,22 @@ async function markReconciledThisBrowserSession(): Promise<void> {
  * Restores the tree of every window recorded as holding one (see
  * `TREE_ID_KEY_PREFIX`)—deliberately *not* filtered against a live
  * `chrome.windows.getAll()` query, despite that seeming like the more
- * obviously "correct" set of windows to restore. A window mid-close (its
- * tabs' own `onRemoved`/`onUpdated` events still working through `enqueue`,
+ * obviously “correct” set of windows to restore. A window mid-close (its
+ * tabs’ own `onRemoved`/`onUpdated` events still working through `enqueue`,
  * `windows.onRemoved` itself not yet reached) has already dropped out of
- * `chrome.windows.getAll()`'s results even though this window id hasn't
+ * `chrome.windows.getAll()`’s results even though this window id hasn’t
  * been confirmed closed in *this* event stream yet. Filtering it out here
  * left this window absent from the in-memory store; the very next handler
  * for one of its still-in-flight events (e.g. `handleTabUpdated`) would
  * then see `getTree` fall back to an empty tree, and—having no reason to
  * suspect otherwise—save that empty tree right over its real, still-valid
  * one moments before `windows.onRemoved` finally arrived to clean it up
- * properly. A window's tree-id record doesn't have this race: it's only
+ * properly. A window’s tree-id record doesn’t have this race: it’s only
  * removed once `windows.onRemoved` has actually been processed for it, in
  * the same serialized `enqueue` order every other handler observes—so a
  * window mid-close is (correctly) still restored here, and whichever
  * handler is already queued to finish tearing it down does so against its
- * real data, not a blank one this function manufactured. Closed windows'
+ * real data, not a blank one this function manufactured. Closed windows’
  * saved trees, on the other hand, have no such record, so they stay out of
  * the store (and out of `initializedWindowIds`).
  */
@@ -902,7 +902,7 @@ async function reloadFromStorage(): Promise<void> {
         // The *persisted* active tab id, not a fresh `chrome.tabs.query`:
         // whichever event just woke the service worker up may itself have
         // already changed which tab is live-active (e.g. a new foreground
-        // tab is active from the moment it's created), which would make a
+        // tab is active from the moment it’s created), which would make a
         // live query racy—see `active-tab-storage.ts`.
         const persistedActiveTabId = await loadPersistedActiveTabId(windowId);
         if (persistedActiveTabId !== undefined) {
@@ -934,7 +934,7 @@ const ensureInitialized = (() => {
   // `excludeTabId` only actually applies the first time this initializes
   // (whichever call first sets `initializationPromise`), and only when that
   // call ends up running the full `initializeAllWindows` reconciliation
-  // (see `reloadFromStorage` for why the other path doesn't need it at
+  // (see `reloadFromStorage` for why the other path doesn’t need it at
   // all). A later, already-in-flight or already-resolved call just awaits
   // the same promise as before.
   return async (excludeTabId?: number): Promise<void> => {
@@ -962,11 +962,11 @@ const ensureInitialized = (() => {
   };
 })();
 
-// Whether the profile's normal windows (not counting e.g. an installed PWA's
+// Whether the profile’s normal windows (not counting e.g. an installed PWA’s
 // own app-type window in the same profile) have dropped to zero since the
 // last time one was open. Set by `chrome.windows.onRemoved` below and
 // consumed by `chrome.windows.onCreated`: closing every normal window
-// doesn't necessarily end the browser process—an installed PWA sharing the
+// doesn’t necessarily end the browser process—an installed PWA sharing the
 // profile, or simply not quitting the browser app on macOS after its last
 // window closes, both keep it running—so the saved trees for those closed
 // windows are still sitting in `chrome.storage.local` under now-gone window
@@ -980,13 +980,13 @@ const ensureInitialized = (() => {
 // got consumed—see `hasReconciledThisBrowserSession` above for the same
 // reasoning.
 //
-// Deliberately kept independent of `hasReconciledThisBrowserSession`'s own
+// Deliberately kept independent of `hasReconciledThisBrowserSession`’s own
 // flag, rather than reusing or clearing it directly: any other event
-// arriving in the meantime (e.g. the PWA's own tab updating its title or
+// arriving in the meantime (e.g. the PWA’s own tab updating its title or
 // favicon) also calls `ensureInitialized`, and if that flag were cleared
 // here instead, such an unrelated event could run `initializeAllWindows`
 // first—matching only that PWA window against every saved tree and then, in
-// its own stale-window cleanup, permanently deleting every real window's
+// its own stale-window cleanup, permanently deleting every real window’s
 // saved tree before the user gets a chance to reopen it.
 async function isNormalWindowsGapPending(): Promise<boolean> {
   const result = await chrome.storage.session.get(NORMAL_WINDOWS_GAP_KEY);
@@ -1013,12 +1013,12 @@ async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
   }
 
   const tree = getTree(tab.windowId);
-  // Already tracked, most likely because this tab's own `onCreated` fired
-  // during startup's tab-creation settle wait (see
+  // Already tracked, most likely because this tab’s own `onCreated` fired
+  // during startup’s tab-creation settle wait (see
   // `waitForTabCreationToSettle`) and it was therefore already picked up by
-  // `initializeAllWindows`/`initializeWindow`'s own tab query. Adding it
+  // `initializeAllWindows`/`initializeWindow`’s own tab query. Adding it
   // again here would duplicate it under a brand-new node, parented under
-  // whatever's active rather than wherever the tree just restored it to.
+  // whatever’s active rather than wherever the tree just restored it to.
   if (tree.nodes[tab.id] !== undefined) {
     return;
   }
@@ -1028,25 +1028,25 @@ async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
   const straggler = session && matchStraggler(session, actualTab);
 
   if (straggler || restoreTracking.isRestoring()) {
-    // Either a tab from startup's own session restore that this window's
-    // initial restore pass (see `getRestoreSession`) didn't get to see yet,
+    // Either a tab from startup’s own session restore that this window’s
+    // initial restore pass (see `getRestoreSession`) didn’t get to see yet,
     // reconnected here to its real saved parent—or, if no saved match was
     // found, one Chrome is still busy creating as part of that same restore
-    // (see `restoreTracking`), where falling through to "parent =
-    // whatever's active" below risks stacking a pile of unrelated restored
+    // (see `restoreTracking`), where falling through to “parent =
+    // whatever’s active” below risks stacking a pile of unrelated restored
     // tabs under it.
     const parentId = straggler ? straggler.parentId : null;
     let updated = addTab(tree, actualTab, parentId);
 
     if (!straggler && !actualTab.pinned) {
       // A genuinely new tab with no saved match (e.g. a browser-injected
-      // page like Chrome's "What's New" tab after an update) still has a
+      // page like Chrome’s “What’s New” tab after an update) still has a
       // real native position among the tabs restored so far. `addTab` just
       // appends it as the last root, which is wrong whenever it actually
-      // sits in the middle of the tab strip. Reuse `reorderFromNativeMove`'s
+      // sits in the middle of the tab strip. Reuse `reorderFromNativeMove`’s
       // placement logic to correct that purely in the tree data—this
-      // deliberately doesn't call `syncNativeOrder` (see below), since the
-      // window may still be mid-restore and this shouldn't reshuffle it.
+      // deliberately doesn’t call `syncNativeOrder` (see below), since the
+      // window may still be mid-restore and this shouldn’t reshuffle it.
       const nativeTabs = await chrome.tabs.query({
         windowId: tab.windowId,
         pinned: false,
@@ -1067,10 +1067,10 @@ async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
   setTree(tab.windowId, updated);
   await saveWindowTree(tab.windowId, updated);
 
-  // `addTab` places the tab in the tree (e.g. as its parent's last child),
+  // `addTab` places the tab in the tree (e.g. as its parent’s last child),
   // but Chrome creates it wherever it likes natively—often the far end of
   // the tab strip for a blank tab (Ctrl+T), not next to its parent. Without
-  // this, the tree and the native tab bar would disagree about this tab's
+  // this, the tree and the native tab bar would disagree about this tab’s
   // position until some unrelated move reconciled them, which broke
   // Ctrl+Tab and similar native, position-based navigation.
   await syncNativeOrder(updated, tab.windowId);
@@ -1092,7 +1092,7 @@ async function handleTabRemoved(
   );
 
   // The window itself is being torn down; `windows.onRemoved` will drop its
-  // tree, so there's no need to reconcile it tab by tab here.
+  // tree, so there’s no need to reconcile it tab by tab here.
   if (info.isWindowClosing || isDeletedWindow(info.windowId)) {
     return;
   }
@@ -1149,7 +1149,7 @@ async function handleTabAttached(
   setTree(info.newWindowId, updated);
   await saveWindowTree(info.newWindowId, updated);
 
-  // Part of a "move tab(s)/tree(s) to window" batch (see
+  // Part of a “move tab(s)/tree(s) to window” batch (see
   // `pending-tree-move.ts`)—once every tab in it has landed here as a root,
   // reconstruct their original relative parent/child structure instead of
   // leaving them all flattened.
@@ -1178,7 +1178,7 @@ async function handleTabDetached(
 }
 
 /**
- * Chrome fires this instead of a remove/create pair when it swaps a tab's
+ * Chrome fires this instead of a remove/create pair when it swaps a tab’s
  * underlying process for a new one with a new id—notably, when a discarded
  * tab is reloaded (also for prerendering/instant navigation). Rename the id
  * in place so the tab keeps its position, parent, and children.
@@ -1252,12 +1252,12 @@ async function handleTabUpdated(
 }
 
 /**
- * Besides tracking the active tab, re-reads the activated tab's actual
- * loading/discarded state and corrects the tree if it's out of sync—the
+ * Besides tracking the active tab, re-reads the activated tab’s actual
+ * loading/discarded state and corrects the tree if it’s out of sync—the
  * same self-healing `toSelfHealingUpdate` applies to an `onUpdated` event
  * with nothing more specific to go on, but triggered by the tab becoming
  * active rather than waiting for its next `onUpdated` event, so a tab stuck
- * showing a stale spinner fixes itself as soon as it's clicked.
+ * showing a stale spinner fixes itself as soon as it’s clicked.
  */
 async function handleTabActivated(
   activeInfo: chrome.tabs.OnActivatedInfo,
@@ -1322,15 +1322,15 @@ async function handleUpdateNote(
 }
 
 /**
- * Move the window's tabs to match the tree's order: pinned tabs to
- * `getPinnedNodes`' order, at the window's frontmost slots, followed by the
- * non-pinned tabs to the tree's depth-first order. Used after a side-panel
+ * Move the window’s tabs to match the tree’s order: pinned tabs to
+ * `getPinnedNodes`’ order, at the window’s frontmost slots, followed by the
+ * non-pinned tabs to the tree’s depth-first order. Used after a side-panel
  * drag-and-drop changes the tree, since that only updates our own state—
  * chrome.tabs.onMoved tells us about the opposite direction (native move ->
  * tree update), not this one.
  *
- * The non-pinned tabs' target index is offset by how many pinned tabs there
- * are, since pinned tabs always occupy the window's frontmost slots—rather
+ * The non-pinned tabs’ target index is offset by how many pinned tabs there
+ * are, since pinned tabs always occupy the window’s frontmost slots—rather
  * than assuming Chrome slots a non-pinned tab in after them on its own
  * regardless of the index we ask for.
  */
@@ -1358,14 +1358,14 @@ async function syncNativeOrder(
   // (e.g. a brand new tab Chrome created at the far end of the tab strip)
   // can land scattered away from its intended neighbors instead of next to
   // them. Moving a single id at a time has no such array-relative ambiguity:
-  // each call unambiguously means "put this one tab at this index".
+  // each call unambiguously means “put this one tab at this index”.
   for (const [index, id] of pinnedOrder.entries()) {
     try {
       await chrome.tabs.move(id, { windowId, index });
     } catch (error) {
       // The id no longer resolving to a real tab (e.g. the tree holding a
-      // stale id for a tab that's since closed or moved to another window)
-      // shouldn't stop the rest of `pinnedOrder`/`order` from reaching their
+      // stale id for a tab that’s since closed or moved to another window)
+      // shouldn’t stop the rest of `pinnedOrder`/`order` from reaching their
       // own target index, which a thrown error here would otherwise skip
       // entirely.
       console.error("Tabor: failed to move a pinned tab", {
@@ -1392,17 +1392,17 @@ async function syncNativeOrder(
 }
 
 /**
- * Reconciles a chosen backup's tree for one window with that window's tabs
+ * Reconciles a chosen backup’s tree for one window with that window’s tabs
  * as they actually stand right now, the same way a saved tree is reconciled
  * with actual tabs at startup (see `restoreTree`)—so a tab opened/closed
- * since the backup was taken doesn't cause a mismatch, and pinned/suspended
+ * since the backup was taken doesn’t cause a mismatch, and pinned/suspended
  * state stays whatever it actually is now rather than reverting to the
- * backup's.
+ * backup’s.
  *
- * The backup's own window ids can't be looked up directly against the
- * current window: like tab ids, they don't survive a browser restart. Used
+ * The backup’s own window ids can’t be looked up directly against the
+ * current window: like tab ids, they don’t survive a browser restart. Used
  * the same URL-overlap matching (`matchWindows`) startup restore already
- * relies on for the same reason, rather than assuming the backup's
+ * relies on for the same reason, rather than assuming the backup’s
  * `windows[windowId]` entry is the right one.
  */
 async function handleRestoreBackup(
@@ -1421,7 +1421,7 @@ async function handleRestoreBackup(
       id: savedWindowId,
       tree,
       // The whole snapshot was saved at once, so every window in it shares
-      // this same `savedAt`—see `matchWindows`'s use of it.
+      // this same `savedAt`—see `matchWindows`’s use of it.
       savedAt: timestamp,
     }),
   );
@@ -1443,8 +1443,8 @@ async function handleRestoreBackup(
 /**
  * Removes the saved trees the user picked out as belonging to windows that
  * are no longer open (see `RemoveSavedTreesMessage`). Re-checks against the
- * trees open windows hold right now rather than trusting the side panel's
- * list, which may be stale by the time this runs, so a live window's tree is
+ * trees open windows hold right now rather than trusting the side panel’s
+ * list, which may be stale by the time this runs, so a live window’s tree is
  * never removed.
  */
 async function handleRemoveSavedTrees(treeIds: string[]): Promise<void> {
@@ -1483,7 +1483,7 @@ async function handleMoveNode(
     return;
   }
 
-  // All dragged tabs come from the same side panel, so they're always in
+  // All dragged tabs come from the same side panel, so they’re always in
   // the same window; look it up via any one of them.
   const tab = await chrome.tabs.get(firstTabId);
   if (isDeletedWindow(tab.windowId)) {
@@ -1502,32 +1502,32 @@ async function handleMoveNode(
 }
 
 const PERIODIC_ALARM_NAME = "tabor-periodic";
-// The alarm's name before it started running more than just backups. Alarms
+// The alarm’s name before it started running more than just backups. Alarms
 // persist in Chrome across service worker restarts and extension updates
 // (see `ensurePeriodicAlarm`), so one created under this name keeps firing
 // until explicitly cleared.
 const LEGACY_BACKUP_ALARM_NAME = "tabor-backup-snapshot";
-// The periodic alarm's interval, set by what backups need: it matches the
+// The periodic alarm’s interval, set by what backups need: it matches the
 // first backup-thinning bucket edge (see `selectBackupTimestampsToKeep`).
 const BACKUP_INTERVAL_MINUTES = 5;
 
 /**
- * Snapshots every open window's tree for on-demand restore later, then thins
+ * Snapshots every open window’s tree for on-demand restore later, then thins
  * out older snapshots (see `selectBackupTimestampsToKeep`) so the backup
- * history doesn't grow without bound.
+ * history doesn’t grow without bound.
  *
- * Only open windows' trees: after an idle-wake restart, this store also
+ * Only open windows’ trees: after an idle-wake restart, this store also
  * holds the saved trees of windows closed long ago (see
- * `reloadFromStorage`). Left in, they'd make a snapshot's contents depend on
+ * `reloadFromStorage`). Left in, they’d make a snapshot’s contents depend on
  * whether the service worker happened to restart since startup, and give
- * `matchWindows` a closed window's tree to pick over the current window's
+ * `matchWindows` a closed window’s tree to pick over the current window’s
  * own when restoring.
  *
  * Skipped while every normal window is momentarily gone (see
  * `isNormalWindowsGapPending`—e.g. between closing the last one and a
  * profile switch reopening it): the open windows at that instant would be
  * only whatever lightweight windows (installed PWAs, etc.) happen to still
- * be open, silently dropping the real window's tree from this snapshot
+ * be open, silently dropping the real window’s tree from this snapshot
  * instead of the alarm simply catching it on its next tick.
  */
 async function takeBackupSnapshot(): Promise<void> {
@@ -1536,8 +1536,8 @@ async function takeBackupSnapshot(): Promise<void> {
   }
 
   const openWindowIds = new Set(await queryOpenWindowIds());
-  // An incognito window's tree is left out: it's removed once its window
-  // closes, and a backup shouldn't keep it around past that.
+  // An incognito window’s tree is left out: it’s removed once its window
+  // closes, and a backup shouldn’t keep it around past that.
   const windows = Object.fromEntries(
     Object.entries(getAllTrees()).filter(
       ([windowId]) =>
@@ -1570,7 +1570,7 @@ async function handlePeriodicAlarm(): Promise<void> {
 }
 
 /**
- * Alarms persist in Chrome independently of the service worker's own
+ * Alarms persist in Chrome independently of the service worker’s own
  * lifetime, so this only needs to actually create one the first time—calling
  * `chrome.alarms.create` again on every later wake-up (this runs at every
  * module load, i.e. every time the service worker restarts) would instead
@@ -1580,7 +1580,7 @@ async function handlePeriodicAlarm(): Promise<void> {
  * interval.
  *
  * Also clears the alarm left over under `LEGACY_BACKUP_ALARM_NAME` (a no-op
- * once it's gone), which would otherwise keep waking the service worker
+ * once it’s gone), which would otherwise keep waking the service worker
  * every interval for nothing.
  */
 async function ensurePeriodicAlarm(): Promise<void> {
@@ -1601,7 +1601,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
 });
 
-// These listeners return the enqueued task's Promise directly (rather than
+// These listeners return the enqueued task’s Promise directly (rather than
 // firing it and returning void) so the MV3 service worker stays alive until
 // the underlying chrome.tabs/chrome.storage calls actually finish.
 
@@ -1613,7 +1613,7 @@ chrome.runtime.onStartup.addListener(() =>
 );
 chrome.runtime.onInstalled.addListener(() => enqueue(ensureInitialized));
 
-// Open the side panel when the toolbar action is clicked, since we don't
+// Open the side panel when the toolbar action is clicked, since we don’t
 // have a popup to show instead.
 chrome.runtime.onInstalled.addListener(() => {
   void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -1630,7 +1630,7 @@ chrome.windows.onCreated.addListener((window) =>
     // Ending a normal-windows gap (see `isNormalWindowsGapPending`):
     // reconcile this window—and any sibling windows already open by the
     // time this runs—against every saved tree by URL the same way a real
-    // browser startup would, instead of `initializeWindow`'s history-less
+    // browser startup would, instead of `initializeWindow`’s history-less
     // path.
     const isGapPending = await isNormalWindowsGapPending();
     debugLog(
@@ -1664,20 +1664,20 @@ chrome.windows.onRemoved.addListener((windowId) =>
     deleteWindow(windowId);
     initializedWindowIds.delete(windowId);
     clearPendingClose(windowId);
-    // Its tree stays saved, now as a closed window's (see
+    // Its tree stays saved, now as a closed window’s (see
     // `TREE_ID_KEY_PREFIX`), for a window reopened later to be matched to.
     await removeTreeIdForWindow(windowId);
     // Unless it holds nothing only Tabor knows about (see
     // `hasTaborSpecificInfo`): reopening the same tabs later would rebuild
     // an identical tree regardless, so it would only linger among closed
-    // windows' saved trees. That includes an empty tree: closing a window's
-    // last tab (rather than the window itself) fires that tab's
+    // windows’ saved trees. That includes an empty tree: closing a window’s
+    // last tab (rather than the window itself) fires that tab’s
     // `tabs.onRemoved` with `isWindowClosing: false` before this, so
     // `handleTabRemoved` has already saved the tree without it.
-    // An incognito window's tree is removed regardless: nothing about it
-    // should outlive the window itself. So is a non-normal window's (e.g. an
-    // installed PWA's): with no toolbar to open the side panel from, it can't
-    // hold anything added through Tabor, so there's nothing worth keeping.
+    // An incognito window’s tree is removed regardless: nothing about it
+    // should outlive the window itself. So is a non-normal window’s (e.g. an
+    // installed PWA’s): with no toolbar to open the side panel from, it can’t
+    // hold anything added through Tabor, so there’s nothing worth keeping.
     if (
       treeId !== undefined &&
       (!isWorthKeeping || isIncognito || windowType !== "normal")

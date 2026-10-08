@@ -78,15 +78,15 @@ describe("isSelfOrDescendant", () => {
     expect(isSelfOrDescendant(tree, 1, 3)).toBe(true);
   });
 
-  it("returns false for a node that isn't a descendant", () => {
+  it("returns false for a node that isn’t a descendant", () => {
     const tree = createSampleTree();
     expect(isSelfOrDescendant(tree, 2, 4)).toBe(false);
     expect(isSelfOrDescendant(tree, 3, 1)).toBe(false);
     expect(isSelfOrDescendant(tree, 1, 5)).toBe(false);
   });
 
-  it("doesn't loop forever if the data is corrupted into a cycle", () => {
-    // A -> B -> A (each is the other's parent and child).
+  it("doesn’t loop forever if the data is corrupted into a cycle", () => {
+    // A -> B -> A (each is the other’s parent and child).
     const a = createNode({ id: 1, parentId: 2, childIds: [2] });
     const b = createNode({ id: 2, parentId: 1, childIds: [1] });
     const tree: TreeState = { nodes: { 1: a, 2: b }, rootIds: [] };
@@ -142,8 +142,8 @@ describe("flattenDepthFirst", () => {
     expect(flattenDepthFirst(tree)).toEqual([]);
   });
 
-  it("doesn't loop forever if the data is corrupted into a cycle", () => {
-    // A -> B -> A (each is the other's parent and child).
+  it("doesn’t loop forever if the data is corrupted into a cycle", () => {
+    // A -> B -> A (each is the other’s parent and child).
     const a = createNode({ id: 1, childIds: [2] });
     const b = createNode({ id: 2, parentId: 1, childIds: [1] });
     const tree: TreeState = { nodes: { 1: a, 2: b }, rootIds: [1] };
@@ -151,7 +151,7 @@ describe("flattenDepthFirst", () => {
     expect(flattenDepthFirst(tree).map((node) => node.id)).toEqual([1, 2]);
   });
 
-  it("still descends into a collapsed node's children by default", () => {
+  it("still descends into a collapsed node’s children by default", () => {
     const tree = createSampleTree();
     const collapsed = {
       ...tree,
@@ -163,7 +163,7 @@ describe("flattenDepthFirst", () => {
     ]);
   });
 
-  it("skips a collapsed node's children when respectCollapsed is set", () => {
+  it("skips a collapsed node’s children when respectCollapsed is set", () => {
     const tree = createSampleTree();
     const collapsed = {
       ...tree,
@@ -184,7 +184,7 @@ describe("getNativeOrder", () => {
     expect(getNativeOrder(tree)).toEqual([1, 2, 3, 4, 5]);
   });
 
-  it("includes a collapsed node's children", () => {
+  it("includes a collapsed node’s children", () => {
     const tree = createSampleTree();
     const collapsed = {
       ...tree,
@@ -251,7 +251,7 @@ describe("getVisibleOrder", () => {
     ]);
   });
 
-  it("skips a collapsed node's children", () => {
+  it("skips a collapsed node’s children", () => {
     const tree = createSampleTree();
     const collapsed = {
       ...tree,

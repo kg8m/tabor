@@ -3,7 +3,7 @@ import { flattenDepthFirst, isSelfOrDescendant } from "./queries";
 import type { TabNode, TreeState } from "./types";
 
 /**
- * The subset of a newly created tab's data needed to add it to the
+ * The subset of a newly created tab’s data needed to add it to the
  * tree—see `addTab`.
  */
 export interface NewTabInput {
@@ -33,14 +33,14 @@ export function addTab(
 ): TreeState {
   // Already in the tree—e.g. a startup reconciliation (see
   // `restoreTree`/`initializeAllWindows`) picked it up before the
-  // `onCreated` handler that's adding it got a chance to run. Adding it
+  // `onCreated` handler that’s adding it got a chance to run. Adding it
   // again would duplicate its id in `rootIds`/`childIds`.
   if (tree.nodes[input.id] !== undefined) {
     return tree;
   }
 
-  // A tab can't be its own parent (e.g. the caller mistakenly resolved the
-  // "current tab" to the tab that's only just now being added). Treating it
+  // A tab can’t be its own parent (e.g. the caller mistakenly resolved the
+  // “current tab” to the tab that’s only just now being added). Treating it
   // as its own parent would make the node its own child once attached below.
   const resolvedParentId = parentId === input.id ? null : parentId;
 
@@ -117,7 +117,7 @@ export function removeTab(tree: TreeState, id: number): TreeState {
 
   const parent = nodes[target.parentId];
   if (parent === undefined) {
-    // The parent id doesn't resolve to a node (data inconsistency); fall
+    // The parent id doesn’t resolve to a node (data inconsistency); fall
     // back to promoting the children to root, appended at the end.
     return { nodes, rootIds: [...tree.rootIds, ...target.childIds] };
   }
@@ -151,7 +151,7 @@ export type TabUpdate = Partial<
 >;
 
 /**
- * Update a tab's own properties, leaving its position in the tree untouched.
+ * Update a tab’s own properties, leaving its position in the tree untouched.
  */
 export function updateTab(
   tree: TreeState,
@@ -170,9 +170,9 @@ export function updateTab(
 }
 
 /**
- * Rename a tab's id in place, keeping its position, parent, and children
+ * Rename a tab’s id in place, keeping its position, parent, and children
  * untouched—for `chrome.tabs.onReplaced`, which Chrome fires instead of a
- * remove/create pair when a tab's underlying process is swapped for a new
+ * remove/create pair when a tab’s underlying process is swapped for a new
  * one with a new id (notably when a discarded tab is reloaded).
  */
 export function replaceTabId(
@@ -219,7 +219,7 @@ export function replaceTabId(
 }
 
 /**
- * Remove a tab from its current parent's `childIds` (or `rootIds`).
+ * Remove a tab from its current parent’s `childIds` (or `rootIds`).
  */
 function detach(tree: TreeState, id: number): TreeState {
   const node = tree.nodes[id];
@@ -286,10 +286,10 @@ function attachAt(
  * Reconcile the tree with a tab having moved in the native tab bar.
  *
  * The native tab bar has no concept of a tree, so the only information a
- * move gives us is the tab's new position among the other (non-pinned)
+ * move gives us is the tab’s new position among the other (non-pinned)
  * tabs, `newOrder`. We derive the new parent from whichever tab now
  * precedes it: if that tab already has children, the moved tab becomes its
- * first child (matching depth-first order); otherwise it becomes that tab's
+ * first child (matching depth-first order); otherwise it becomes that tab’s
  * next sibling. Moving to the front makes it a new first root.
  */
 export function reorderFromNativeMove(
@@ -305,8 +305,8 @@ export function reorderFromNativeMove(
 
   // movedId can be absent from newOrder—e.g. it was excluded by the
   // pinned:false query used to build newOrder because it just became
-  // pinned. That's not a real reorder among newOrder's tabs, so leave the
-  // tree untouched rather than misreading index-1 as "moved to the front".
+  // pinned. That’s not a real reorder among newOrder’s tabs, so leave the
+  // tree untouched rather than misreading index-1 as “moved to the front”.
   if (index === -1) {
     return tree;
   }
@@ -314,7 +314,7 @@ export function reorderFromNativeMove(
   const previousId = newOrder[index - 1];
 
   // A move that would place movedId right after its own descendant would
-  // make movedId a descendant of its own descendant—a cycle. This isn't a
+  // make movedId a descendant of its own descendant—a cycle. This isn’t a
   // real drag target (the descendant would have had to move first), so
   // leave the tree untouched rather than corrupting it.
   if (
@@ -336,9 +336,9 @@ export function reorderFromNativeMove(
   }
 
   // Whether `previous` had any children *before* detaching movedId. If
-  // movedId was previous's only child, `detached.nodes[previousId]` would
+  // movedId was previous’s only child, `detached.nodes[previousId]` would
   // look childless and wrongly demote movedId from child to sibling of
-  // previous, even though its position relative to previous hasn't
+  // previous, even though its position relative to previous hasn’t
   // actually changed.
   const didPreviousHaveChildren =
     (tree.nodes[previousId]?.childIds.length ?? 0) > 0;
@@ -367,7 +367,7 @@ export function reorderFromNativeMove(
 }
 
 /**
- * Promote a node's children into its own place, leaving the node itself in
+ * Promote a node’s children into its own place, leaving the node itself in
  * the tree with no children—shared by `removeTab` (which then deletes the
  * node) and `reorderFromPinnedChange` (which then relocates it).
  */
@@ -388,7 +388,7 @@ function promoteChildren(tree: TreeState, id: number): TreeState {
 
   nodes[id] = { ...target, childIds: [] };
 
-  // Unlike removeTab's replaceWithChildren, id itself must stay in the
+  // Unlike removeTab’s replaceWithChildren, id itself must stay in the
   // list—so its children are inserted right after it, not in its place.
   const insertChildrenAfterTarget = (ids: number[]): number[] =>
     ids.flatMap((currentId) =>
@@ -416,10 +416,10 @@ function promoteChildren(tree: TreeState, id: number): TreeState {
  * Reconcile the tree with a tab having just become pinned natively.
  *
  * Pinned tabs are always root nodes with no children (see `addTab`), so
- * this promotes any existing children into the tab's former place—just
+ * this promotes any existing children into the tab’s former place—just
  * like `removeTab`—and then places the tab among the other pinned tabs to
  * match `nativePinnedOrder` (the actual native order of pinned tabs,
- * `tabId` included). `handleTabUpdated`'s `updateTab` call only flips the
+ * `tabId` included). `handleTabUpdated`’s `updateTab` call only flips the
  * `pinned` flag and never touches tree position, so without this a tab that
  * becomes pinned would keep whatever position it had among the unpinned
  * tabs instead of taking its real place in the pinned region.
@@ -462,9 +462,9 @@ export interface DropTarget {
 /**
  * Move `id` to a new position in the tree, per a drag-and-drop drop resolved
  * via `resolveDropPosition`: `before`/`after` reorder it as a sibling of
- * `target.targetId`, `child` makes it target's last child.
+ * `target.targetId`, `child` makes it target’s last child.
  *
- * Refuses the move (returning the tree unchanged) if the target doesn't
+ * Refuses the move (returning the tree unchanged) if the target doesn’t
  * exist, is the dragged node itself, is one of its own descendants (which
  * would create a cycle), or has a different `pinned` state—pinned tabs only
  * ever reorder among themselves, never mixing into the unpinned tree.
@@ -514,7 +514,7 @@ export function moveNode(
  * Move several nodes together to a new position, as a single drag-and-drop
  * of a multi-selection, preserving their current relative order.
  *
- * A node that's a descendant of another node also in `ids` is skipped:
+ * A node that’s a descendant of another node also in `ids` is skipped:
  * moving the ancestor already carries it along, and moving it separately
  * too would try to place it in two locations at once.
  */

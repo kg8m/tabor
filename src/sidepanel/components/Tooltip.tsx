@@ -17,9 +17,9 @@ function truncate(text: string): string {
 
 interface TooltipProps {
   text: string;
-  // Rendered on its own line below `text`, e.g. a tab's URL below its title.
+  // Rendered on its own line below `text`, e.g. a tab’s URL below its title.
   secondaryText?: string;
-  // Rendered below `secondaryText`, e.g. a tab's note. Shown in full
+  // Rendered below `secondaryText`, e.g. a tab’s note. Shown in full
   // (line breaks preserved) rather than truncated—unlike `secondaryText`,
   // this is content the user wrote themselves, not an incidental URL.
   noteText?: string;
@@ -28,8 +28,8 @@ interface TooltipProps {
 
 /**
  * A hover tooltip, portaled to `document.body` and positioned `fixed` off of
- * `anchor` (the trigger element's own bottom-left corner)—same reasoning as
- * `NoteEditor`'s own portal (a row can carry `opacity`, e.g.
+ * `anchor` (the trigger element’s own bottom-left corner)—same reasoning as
+ * `NoteEditor`’s own portal (a row can carry `opacity`, e.g.
  * `.tab-node--suspended`, which would wash out an in-place popover
  * regardless of its own `position`).
  */

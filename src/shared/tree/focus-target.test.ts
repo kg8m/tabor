@@ -12,7 +12,7 @@ describe("pickFocusTarget", () => {
     expect(pickFocusTarget(tree, 1, new Set())).toBe(2);
   });
 
-  it("falls back to the closed tab's literal depth-first predecessor when its preceding sibling has descendants and there's no following sibling", () => {
+  it("falls back to the closed tab’s literal depth-first predecessor when its preceding sibling has descendants and there’s no following sibling", () => {
     // A            (root)
     //   B           (child of A)
     // C  <- closed  (root, after A)
@@ -27,7 +27,7 @@ describe("pickFocusTarget", () => {
     expect(pickFocusTarget(tree, 3, new Set())).toBe(2);
   });
 
-  it("prefers the following sibling over the preceding sibling's descendant", () => {
+  it("prefers the following sibling over the preceding sibling’s descendant", () => {
     // A            (root)
     //   B           (child of A)
     // C  <- closed  (root, after A)
@@ -56,7 +56,7 @@ describe("pickFocusTarget", () => {
     expect(pickFocusTarget(tree, 2, new Set())).toBe(3);
   });
 
-  it("falls back to the preceding sibling when it has no descendants and there's no following sibling", () => {
+  it("falls back to the preceding sibling when it has no descendants and there’s no following sibling", () => {
     const a = createNode({ id: 1 });
     const c = createNode({ id: 2 });
     const tree: TreeState = {
@@ -158,7 +158,7 @@ describe("pickFocusTarget", () => {
 
   it("sorts pinned tabs before unpinned ones for adjacency, regardless of their relative order in rootIds", () => {
     // Pinned tabs are always displayed above the regular tree (their own
-    // section), but `rootIds` doesn't guarantee they actually sort first —
+    // section), but `rootIds` doesn’t guarantee they actually sort first —
     // here the closed tab is literally the first entry in `rootIds`, with
     // both pinned tabs coming right after it. With no following sibling to
     // prefer, its preceding sibling by display order is the pinned tab b,

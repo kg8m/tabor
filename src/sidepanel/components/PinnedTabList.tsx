@@ -46,7 +46,7 @@ export function PinnedTabList({
 
   // The last pinned tab, so a drop in the empty space below the list—e.g.
   // when there are too few pinned tabs to fill it—always resolves to
-  // "become the new last pinned tab" instead of being silently ignored.
+  // “become the new last pinned tab” instead of being silently ignored.
   const lastPinnedId = pinnedNodes.at(-1)?.id ?? null;
   const { dropIndicator } = dragAndDrop;
 

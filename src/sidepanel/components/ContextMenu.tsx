@@ -16,9 +16,9 @@ import {
 } from "./icons";
 
 /**
- * One entry in the "move to window" picker—see `describeWindow`. Kept as
+ * One entry in the “move to window” picker—see `describeWindow`. Kept as
  * separate `title`/`suffix` fields (rather than one combined string) so the
- * title alone can shrink and ellipsize while the "and N other tabs" count
+ * title alone can shrink and ellipsize while the “and N other tabs” count
  * stays fully visible—CSS ellipsis on a single combined string would
  * truncate from the end and cut the count off instead.
  */
@@ -29,8 +29,8 @@ interface WindowOption {
 }
 
 /**
- * Labels a window the way Chrome's own "Move tab to another window" menu
- * does: its active tab's title, plus how many other tabs it has.
+ * Labels a window the way Chrome’s own “Move tab to another window” menu
+ * does: its active tab’s title, plus how many other tabs it has.
  */
 function describeWindow(
   win: chrome.windows.Window,
@@ -60,18 +60,18 @@ interface ContextMenuProps {
   treeIds: number[];
   /**
    * Every tab id in the current window (pinned and unpinned), used to derive
-   * "Suspend other tab(s)"'s target set.
+   * “Suspend other tab(s)”’s target set.
    */
   allTabIds: number[];
   /**
-   * Every unpinned tab id in the current window, used to derive "Suspend
-   * other unpinned tab(s)"'s target set.
+   * Every unpinned tab id in the current window, used to derive “Suspend
+   * other unpinned tab(s)”’s target set.
    */
   unpinnedTabIds: number[];
   isEveryTargetPinned: boolean;
   // Whether at least one of `targetIds` is pinned—used to decide whether
-  // "Unpin" is shown at all, independent of `isEveryTargetPinned` (which
-  // instead gates "Pin" and "Close"). A selection mixing pinned and
+  // “Unpin” is shown at all, independent of `isEveryTargetPinned` (which
+  // instead gates “Pin” and “Close”). A selection mixing pinned and
   // unpinned tabs shows both items.
   isAnyTargetPinned: boolean;
   activeTabId: number | undefined;
@@ -84,12 +84,12 @@ interface ContextMenuProps {
 
 /**
  * A fixed-position menu anchored at the right-click point. Closing on an
- * outside click is done by checking the click's target against `menuReference`
- * rather than by stopping propagation on the menu's own items: that way a
- * click on e.g. "Suspend" still reaches its own `onClick` normally, and only
+ * outside click is done by checking the click’s target against `menuReference`
+ * rather than by stopping propagation on the menu’s own items: that way a
+ * click on e.g. “Suspend” still reaches its own `onClick` normally, and only
  * this component decides when to close (right after running the action).
  *
- * "Close" and the "Suspend other …" items ask for confirmation as an
+ * “Close” and the “Suspend other …” items ask for confirmation as an
  * in-menu step (swapping the main menu for a Cancel/confirm pair) rather
  * than via `window.confirm`: Chrome silently blocks `alert`/`confirm`/
  * `prompt` from extension surfaces like this side panel, so a real
@@ -112,20 +112,20 @@ export function ContextMenu({
   onClose,
 }: ContextMenuProps) {
   // Discarding the active tab is a no-op—Chrome has to reload it right away
-  // to keep displaying it—so it's excluded from a batch suspend the same way
+  // to keep displaying it—so it’s excluded from a batch suspend the same way
   // the per-row suspend button hides for it. Unlike that button, the whole
-  // action isn't hidden just because the active tab happens to be one of
+  // action isn’t hidden just because the active tab happens to be one of
   // several targets: the others are still worth suspending.
   const suspendableIds = targetIds.filter((id) => id !== activeTabId);
   const suspendableTreeIds = treeIds.filter((id) => id !== activeTabId);
   // Every tab in the window except the right-clicked/selected target(s) and
   // the active tab—unlike `suspendableTreeIds`, this deliberately reaches
-  // beyond the targets' own subtree to every other tab in the window.
+  // beyond the targets’ own subtree to every other tab in the window.
   const otherSuspendableIds = allTabIds.filter(
     (id) => !targetIds.includes(id) && id !== activeTabId,
   );
   // Same as `otherSuspendableIds`, but scoped to unpinned tabs only, for
-  // "Suspend other unpinned tab(s)".
+  // “Suspend other unpinned tab(s)”.
   const otherSuspendableUnpinnedIds = unpinnedTabIds.filter(
     (id) => !targetIds.includes(id) && id !== activeTabId,
   );
@@ -155,7 +155,7 @@ export function ContextMenu({
       : otherSuspendableIds;
   const suspendOthersNoun =
     suspendOthersConfirmation === "unpinned" ? "unpinned tab" : "tab";
-  // The "move to window" picker, once its window list has been fetched;
+  // The “move to window” picker, once its window list has been fetched;
   // `null` while the main menu (or the close confirmation) is showing.
   const [windowPicker, setWindowPicker] = useState<{
     scope: "targets" | "tree";
@@ -201,10 +201,10 @@ export function ContextMenu({
     onClose();
   };
 
-  // Pinning/unpinning is left to Chrome's native `chrome.tabs.update`, same
+  // Pinning/unpinning is left to Chrome’s native `chrome.tabs.update`, same
   // as Reload/Suspend above—`chrome.tabs.onUpdated` already reconciles the
   // tree afterward (`reorderFromPinnedChange`, `src/background/index.ts`),
-  // so there's no need to route this through a `TaborMessage` first.
+  // so there’s no need to route this through a `TaborMessage` first.
   const handlePin = (): void => {
     for (const id of targetIds) {
       void chrome.tabs.update(id, { pinned: true });
@@ -219,8 +219,8 @@ export function ContextMenu({
     onClose();
   };
 
-  // Anchored at the menu's own (already viewport-clamped) position, same as
-  // a row's own note button anchors off of its own position.
+  // Anchored at the menu’s own (already viewport-clamped) position, same as
+  // a row’s own note button anchors off of its own position.
   const handleOpenNoteEditor = (): void => {
     onOpenNoteEditor({ x: position.left, y: position.top });
     onClose();
@@ -266,9 +266,9 @@ export function ContextMenu({
 
       // Moved one at a time, not as a single `chrome.tabs.move(ids, ...)`
       // batch—see the same call in `syncNativeOrder`
-      // (`src/background/index.ts`) for why: given an array, Chrome doesn't
+      // (`src/background/index.ts`) for why: given an array, Chrome doesn’t
       // reliably land every id in the destination window, which silently
-      // drops it from `noteTreeMoveAttached`'s batch and leaves the whole
+      // drops it from `noteTreeMoveAttached`’s batch and leaves the whole
       // move flattened once the safety timeout gives up on it.
       if (targetWindowId === "new") {
         const created = await chrome.windows.create({ tabId: firstId });
@@ -367,7 +367,7 @@ export function ContextMenu({
                   Suspend other tab(s)
                 </button>
               )}
-              {/* Hidden when identical to "Suspend other tab(s)" above, i.e.
+              {/* Hidden when identical to “Suspend other tab(s)” above, i.e.
                   the window has no pinned tabs to exclude in the first
                   place. */}
               {otherSuspendableUnpinnedIds.length > 0 &&

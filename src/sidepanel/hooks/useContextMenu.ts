@@ -23,10 +23,10 @@ export interface ContextMenuControls {
 }
 
 /**
- * The right-clicked row's context menu. Its target is the current
+ * The right-clicked row’s context menu. Its target is the current
  * multi-selection when the right-clicked row is part of it, or just the
- * right-clicked row otherwise—so right-clicking a tab that isn't part of
- * whatever's currently selected elsewhere still acts on that tab alone,
+ * right-clicked row otherwise—so right-clicking a tab that isn’t part of
+ * whatever’s currently selected elsewhere still acts on that tab alone,
  * rather than on the unrelated leftover selection.
  */
 export function useContextMenu(): ContextMenuControls {

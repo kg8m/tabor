@@ -187,7 +187,7 @@ describe("addTab", () => {
   });
 
   it("adds a new tab as the first root, right after the pinned tabs, when the given parent is pinned", () => {
-    // Opening a link from a pinned tab shouldn't make the new tab a child of
+    // Opening a link from a pinned tab shouldn’t make the new tab a child of
     // it—pinned tabs have no parent/child relationships in either direction.
     // Natively, Chrome places such a tab right after the pinned region
     // (i.e. as the first non-pinned tab), not at the very end like a tab
@@ -221,7 +221,7 @@ describe("addTab", () => {
 });
 
 describe("removeTab", () => {
-  it("promotes children to the removed tab's parent, in its place", () => {
+  it("promotes children to the removed tab’s parent, in its place", () => {
     // A
     // ├─ B1
     // ├─ B (removed)
@@ -302,7 +302,7 @@ describe("removeTab", () => {
     expect(result.nodes[2]).toBeUndefined();
   });
 
-  it("returns the tree unchanged when the given id doesn't exist", () => {
+  it("returns the tree unchanged when the given id doesn’t exist", () => {
     const a = createNode({ id: 1 });
     const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
 
@@ -333,7 +333,7 @@ describe("updateTab", () => {
     expect(result.nodes[1]?.audible).toBe(true);
   });
 
-  it("leaves the tab's position in the tree untouched", () => {
+  it("leaves the tab’s position in the tree untouched", () => {
     const a = createNode({ id: 1, childIds: [2] });
     const b = createNode({ id: 2, parentId: 1 });
     const tree: TreeState = { nodes: { 1: a, 2: b }, rootIds: [1] };
@@ -345,7 +345,7 @@ describe("updateTab", () => {
     expect(result.rootIds).toEqual([1]);
   });
 
-  it("returns the tree unchanged when the given id doesn't exist", () => {
+  it("returns the tree unchanged when the given id doesn’t exist", () => {
     const a = createNode({ id: 1 });
     const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
 
@@ -417,7 +417,7 @@ describe("replaceTabId", () => {
     expect(result.nodes[100]?.suspended).toBe(true);
   });
 
-  it("returns the tree unchanged when the old id doesn't exist", () => {
+  it("returns the tree unchanged when the old id doesn’t exist", () => {
     const a = createNode({ id: 1 });
     const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
 
@@ -438,7 +438,7 @@ describe("replaceTabId", () => {
 });
 
 describe("reorderFromNativeMove", () => {
-  it("keeps a tab as its preceding tab's child when it was already its only child", () => {
+  it("keeps a tab as its preceding tab’s child when it was already its only child", () => {
     // A(B) -> native order [A, B] (unchanged) -> should still be A(B), not
     // two roots. Reprocessing an unmoved-relative-to-its-parent tab (e.g.
     // triggered by a programmatic move elsewhere in the tab strip) must not
@@ -473,7 +473,7 @@ describe("reorderFromNativeMove", () => {
     expect(getNativeOrder(result)).toEqual([1, 3, 2, 4]);
   });
 
-  it("reparents a tab into a different tab's subtree when moved past it", () => {
+  it("reparents a tab into a different tab’s subtree when moved past it", () => {
     // A(B, C), D(E) -> native order [A, B, D, C, E] -> A(B), D(C, E)
     const a = createNode({ id: 1, childIds: [2, 3] });
     const b = createNode({ id: 2, parentId: 1 });
@@ -535,7 +535,7 @@ describe("reorderFromNativeMove", () => {
   it("leaves the tree untouched rather than reparenting a tab under its own descendant", () => {
     // A(B(C)) -> native order [B, C, A] would put A right after its own
     // descendant C, which would make A a descendant of B while B stays a
-    // descendant of A. That's a cycle, so this must be a no-op.
+    // descendant of A. That’s a cycle, so this must be a no-op.
     const a = createNode({ id: 1, childIds: [2] });
     const b = createNode({ id: 2, parentId: 1, childIds: [3] });
     const c = createNode({ id: 3, parentId: 2 });
@@ -546,7 +546,7 @@ describe("reorderFromNativeMove", () => {
     expect(result).toEqual(tree);
   });
 
-  it("returns the tree unchanged when the given id doesn't exist", () => {
+  it("returns the tree unchanged when the given id doesn’t exist", () => {
     const a = createNode({ id: 1 });
     const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
 
@@ -557,8 +557,8 @@ describe("reorderFromNativeMove", () => {
 
   it("leaves the tree untouched when movedId is absent from newOrder", () => {
     // e.g. movedId just became pinned, so the pinned:false query used to
-    // build newOrder excludes it—this isn't a real reorder among newOrder's
-    // tabs, and must not be misread as "moved to the front".
+    // build newOrder excludes it—this isn’t a real reorder among newOrder’s
+    // tabs, and must not be misread as “moved to the front”.
     const a = createNode({ id: 1, pinned: true });
     const b = createNode({ id: 2, pinned: true });
     const c = createNode({ id: 3 });
@@ -574,7 +574,7 @@ describe("reorderFromNativeMove", () => {
 });
 
 describe("reorderFromPinnedChange", () => {
-  it("returns the tree unchanged when the given id doesn't exist", () => {
+  it("returns the tree unchanged when the given id doesn’t exist", () => {
     const a = createNode({ id: 1 });
     const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
 
@@ -583,7 +583,7 @@ describe("reorderFromPinnedChange", () => {
     expect(result).toEqual(tree);
   });
 
-  it("keeps a newly pinned tab's position when it already matches the native pinned order", () => {
+  it("keeps a newly pinned tab’s position when it already matches the native pinned order", () => {
     const a = createNode({ id: 1, pinned: true });
     const b = createNode({ id: 2, pinned: true });
     const c = createNode({ id: 3 });
@@ -615,7 +615,7 @@ describe("reorderFromPinnedChange", () => {
     expect(result.rootIds).toEqual([1, 2, 3]);
   });
 
-  it("inserts the tab at the front when it's now the first pinned tab", () => {
+  it("inserts the tab at the front when it’s now the first pinned tab", () => {
     const a = createNode({ id: 1 });
     const b = createNode({ id: 2, pinned: true });
     const tree: TreeState = { nodes: { 1: a, 2: b }, rootIds: [1, 2] };
@@ -625,7 +625,7 @@ describe("reorderFromPinnedChange", () => {
     expect(result.rootIds).toEqual([2, 1]);
   });
 
-  it("promotes a newly pinned tab's children into its former place", () => {
+  it("promotes a newly pinned tab’s children into its former place", () => {
     const a = createNode({ id: 1, pinned: true });
     const b = createNode({ id: 2, childIds: [3] });
     const c = createNode({ id: 3, parentId: 2 });
@@ -668,7 +668,7 @@ describe("moveNode", () => {
     expect(result.rootIds).toEqual([2, 1, 3]);
   });
 
-  it("makes the node the target's last child", () => {
+  it("makes the node the target’s last child", () => {
     // A, B(C) -> drop A onto B -> B(C, A)
     const a = createNode({ id: 1 });
     const b = createNode({ id: 2, childIds: [3] });
@@ -682,7 +682,7 @@ describe("moveNode", () => {
     expect(result.nodes[1]?.parentId).toBe(2);
   });
 
-  it("keeps the moved node's own children attached to it", () => {
+  it("keeps the moved node’s own children attached to it", () => {
     // A(B), C -> drop A after C -> C, A(B)
     const a = createNode({ id: 1, childIds: [2] });
     const b = createNode({ id: 2, parentId: 1 });
@@ -696,7 +696,7 @@ describe("moveNode", () => {
     expect(result.nodes[2]?.parentId).toBe(1);
   });
 
-  it("leaves the tree untouched when the target is the node's own descendant", () => {
+  it("leaves the tree untouched when the target is the node’s own descendant", () => {
     // A(B(C)) -> dropping A onto its own grandchild C would create a cycle
     const a = createNode({ id: 1, childIds: [2] });
     const b = createNode({ id: 2, parentId: 1, childIds: [3] });
@@ -717,7 +717,7 @@ describe("moveNode", () => {
     expect(result).toEqual(tree);
   });
 
-  it("returns the tree unchanged when the given id doesn't exist", () => {
+  it("returns the tree unchanged when the given id doesn’t exist", () => {
     const a = createNode({ id: 1 });
     const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
 
@@ -726,7 +726,7 @@ describe("moveNode", () => {
     expect(result).toEqual(tree);
   });
 
-  it("returns the tree unchanged when the target doesn't exist", () => {
+  it("returns the tree unchanged when the target doesn’t exist", () => {
     const a = createNode({ id: 1 });
     const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
 
@@ -784,7 +784,7 @@ describe("moveNodes", () => {
     expect(result.nodes[4]?.childIds).toEqual([1, 3]);
   });
 
-  it("skips a selected node that's a descendant of another selected node", () => {
+  it("skips a selected node that’s a descendant of another selected node", () => {
     // A(B), C -> drop {A, B} onto C -> C(A(B))
     // B is dropped from the move list since moving A already carries it
     // along; moving it separately too would try to place it twice.
@@ -805,7 +805,7 @@ describe("moveNodes", () => {
   });
 
   it("leaves the tree untouched for a move that would create a cycle, and still moves the rest", () => {
-    // A(B), C -> drop {A, C} onto B -> A can't move onto its own descendant
+    // A(B), C -> drop {A, C} onto B -> A can’t move onto its own descendant
     // B, so only C moves: A(B), B(C)
     const a = createNode({ id: 1, childIds: [2] });
     const b = createNode({ id: 2, parentId: 1 });
@@ -838,9 +838,9 @@ describe("moveNodes", () => {
     expect(result.rootIds).toEqual([2, 4, 1, 3]);
   });
 
-  it("skips a selected node whose pinned state doesn't match the target's", () => {
+  it("skips a selected node whose pinned state doesn’t match the target’s", () => {
     // A (pinned), B, C (pinned) -> drop {A, B} after C -> only A moves next
-    // to C, since B is unpinned and can't join the pinned group: B, C, A
+    // to C, since B is unpinned and can’t join the pinned group: B, C, A
     const a = createNode({ id: 1, pinned: true });
     const b = createNode({ id: 2 });
     const c = createNode({ id: 3, pinned: true });

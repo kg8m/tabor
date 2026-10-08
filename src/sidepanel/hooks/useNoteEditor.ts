@@ -9,7 +9,7 @@ export interface NoteEditorAnchor {
 }
 
 /**
- * Which tab's note-editing popover is open, and where to anchor it.
+ * Which tab’s note-editing popover is open, and where to anchor it.
  */
 export interface NoteEditorState {
   tabId: number;
@@ -26,10 +26,10 @@ export interface NoteEditorControls {
 }
 
 /**
- * Which tab's note-editing popover is currently open, if any, and where to
- * anchor it. Mirrors `useContextMenu`'s shape so it can be triggered both
- * from a tab row's own note button and from the context menu's "Add
- * note"/"Edit note" item; the anchor point (rather than a fixed spot within
+ * Which tab’s note-editing popover is currently open, if any, and where to
+ * anchor it. Mirrors `useContextMenu`’s shape so it can be triggered both
+ * from a tab row’s own note button and from the context menu’s “Add
+ * note”/“Edit note” item; the anchor point (rather than a fixed spot within
  * the row) is why this carries `x`/`y` at all—see `NoteEditor`, which
  * renders `position: fixed` off of them the same way `ContextMenu` does off
  * of its own click point.

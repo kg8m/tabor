@@ -4,8 +4,8 @@ import { useMemo, useSyncExternalStore } from "react";
 // reproduce bugs (a stuck loading spinner on an already-loaded tab; a
 // missing active-tab indicator after closing the active tab). Remove once
 // root-caused. Prefixed and timestamped so its output can be correlated
-// with the background service worker's own `[Tabor:background]` logs (a
-// separate console—see chrome://extensions's "service worker" link).
+// with the background service worker’s own `[Tabor:background]` logs (a
+// separate console—see chrome://extensions’s “service worker” link).
 function debugLog(event: string, data: Record<string, unknown>): void {
   console.log(`[Tabor:sidepanel] ${event}`, { ...data, at: Date.now() });
 }
@@ -25,7 +25,7 @@ function getUndefinedSnapshot(): undefined {
  * one window. `activeTabId` is a plain mutable variable rather than React
  * state—`useSyncExternalStore` requires `getSnapshot` to keep returning the
  * very same value until the store actually changes, so the update has to
- * happen outside of React's own state mechanism.
+ * happen outside of React’s own state mechanism.
  */
 function createActiveTabIdStore(windowId: number): {
   subscribe: (onStoreChange: () => void) => () => void;
@@ -35,8 +35,8 @@ function createActiveTabIdStore(windowId: number): {
 
   return {
     subscribe(onStoreChange) {
-      // No cancellation guard needed for `loadActiveTab`'s result—see the
-      // matching comment in `useWindowTree`'s store.
+      // No cancellation guard needed for `loadActiveTab`’s result—see the
+      // matching comment in `useWindowTree`’s store.
       async function loadActiveTab() {
         const [tab] = await chrome.tabs.query({
           active: true,
@@ -78,7 +78,7 @@ function createActiveTabIdStore(windowId: number): {
  * `chrome.tabs.onActivated`.
  *
  * Used to hide the suspend button for the active tab: `chrome.tabs.discard`
- * doesn't free any memory there since Chrome has to reload the tab
+ * doesn’t free any memory there since Chrome has to reload the tab
  * immediately to keep displaying it, so the button would just cost a page
  * reload for no benefit.
  */

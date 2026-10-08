@@ -8,7 +8,7 @@ import { normalizeTree } from "./normalize";
 import type { TreeState } from "./types";
 
 /**
- * One point-in-time backup: every window's tree as it stood at `timestamp`.
+ * One point-in-time backup: every window’s tree as it stood at `timestamp`.
  */
 export interface BackupSnapshot {
   timestamp: number;
@@ -44,7 +44,7 @@ function normalizeWindows(
 
 /**
  * Load the snapshot saved at `timestamp`, or `undefined` if none exists
- * (e.g. it's already been thinned out).
+ * (e.g. it’s already been thinned out).
  */
 export async function loadBackup(
   timestamp: number,
@@ -100,7 +100,7 @@ export async function removeBackups(timestamps: number[]): Promise<void> {
 // The first two edges are fixed (matching the backup interval); every edge
 // after that is the sum of the previous two, so the gap between kept backups
 // keeps widening the further back in time you go (5, 10, 15, 25, 40, 65,
-// 105, ...). Expressed in minutes since that's the unit backups are actually
+// 105, ...). Expressed in minutes since that’s the unit backups are actually
 // spaced in.
 const FIRST_BUCKET_EDGE_MINUTES = 5;
 const SECOND_BUCKET_EDGE_MINUTES = 10;
@@ -114,13 +114,13 @@ const MAX_AGE_MINUTES = 30 * 24 * 60;
 // selectBackupTimestampsToKeep never lets the kept set drop below this many:
 // when bucket-thinning plus the MAX_AGE_MINUTES cutoff would leave fewer, it
 // tops up with the bucket survivors closest to the MAX_AGE_MINUTES
-// cutoff—never with a bucket's ordinary rejects, which stay thinned—e.g.
+// cutoff—never with a bucket’s ordinary rejects, which stay thinned—e.g.
 // after a long idle stretch, where every backup that survived thinning
 // before going idle is now older than MAX_AGE_MINUTES.
 //
 // Kept well below how many bucket survivors regular backups leave within
 // MAX_AGE_MINUTES (around 16), so under regular use this top-up never kicks
-// in and no backup outlives MAX_AGE_MINUTES: a backup holds every tab's URL
+// in and no backup outlives MAX_AGE_MINUTES: a backup holds every tab’s URL
 // and title as they stood back then, so it shouldn’t linger past that just
 // to pad out the count. Only right after a long idle stretch does it keep a
 // few older ones, and those go too once this many newer backups have piled
@@ -150,11 +150,11 @@ function generateBucketRangesMinutes(
  * Decides which backup timestamps survive thinning, given the current time.
  *
  * If there are MIN_KEEP_COUNT or fewer backups to begin with, none of this
- * applies—there's nothing worth thinning, so everything is kept.
+ * applies—there’s nothing worth thinning, so everything is kept.
  *
  * Otherwise: anything younger than the first bucket edge is always kept in
- * full (in normal operation there's at most one such backup anyway, since
- * they're taken on the same interval as the first edge). Everything older is
+ * full (in normal operation there’s at most one such backup anyway, since
+ * they’re taken on the same interval as the first edge). Everything older is
  * grouped into buckets whose age range doubles-ish in width the further
  * back they start (see `generateBucketRangesMinutes`), keeping only the
  * oldest backup in each bucket—the one that can stand in for the widest
@@ -167,8 +167,8 @@ function generateBucketRangesMinutes(
  * survivor is now older than that cutoff. Under regular use there are
  * always more than MIN_KEEP_COUNT survivors within MAX_AGE_MINUTES, so this
  * never happens and nothing older than that cutoff is kept. This never
- * reaches into a bucket's ordinary rejects (the ones dropped in favor of
- * their bucket's survivor): otherwise a bucket still within MAX_AGE_MINUTES
+ * reaches into a bucket’s ordinary rejects (the ones dropped in favor of
+ * their bucket’s survivor): otherwise a bucket still within MAX_AGE_MINUTES
  * would get padded back out with the closely-spaced backups it just
  * thinned.
  */
@@ -222,7 +222,7 @@ export function selectBackupTimestampsToKeep(
   const shortfall = MIN_KEEP_COUNT - kept.size;
   if (shortfall > 0) {
     // Only bucket survivors that aged out past MAX_AGE_MINUTES are eligible
-    // here—never a bucket's ordinary rejects, or a bucket still within
+    // here—never a bucket’s ordinary rejects, or a bucket still within
     // MAX_AGE_MINUTES would get padded back out with the closely-spaced
     // backups it just thinned.
     const agedOutSurvivors = entries

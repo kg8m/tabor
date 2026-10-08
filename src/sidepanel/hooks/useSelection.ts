@@ -18,13 +18,13 @@ export interface Selection {
  *
  * A plain click on the already-active tab replaces the selection with just
  * that node; a plain click on any other tab only switches to it (the
- * caller's job) and leaves the selection untouched, since its purpose there
+ * caller’s job) and leaves the selection untouched, since its purpose there
  * is navigation, not selection. That switch then clears the selection anyway
  * once `activeTabId` catches up—see the render-time check below.
  *
  * Cmd (metaKey) is checked alongside Ctrl because on macOS, Chromium
  * browsers turn a Ctrl-click into a context-menu open rather than
- * delivering it as a click event, so Ctrl-click alone wouldn't work there.
+ * delivering it as a click event, so Ctrl-click alone wouldn’t work there.
  */
 export function useSelection(
   tree: TreeState,
@@ -34,11 +34,11 @@ export function useSelection(
   const [anchorId, setAnchorId] = useState<number | null>(null);
   const [previousActiveTabId, setPreviousActiveTabId] = useState(activeTabId);
 
-  // Whatever switched the active tab—this component's own click handling,
+  // Whatever switched the active tab—this component’s own click handling,
   // a native tab-strip click, a keyboard shortcut, or the active tab being
   // reassigned after a close—a stale selection left over from before the
   // switch reads as the active tab at a glance, so drop it. Adjusted during
-  // render (React's recommended way to reset state on a prop change) rather
+  // render (React’s recommended way to reset state on a prop change) rather
   // than in an effect, to avoid an extra commit.
   if (activeTabId !== previousActiveTabId) {
     setPreviousActiveTabId(activeTabId);

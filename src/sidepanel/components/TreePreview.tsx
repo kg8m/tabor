@@ -56,7 +56,7 @@ function TreePreviewNode({
   ancestorIds: Set<number>;
 }) {
   const node = tree.nodes[nodeId];
-  // Same cycle guard as `TabTree`'s own `TreeNode`.
+  // Same cycle guard as `TabTree`’s own `TreeNode`.
   if (node === undefined || ancestorIds.has(nodeId)) {
     return null;
   }

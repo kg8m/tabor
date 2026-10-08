@@ -34,7 +34,7 @@ afterEach(() => {
 });
 
 describe("noteTabRemoved / settlePendingClose (native close, not registered)", () => {
-  it("focuses the closed tab's sibling even when Chrome's own onActivated for its replacement already overwrote the active tab id", async () => {
+  it("focuses the closed tab’s sibling even when Chrome’s own onActivated for its replacement already overwrote the active tab id", async () => {
     // B is active, then Chrome fires `tabs.onActivated` for its own
     // replacement pick (A) before `tabs.onRemoved` for B arrives—this is
     // what actually happens when B is closed natively while active.
@@ -48,7 +48,7 @@ describe("noteTabRemoved / settlePendingClose (native close, not registered)", (
     expect(chromeMock.update).toHaveBeenCalledWith(3, { active: true });
   });
 
-  it("does not correct focus when the tab active at close time wasn't the one closed", async () => {
+  it("does not correct focus when the tab active at close time wasn’t the one closed", async () => {
     setActiveTabId(WINDOW_ID, 1);
 
     noteTabRemoved(WINDOW_ID, 2);
@@ -60,7 +60,7 @@ describe("noteTabRemoved / settlePendingClose (native close, not registered)", (
 });
 
 describe("registerPendingClose (Tabor-initiated close)", () => {
-  it("focuses the closed tab's sibling using the active id captured at registration time", async () => {
+  it("focuses the closed tab’s sibling using the active id captured at registration time", async () => {
     setActiveTabId(WINDOW_ID, 2);
 
     registerPendingClose(WINDOW_ID, [2]);

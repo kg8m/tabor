@@ -1,7 +1,7 @@
 import type { TabNode, TreeState } from "./types";
 
 /**
- * Look up a node by id, or `undefined` if it's not (or no longer) in the
+ * Look up a node by id, or `undefined` if it’s not (or no longer) in the
  * tree.
  */
 export function getNode(tree: TreeState, id: number): TabNode | undefined {
@@ -9,7 +9,7 @@ export function getNode(tree: TreeState, id: number): TabNode | undefined {
 }
 
 /**
- * A node's direct children, in sibling order.
+ * A node’s direct children, in sibling order.
  */
 export function getChildren(tree: TreeState, id: number): TabNode[] {
   const node = getNode(tree, id);
@@ -100,7 +100,7 @@ export function getUnpinnedRootNodes(tree: TreeState): TabNode[] {
 
 interface FlattenDepthFirstOptions {
   /**
-   * Stop descending into a collapsed node's children, matching what's
+   * Stop descending into a collapsed node’s children, matching what’s
    * actually visible in the side panel.
    */
   respectCollapsed?: boolean;
@@ -109,7 +109,7 @@ interface FlattenDepthFirstOptions {
 /**
  * Flatten the tree in depth-first order.
  *
- * Guards against revisiting a node: a well-formed tree can't contain one,
+ * Guards against revisiting a node: a well-formed tree can’t contain one,
  * but if the data were ever corrupted into a cycle, this stops that from
  * turning into infinite recursion instead of just silently truncating the
  * cyclic branch.
@@ -145,7 +145,7 @@ export function flattenDepthFirst(
 
 /**
  * The tab id order the native tab bar should be kept in sync with,
- * derived from the tree's depth-first order.
+ * derived from the tree’s depth-first order.
  */
 export function getNativeOrder(tree: TreeState): number[] {
   return flattenDepthFirst(tree).map((node) => node.id);
@@ -173,7 +173,7 @@ export function hasHierarchy(tree: TreeState): boolean {
  * Whether the tree holds anything only Tabor knows about, rather than just
  * what the native tab bar shows too: a parent/child relationship (see
  * `hasHierarchy`; which nodes are collapsed only matters along with one) or
- * a note. Used to decide whether a closed window's tree is worth keeping
+ * a note. Used to decide whether a closed window’s tree is worth keeping
  * (see `windows.onRemoved`), and likewise a saved tree that went unmatched
  * (see `initializeAllWindows`): without either, reopening the same tabs
  * later would rebuild an identical tree regardless.

@@ -25,7 +25,7 @@ const CHAIN_TREE: TreeState = {
   rootIds: [1],
 };
 
-// How the destination tree looks once `handleTabAttached`'s own `addTab`
+// How the destination tree looks once `handleTabAttached`’s own `addTab`
 // call has landed each moved tab as an independent root, before any
 // reparenting.
 function flattenedDestinationTree(ids: number[]): TreeState {
@@ -68,9 +68,9 @@ describe("noteTreeMoveAttached", () => {
     expect(result?.nodes[3]?.parentId).toBe(1);
   });
 
-  it("drops relationships to a parent that isn't part of the move, promoting it to a root", () => {
+  it("drops relationships to a parent that isn’t part of the move, promoting it to a root", () => {
     // Only B and C move (A -> B -> C); A stays behind, so B becomes a root
-    // while C stays B's child.
+    // while C stays B’s child.
     registerPendingTreeMove(CHAIN_TREE, [2, 3]);
     setTree(TARGET_WINDOW_ID, flattenedDestinationTree([2, 3]));
 
@@ -82,7 +82,7 @@ describe("noteTreeMoveAttached", () => {
     expect(result?.nodes[3]?.parentId).toBe(2);
   });
 
-  it("ignores an attach for a tab that isn't part of any pending batch", () => {
+  it("ignores an attach for a tab that isn’t part of any pending batch", () => {
     registerPendingTreeMove(SOURCE_TREE, [2, 3]);
     setTree(TARGET_WINDOW_ID, flattenedDestinationTree([2, 3]));
 

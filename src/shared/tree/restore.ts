@@ -15,7 +15,7 @@ import type { TabNode, TreeState } from "./types";
 export type ActualTab = NewTabInput;
 
 /**
- * Tracks which saved nodes `restoreTree` didn't get to match against an
+ * Tracks which saved nodes `restoreTree` didn’t get to match against an
  * actual tab, so a tab Chrome creates moments later (see `matchStraggler`)
  * can still be matched against its real saved parent instead of looking
  * indistinguishable from a genuinely new tab.
@@ -50,16 +50,16 @@ export function createRestoreSession(savedTree: TreeState): RestoreSession {
 }
 
 /**
- * Matches a tab that shows up after `restoreTree`'s own pass already ran—
- * e.g. because Chrome's session restore hadn't created it yet when
+ * Matches a tab that shows up after `restoreTree`’s own pass already ran—
+ * e.g. because Chrome’s session restore hadn’t created it yet when
  * `restoreTree` queried for actual tabs (see `waitForTabCreationToSettle`,
  * which only narrows this window rather than closing it)—against whichever
- * saved node with the same URL `restoreTree` didn't get to consume. Resolves
- * that saved node's own parent to whatever actual tab it was itself matched
+ * saved node with the same URL `restoreTree` didn’t get to consume. Resolves
+ * that saved node’s own parent to whatever actual tab it was itself matched
  * to, which may have happened just now via an earlier call to this same
  * function for that parent.
  *
- * Returns `undefined` if there's no leftover saved node with this URL, i.e.
+ * Returns `undefined` if there’s no leftover saved node with this URL, i.e.
  * this really does look like a genuinely new tab rather than a straggler.
  */
 export function matchStraggler(
@@ -131,8 +131,8 @@ export function restoreTree(
       id: actualId,
       url: actualTab.url,
       title: actualTab.title,
-      // A discarded tab's favicon isn't always populated yet by the time
-      // `chrome.tabs.query` returns it right after startup—Chrome hasn't
+      // A discarded tab’s favicon isn’t always populated yet by the time
+      // `chrome.tabs.query` returns it right after startup—Chrome hasn’t
       // finished loading it from session data—so falling back to the saved
       // one (the same page, so the same icon) beats losing it until the tab
       // is actually reloaded.
@@ -157,7 +157,7 @@ export function restoreTree(
 
   // The native order actual tabs are already in (`chrome.tabs.query`
   // returns them in tab-strip order), restricted to non-pinned tabs—the
-  // same convention `reorderFromNativeMove`'s callers use elsewhere (see
+  // same convention `reorderFromNativeMove`’s callers use elsewhere (see
   // `handleTabMoved`). Used below to place each unmatched tab where it
   // actually sits in the tab strip, rather than always at the very end.
   const nonPinnedNativeOrder = actualTabs
@@ -169,10 +169,10 @@ export function restoreTree(
     result = addTab(result, actualTab, null);
 
     // `addTab` always appends as the last root, which is wrong whenever an
-    // unmatched tab (e.g. a browser-injected page like Chrome's "What's
-    // New" tab after an update) actually sits among tabs that did match
-    // the saved tree. Reuse `reorderFromNativeMove`'s placement logic,
-    // driven by this same tab's real position in `actualTabs`, to correct
+    // unmatched tab (e.g. a browser-injected page like Chrome’s “What’s
+    // New” tab after an update) actually sits among tabs that did match
+    // the saved tree. Reuse `reorderFromNativeMove`’s placement logic,
+    // driven by this same tab’s real position in `actualTabs`, to correct
     // that. Every tab that precedes it in `nonPinnedNativeOrder` is
     // already in `result.nodes` by this point—either matched above, or
     // added and repositioned by an earlier iteration of this same loop.

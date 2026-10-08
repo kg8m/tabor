@@ -78,7 +78,7 @@ describe("selectMalformedKeys", () => {
     ).toEqual([]);
   });
 
-  it("selects keys whose suffix isn't a tree id under a tree-id prefix", () => {
+  it("selects keys whose suffix isn’t a tree id under a tree-id prefix", () => {
     expect(
       selectMalformedKeys([
         "tabor:windowTree:abc",
@@ -94,7 +94,7 @@ describe("selectMalformedKeys", () => {
     ]);
   });
 
-  it("selects keys whose suffix isn't numeric under a numeric-suffix prefix", () => {
+  it("selects keys whose suffix isn’t numeric under a numeric-suffix prefix", () => {
     expect(
       selectMalformedKeys([
         "tabor:tree:abc",
@@ -114,7 +114,7 @@ describe("selectMalformedKeys", () => {
     ).toEqual(["tabor:debug:abc-0", "tabor:debug:", "tabor:debug:1x-0"]);
   });
 
-  it("leaves keys outside Tabor's local prefixes alone", () => {
+  it("leaves keys outside Tabor’s local prefixes alone", () => {
     expect(
       selectMalformedKeys([
         "tabor:session:activeTab:abc",

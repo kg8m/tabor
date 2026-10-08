@@ -41,10 +41,10 @@ export default defineConfig(
         "warn",
         { allowConstantExport: true },
       ],
-      // `parentId: number | null` uses `null` on purpose to mean "no parent".
+      // `parentId: number | null` uses `null` on purpose to mean “no parent”.
       "unicorn/no-null": "off",
       // `e` is used as a short-lived local variable name (e.g. a tree node
-      // called "E" in tests), not as an abbreviation for "error"/"event".
+      // called “E” in tests), not as an abbreviation for “error”/“event”.
       // `Props` is the standard React naming convention for component prop
       // types, not an abbreviation to spell out.
       "unicorn/name-replacements": [
@@ -61,11 +61,11 @@ export default defineConfig(
   },
   {
     // This project writes JSDoc as prose explaining *why*, not `@param`/
-    // `@returns` tags—TypeScript's own type annotations already say *what*
+    // `@returns` tags—TypeScript’s own type annotations already say *what*
     // (see e.g. `addTab` in `src/shared/tree/mutations.ts`). The tag-presence
     // rules below would otherwise flag every existing comment as incomplete,
-    // so they're turned off; `require-jsdoc`/`require-description` are what
-    // actually enforce "every exported function/type has an explanation".
+    // so they’re turned off; `require-jsdoc`/`require-description` are what
+    // actually enforce “every exported function/type has an explanation”.
     files: ["**/*.{ts,tsx}"],
     ignores: [
       "**/*.test.{ts,tsx}",
@@ -89,23 +89,23 @@ export default defineConfig(
         },
       ],
       // `require-jsdoc` only checks presence of a block; this checks it
-      // isn't an empty/near-empty one—interfaces/type aliases need it added
-      // explicitly since they aren't function-like by default.
+      // isn’t an empty/near-empty one—interfaces/type aliases need it added
+      // explicitly since they aren’t function-like by default.
       "jsdoc/require-description": [
         "error",
         { contexts: ["TSInterfaceDeclaration", "TSTypeAliasDeclaration"] },
       ],
       // Catches descriptions that just restate the identifier name (e.g.
-      // "Gets the value." on `getValue`) instead of explaining intent.
+      // “Gets the value.” on `getValue`) instead of explaining intent.
       "jsdoc/informative-docs": "warn",
     },
   },
   {
     // The block above only narrows the strict `publicOnly`/description rules
     // it defines itself—`jsdoc/require-jsdoc` from `recommended-typescript`
-    // (in the main block's `extends`) still applies here with its default,
+    // (in the main block’s `extends`) still applies here with its default,
     // non-`publicOnly` settings, since that main block has no `ignores`.
-    // Test code isn't held to the same documentation bar as the rest of the
+    // Test code isn’t held to the same documentation bar as the rest of the
     // codebase, so turn it off outright rather than fighting the default.
     files: [
       "**/*.test.{ts,tsx}",

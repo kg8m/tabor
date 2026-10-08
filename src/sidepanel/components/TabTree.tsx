@@ -25,7 +25,7 @@ interface TabTreeProps {
 
 /**
  * Renders every unpinned root node (and its descendants) as the tree,
- * delegating each row's own rendering to `TabNodeRow`.
+ * delegating each row’s own rendering to `TabNodeRow`.
  */
 export function TabTree({
   tree,
@@ -43,7 +43,7 @@ export function TabTree({
   const unpinnedRootNodes = getUnpinnedRootNodes(tree);
   // The last top-level (unpinned root) tab, so a drop in the empty space
   // below the tree—e.g. when there are too few tabs to fill the panel—
-  // always resolves to "become a new last top-level tab" instead of being
+  // always resolves to “become a new last top-level tab” instead of being
   // silently ignored.
   const lastRootId = unpinnedRootNodes.at(-1)?.id ?? null;
 

@@ -16,15 +16,15 @@ import type { TreeState } from "./types";
  * to prefer a more recently saved candidate when two score close to each
  * other (see its own comments).
  *
- * `incognito` marks an incognito window's tree, so it can be told apart from
+ * `incognito` marks an incognito window’s tree, so it can be told apart from
  * the saved data alone—even once its window is gone, e.g. after a crash kept
  * it from being removed when that window closed. Left out altogether for a
- * normal window's tree, which a tree saved before this field existed also
+ * normal window’s tree, which a tree saved before this field existed also
  * reads as.
  *
  * `windowType` likewise records the type of a window other than a normal one
- * (e.g. an installed PWA's or a `window.open()` popup's), for the same
- * reason. Left out for a normal window's tree.
+ * (e.g. an installed PWA’s or a `window.open()` popup’s), for the same
+ * reason. Left out for a normal window’s tree.
  */
 export interface StoredTree {
   tree: TreeState;
@@ -34,7 +34,7 @@ export interface StoredTree {
 }
 
 /**
- * A `chrome.windows.Window`'s `type`.
+ * A `chrome.windows.Window`’s `type`.
  */
 export type WindowType = `${chrome.windows.WindowType}`;
 
@@ -46,7 +46,7 @@ export type NonNormalWindowType = Exclude<WindowType, "normal">;
 /**
  * A tree saved before `savedAt` existed comes back as a bare `TreeState`
  * (no `tree`/`savedAt` wrapper) rather than a `StoredTree`. Treated as the
- * oldest possible save (`savedAt: 0`) rather than "just now"—it'll pick up a
+ * oldest possible save (`savedAt: 0`) rather than “just now”—it’ll pick up a
  * real timestamp the next time anything actually re-saves it (which
  * ordinary tab activity does often), and in the meantime a real, freshly
  * timestamped candidate should always be preferred over it on recency.
@@ -76,7 +76,7 @@ export function unwrapStoredTree(value: unknown): StoredTree {
 }
 
 /**
- * A new, unique id for a window's tree (see `WINDOW_TREE_KEY_PREFIX`).
+ * A new, unique id for a window’s tree (see `WINDOW_TREE_KEY_PREFIX`).
  */
 export function createTreeId(): string {
   return crypto.randomUUID();
@@ -110,20 +110,20 @@ export function getTreeIdStorageKey(windowId: number): string {
 }
 
 // TODO(debug): temporary instrumentation—chases an intermittent bug where a
-// window's tree ends up saved with zero nodes despite every native tab
+// window’s tree ends up saved with zero nodes despite every native tab
 // removal that closes a whole window being skipped (see the
-// `isWindowClosing` check in `background/index.ts`'s `handleTabRemoved`),
+// `isWindowClosing` check in `background/index.ts`’s `handleTabRemoved`),
 // which should leave the tree untouched rather than emptying it. Records the
 // call stack so the next occurrence points straight at whichever caller did
-// this. Shares `background/index.ts`'s `debugLog` key prefix/shape so it's
+// this. Shares `background/index.ts`’s `debugLog` key prefix/shape so it’s
 // picked up by the same console snippets already used to read those
 // entries, and pruned along with them by `pruneOldDebugLogs`. Skipped for an
-// incognito window's tree, the same as `debugLog` skips persisting an event
+// incognito window’s tree, the same as `debugLog` skips persisting an event
 // about an incognito window.
 
 /**
  * Persist a tree, stamped with the current time and marked as an incognito
- * and/or non-normal window's if it is one (see `StoredTree`).
+ * and/or non-normal window’s if it is one (see `StoredTree`).
  */
 export async function saveTree(
   treeId: string,
@@ -167,7 +167,7 @@ export async function loadTree(
 
 /**
  * Remove a saved tree, along with its pending-removal mark (see
- * `markPendingRemoval`) so that doesn't stay behind as orphaned clutter.
+ * `markPendingRemoval`) so that doesn’t stay behind as orphaned clutter.
  */
 export async function removeTree(treeId: string): Promise<void> {
   await chrome.storage.local.remove([
@@ -178,10 +178,10 @@ export async function removeTree(treeId: string): Promise<void> {
 
 /**
  * Marks a saved tree as unmatched by an `initializeAllWindows` pass, without
- * deleting it yet—records *when* it first went unmatched (a no-op if it's
- * already marked, so repeated misses don't keep pushing that timestamp
- * forward). A window that hasn't finished being recreated by session restore
- * in time for that pass's own snapshot (e.g. because another window—like a
+ * deleting it yet—records *when* it first went unmatched (a no-op if it’s
+ * already marked, so repeated misses don’t keep pushing that timestamp
+ * forward). A window that hasn’t finished being recreated by session restore
+ * in time for that pass’s own snapshot (e.g. because another window—like a
  * lightweight installed-PWA window—was recreated first, possibly repeatedly
  * across several browser restarts before the real window ever reopens) would
  * otherwise have its real saved tree deleted as stale before it ever got a
@@ -200,7 +200,7 @@ export async function markPendingRemoval(treeId: string): Promise<void> {
 }
 
 /**
- * Clears a saved tree's pending-removal mark, e.g. once it matches again on
+ * Clears a saved tree’s pending-removal mark, e.g. once it matches again on
  * a later `initializeAllWindows` pass.
  */
 export async function clearPendingRemoval(treeId: string): Promise<void> {
@@ -243,8 +243,8 @@ export async function saveTreeIdForWindow(
 }
 
 /**
- * The id of the tree `windowId` holds, or `undefined` if it hasn't been
- * assigned one yet (e.g. the background hasn't initialized it yet).
+ * The id of the tree `windowId` holds, or `undefined` if it hasn’t been
+ * assigned one yet (e.g. the background hasn’t initialized it yet).
  */
 export async function loadTreeIdForWindow(
   windowId: number,
@@ -255,15 +255,15 @@ export async function loadTreeIdForWindow(
 }
 
 /**
- * Forgets which tree `windowId` held, once it's closed—leaving that tree a
- * closed window's saved tree.
+ * Forgets which tree `windowId` held, once it’s closed—leaving that tree a
+ * closed window’s saved tree.
  */
 export async function removeTreeIdForWindow(windowId: number): Promise<void> {
   await chrome.storage.session.remove(getTreeIdStorageKey(windowId));
 }
 
 /**
- * Every window currently recorded as holding a tree, with that tree's id.
+ * Every window currently recorded as holding a tree, with that tree’s id.
  */
 export async function loadTreeIdsByWindowId(): Promise<Map<number, string>> {
   const treeIds = await loadValuesBySuffix(
@@ -319,12 +319,12 @@ export function planLegacyTreeMigration(
 /**
  * Moves trees saved under their window id (`LEGACY_TREE_KEY_PREFIX`) to
  * tree ids of their own (`WINDOW_TREE_KEY_PREFIX`), along with their
- * pending-removal marks. A no-op once nothing is left to migrate, so it's
+ * pending-removal marks. A no-op once nothing is left to migrate, so it’s
  * safe to call on every startup.
  *
- * A legacy tree saved under the id of a window that's open right now (e.g.
+ * A legacy tree saved under the id of a window that’s open right now (e.g.
  * this runs after an in-place extension update, before any restart) is
- * recorded as that window's tree, so it keeps it without needing to be
+ * recorded as that window’s tree, so it keeps it without needing to be
  * matched by URL again.
  */
 export async function migrateLegacyTrees(

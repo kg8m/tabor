@@ -19,10 +19,10 @@ interface BackupHistorySubviewProps {
 
 /**
  * Lists every saved backup snapshot (newest first), lets the current
- * window's tree at a chosen point be previewed, and restores it on request.
+ * window’s tree at a chosen point be previewed, and restores it on request.
  * Reading the snapshots directly via `loadAllBackups` rather than through
  * the background service worker: `chrome.storage` is available in every
- * extension context, so there's nothing background-only about a read.
+ * extension context, so there’s nothing background-only about a read.
  * Reloads whenever a backup is saved or removed, like `SavedTreesSubview`.
  * Restoring goes through the background service worker instead (see
  * `restoreBackup` message), since only it holds the live in-memory tree
@@ -39,9 +39,9 @@ export function BackupHistorySubview({
   const [selectedTimestamp, setSelectedTimestamp] = useState<number | null>(
     null,
   );
-  // Used (via `matchWindows`, below) to find which of a backup's saved
-  // windows is actually this one: a backup's own window ids can't be looked
-  // up directly, since—like tab ids—they don't survive a browser restart.
+  // Used (via `matchWindows`, below) to find which of a backup’s saved
+  // windows is actually this one: a backup’s own window ids can’t be looked
+  // up directly, since—like tab ids—they don’t survive a browser restart.
   const [actualTabs, setActualTabs] = useState<ActualTab[] | undefined>(
     undefined,
   );
@@ -58,9 +58,9 @@ export function BackupHistorySubview({
   }, [selectedTimestamp]);
 
   useEffect(() => {
-    // JSX's `autoFocus` prop isn't reliable here: this panel mounts from a
+    // JSX’s `autoFocus` prop isn’t reliable here: this panel mounts from a
     // click on the history button in `App.tsx`, and that button keeps the
-    // browser's default click-to-focus outcome unless focus is moved away
+    // browser’s default click-to-focus outcome unless focus is moved away
     // from it explicitly, after the DOM has actually committed.
     listElement.current?.focus();
   }, []);
@@ -145,7 +145,7 @@ export function BackupHistorySubview({
             id: savedWindowId,
             tree,
             // The whole snapshot was saved at once, so every window in it
-            // shares this same `savedAt`—see `matchWindows`'s use of it.
+            // shares this same `savedAt`—see `matchWindows`’s use of it.
             savedAt: selectedBackup.timestamp,
           }));
           const [match] = matchWindows(savedWindows, [
@@ -271,7 +271,7 @@ export function BackupHistorySubview({
       </ul>
       <div
         className="subview__preview"
-        // Focusable even when it doesn't overflow, so a click on it still
+        // Focusable even when it doesn’t overflow, so a click on it still
         // keeps focus inside the subview for Escape to reach.
         tabIndex={-1}
         onKeyDown={handlePreviewKeyDown}

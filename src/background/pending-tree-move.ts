@@ -5,8 +5,8 @@ import { getTree } from "./store";
 
 // How long to wait, after registering a tree move, for every expected tab
 // to finish attaching to its destination window before giving up on
-// reconstructing the rest of the batch's structure. Each attached tab has
-// already landed as an independent root by then (see `handleTabAttached`'s
+// reconstructing the rest of the batch’s structure. Each attached tab has
+// already landed as an independent root by then (see `handleTabAttached`’s
 // own `addTab` call), so abandoning the batch just leaves it flattened
 // rather than losing anything.
 const SAFETY_TIMEOUT_MS = 2000;
@@ -16,8 +16,8 @@ interface PendingTreeMove {
   // the source tree at registration time—so reparenting reproduces their
   // original relative order once they land.
   orderedIds: number[];
-  // Each id's parent among this same moving set—or `null` if it should
-  // land as a root (it had no parent, or its parent isn't part of this
+  // Each id’s parent among this same moving set—or `null` if it should
+  // land as a root (it had no parent, or its parent isn’t part of this
   // move).
   parentIds: Map<number, number | null>;
   seenIds: Set<number>;
@@ -76,8 +76,8 @@ export function registerPendingTreeMove(
  * in-flight `registerPendingTreeMove` batch. Once every expected tab has
  * been seen, reconstructs their original relative parent/child structure
  * and returns the resulting tree for the caller to `setTree`/`saveTree`/
- * `syncNativeOrder`. Returns `undefined` if `tabId` isn't part of a pending
- * batch, or the batch isn't complete yet.
+ * `syncNativeOrder`. Returns `undefined` if `tabId` isn’t part of a pending
+ * batch, or the batch isn’t complete yet.
  */
 export function noteTreeMoveAttached(
   tabId: number,

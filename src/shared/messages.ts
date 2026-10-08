@@ -2,8 +2,8 @@ import type { DropTarget } from "./tree/mutations";
 
 /**
  * Messages sent from the side panel to the background service worker for UI-
- * driven tree changes that don't originate from a `chrome.tabs`/`chrome.
- * windows` event (e.g. toggling a node's collapsed state, or a drag-and-drop
+ * driven tree changes that don’t originate from a `chrome.tabs`/`chrome.
+ * windows` event (e.g. toggling a node’s collapsed state, or a drag-and-drop
  * move).
  */
 export interface ToggleCollapsedMessage {
@@ -24,7 +24,7 @@ export interface MoveNodeMessage {
 }
 
 /**
- * Restore a window's tree to a previously saved backup snapshot.
+ * Restore a window’s tree to a previously saved backup snapshot.
  */
 export interface RestoreBackupMessage {
   type: "restoreBackup";
@@ -35,7 +35,7 @@ export interface RestoreBackupMessage {
 /**
  * Declares tabs the side panel is about to close (see `pending-close.ts`),
  * sent before the corresponding `chrome.tabs.remove` call so the background
- * can resolve the next focus target as soon as they've all closed, instead
+ * can resolve the next focus target as soon as they’ve all closed, instead
  * of falling back to debouncing an unregistered close.
  */
 export interface RegisterPendingCloseMessage {
@@ -45,7 +45,7 @@ export interface RegisterPendingCloseMessage {
 }
 
 /**
- * Set or clear a tab's note (`null` clears it).
+ * Set or clear a tab’s note (`null` clears it).
  */
 export interface UpdateNoteMessage {
   type: "updateNote";
@@ -55,7 +55,7 @@ export interface UpdateNoteMessage {
 
 /**
  * Declares tabs the side panel is about to move together to another window
- * (see `ContextMenu`'s "Move tab(s)/tree(s) to window"), sent before the
+ * (see `ContextMenu`’s “Move tab(s)/tree(s) to window”), sent before the
  * corresponding `chrome.tabs.move`/`chrome.windows.create` calls—see
  * `pending-tree-move.ts`.
  */

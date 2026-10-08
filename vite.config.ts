@@ -4,10 +4,10 @@ import { defineConfig } from "vite";
 import manifest from "./manifest.config.ts";
 
 export default defineConfig({
-  // Explicit ports, not Vite's own default-port inference, for both the
-  // background service worker's HMR client (@crxjs/vite-plugin reads
+  // Explicit ports, not Vite’s own default-port inference, for both the
+  // background service worker’s HMR client (@crxjs/vite-plugin reads
   // `server.port`/`server.hmr.port` to build its WebSocket URL) and the side
-  // panel's own (Vite's core client falls back to `server.ws.port`). Left
+  // panel’s own (Vite’s core client falls back to `server.ws.port`). Left
   // unset, both ended up building a URL with no port at all, failing their
   // first connection attempt before falling back to a direct one—which
   // still worked, but reported as an extension error in the meantime.

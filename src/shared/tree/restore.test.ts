@@ -93,7 +93,7 @@ describe("restoreTree", () => {
 
   it("positions an unmatched actual tab at its real native index among matched tabs, not always last", () => {
     // Saved: A(id=100), X(id=101), two unrelated root tabs.
-    // Actual: A, then an unmatched tab (e.g. Chrome's "What's New" tab
+    // Actual: A, then an unmatched tab (e.g. Chrome’s “What’s New” tab
     // after an update), then X—i.e. the unmatched tab sits in the middle
     // of the tab strip, not at the end.
     const a = createNode({ id: 100, url: "https://a.com" });
@@ -126,7 +126,7 @@ describe("restoreTree", () => {
     expect(result.nodes[1]?.collapsed).toBe(true);
   });
 
-  it("reflects the actual tab's loading/suspended state, not the saved one", () => {
+  it("reflects the actual tab’s loading/suspended state, not the saved one", () => {
     const a = createNode({
       id: 100,
       url: "https://a.com",
@@ -148,7 +148,7 @@ describe("restoreTree", () => {
     expect(result.nodes[1]?.suspended).toBe(true);
   });
 
-  it("reflects the actual tab's audible state, not the saved one", () => {
+  it("reflects the actual tab’s audible state, not the saved one", () => {
     const a = createNode({ id: 100, url: "https://a.com", audible: false });
     const savedTree: TreeState = { nodes: { 100: a }, rootIds: [100] };
 
@@ -174,7 +174,7 @@ describe("restoreTree", () => {
     expect(result.nodes[1]?.favIconUrl).toBe("https://a.com/favicon.ico");
   });
 
-  it("prefers the actual tab's favicon over the saved one when it has one", () => {
+  it("prefers the actual tab’s favicon over the saved one when it has one", () => {
     const a = createNode({
       id: 100,
       url: "https://a.com",
@@ -241,7 +241,7 @@ describe("restoreTree", () => {
 });
 
 describe("matchStraggler", () => {
-  it("matches a straggler against the saved node restoreTree didn't consume, using its resolved parent", () => {
+  it("matches a straggler against the saved node restoreTree didn’t consume, using its resolved parent", () => {
     // Saved: A(id=100) -> B(id=200). Only A shows up in the initial batch;
     // B arrives later, as a straggler.
     const a = createNode({ id: 100, url: "https://a.com", childIds: [200] });
@@ -282,7 +282,7 @@ describe("matchStraggler", () => {
     expect(straggler).toBeUndefined();
   });
 
-  it("resolves a straggler's parent to another straggler matched just before it", () => {
+  it("resolves a straggler’s parent to another straggler matched just before it", () => {
     // Saved: A(id=100) -> B(id=200). Neither shows up in the initial batch;
     // both arrive later, as stragglers, parent first.
     const a = createNode({ id: 100, url: "https://a.com", childIds: [200] });
@@ -301,7 +301,7 @@ describe("matchStraggler", () => {
     expect(straggler).toEqual({ parentId: 1 });
   });
 
-  it("falls parentless when a straggler's saved parent hasn't shown up yet", () => {
+  it("falls parentless when a straggler’s saved parent hasn’t shown up yet", () => {
     const a = createNode({ id: 100, url: "https://a.com", childIds: [200] });
     const b = createNode({ id: 200, url: "https://b.com", parentId: 100 });
     const savedTree: TreeState = { nodes: { 100: a, 200: b }, rootIds: [100] };

@@ -34,7 +34,7 @@ describe("normalizeFavIconUrl", () => {
   });
 
   it("treats a file:// favicon as no favicon", () => {
-    // The side panel is an extension page and isn't allowed to load
+    // The side panel is an extension page and isn’t allowed to load
     // `file://` resources, so rendering one as an `<img src>` would just log
     // a console error.
     expect(
@@ -50,7 +50,7 @@ describe("isTabSuspended", () => {
 
   it("treats an unloaded-but-not-discarded tab as suspended", () => {
     // A tab Chrome just recreated from session restore or a window reopen
-    // and hasn't loaded yet (never clicked)—`discarded` alone can't tell
+    // and hasn’t loaded yet (never clicked)—`discarded` alone can’t tell
     // this apart from an ordinary tab, but `status` can.
     expect(isTabSuspended(tab({ discarded: false, status: "unloaded" }))).toBe(
       true,
@@ -98,7 +98,7 @@ describe("toActualTab", () => {
 });
 
 describe("isTaborOwnTab", () => {
-  it("matches the side panel's own URL", () => {
+  it("matches the side panel’s own URL", () => {
     const own = tab({ url: chrome.runtime.getURL("src/sidepanel/index.html") });
     expect(isTaborOwnTab(own)).toBe(true);
   });

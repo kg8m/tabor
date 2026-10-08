@@ -1,9 +1,9 @@
 import type { SVGProps } from "react";
 
-// Fixed-size SVGs instead of text/emoji glyphs (▼/▶, 📌, ⏸, ×): a glyph's
+// Fixed-size SVGs instead of text/emoji glyphs (▼/▶, 📌, ⏸, ×): a glyph’s
 // rendered width depends on whatever font the system resolves for it, so
-// layout math that depends on a button's width (see `.tab-node__title`'s
-// hover padding in style.css) can't be pinned down reliably from CSS alone.
+// layout math that depends on a button’s width (see `.tab-node__title`’s
+// hover padding in style.css) can’t be pinned down reliably from CSS alone.
 
 function IconBase(props: SVGProps<SVGSVGElement>) {
   return (
@@ -105,9 +105,9 @@ export function SavedTreesIcon() {
 }
 
 /**
- * Shown in place of a tab's own favicon when it doesn't have one (e.g.
+ * Shown in place of a tab’s own favicon when it doesn’t have one (e.g.
  * `chrome://` pages), rather than leaving that space blank: an empty tree
- * row otherwise reads as if there's nothing there at all.
+ * row otherwise reads as if there’s nothing there at all.
  */
 export function DefaultFaviconIcon() {
   return (
@@ -129,7 +129,7 @@ export function DefaultFaviconIcon() {
 /**
  * Shown in the toggle slot for a tab that has neither children nor a pin, so
  * the slot never reads as merely empty—which, sitting directly under a
- * sibling's chevron/pin icon at the same x position, could otherwise look
+ * sibling’s chevron/pin icon at the same x position, could otherwise look
  * like this row continues that icon (i.e. is its child) rather than being an
  * unrelated leaf at the same level.
  */
@@ -163,7 +163,7 @@ export function AudibleIcon() {
 }
 
 /**
- * Opens or indicates a tab's note.
+ * Opens or indicates a tab’s note.
  */
 export function NoteIcon() {
   return (
@@ -250,10 +250,10 @@ export function NewWindowIcon() {
 
 /**
  * Moves a tab into an existing window—the same box as `NewWindowIcon` (cut
- * open further than `MoveToWindowIcon`'s, for clearance), with an arrowhead
+ * open further than `MoveToWindowIcon`’s, for clearance), with an arrowhead
  * in the corner instead of a plus. The two wings meet the shaft at the same
- * tip (not offset from it) and stay within the shaft's own 90°-ish approach
- * angle—otherwise the three lines fan out close to evenly and read as a "Y"
+ * tip (not offset from it) and stay within the shaft’s own 90°-ish approach
+ * angle—otherwise the three lines fan out close to evenly and read as a “Y”
  * rather than an arrowhead.
  */
 export function MoveIntoWindowIcon() {

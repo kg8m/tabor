@@ -1,7 +1,7 @@
 import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 
-// Short enough to feel responsive (much faster than the browser's own
+// Short enough to feel responsive (much faster than the browser’s own
 // `title` delay) while still filtering out a pointer merely passing through.
 const SHOW_DELAY_MS = 200;
 
@@ -25,13 +25,13 @@ export interface TooltipControls {
 
 /**
  * Hover-triggered tooltip state for a single trigger element. Takes the
- * trigger's own ref (rather than creating one) so it can share it with
+ * trigger’s own ref (rather than creating one) so it can share it with
  * whatever else already measures that element—e.g. `useOverflowDetection`—
  * without needing a merged-ref helper.
  *
- * `anchor` is the trigger's own bounding rect (bottom-left corner), captured
- * only once the delay elapses—not tracked live—matching `NoteEditor`'s and
- * `ContextMenu`'s "position once, clamp on mount" approach rather than
+ * `anchor` is the trigger’s own bounding rect (bottom-left corner), captured
+ * only once the delay elapses—not tracked live—matching `NoteEditor`’s and
+ * `ContextMenu`’s “position once, clamp on mount” approach rather than
  * following the trigger continuously.
  */
 export function useTooltip(
@@ -63,7 +63,7 @@ export function useTooltip(
 
   // A scroll moves the trigger out from under a `position: fixed` tooltip
   // anchored to its old rect—same staleness `NoteEditor`/`ContextMenu` guard
-  // against—so it's hidden rather than left pointing at the wrong row.
+  // against—so it’s hidden rather than left pointing at the wrong row.
   useEffect(() => {
     if (!isVisible) {
       return;

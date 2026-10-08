@@ -3,12 +3,12 @@ import { flattenDepthFirst } from "./queries";
 import type { TreeState } from "./types";
 
 /**
- * A window's saved tree, identified by `id`—a tree id (see
+ * A window’s saved tree, identified by `id`—a tree id (see
  * `WINDOW_TREE_KEY_PREFIX`) for a saved tree, or a stringified window id for
  * a window within one backup snapshot—along with when it was last saved (see
  * `StoredTree`), used to prefer a more recently saved candidate when two
  * score close to each other (see `SCORE_TIE_EPSILON`). `incognito` marks an
- * incognito window's (see `StoredTree`); left out, it's a normal window's.
+ * incognito window’s (see `StoredTree`); left out, it’s a normal window’s.
  */
 export interface SavedWindow {
   id: string;
@@ -19,7 +19,7 @@ export interface SavedWindow {
 
 /**
  * A window actually open right now, with the tabs it currently contains.
- * `incognito` works the same as `SavedWindow`'s.
+ * `incognito` works the same as `SavedWindow`’s.
  */
 export interface ActualWindow {
   windowId: number;
@@ -57,19 +57,19 @@ function countOverlap(a: Set<string>, b: Set<string>): number {
 // match against a large window over a genuinely unrelated one just because
 // nothing else scored higher, which is exactly the failure this guards
 // against—while a ratio still lets two small windows match on a single
-// shared tab (see the tests), since that pair's ratio is 100%.
+// shared tab (see the tests), since that pair’s ratio is 100%.
 const MIN_OVERLAP_RATIO = 0.1;
 
-// How close two candidates' scores must be, in absolute ratio terms, before
+// How close two candidates’ scores must be, in absolute ratio terms, before
 // recency (`savedAt`, see `SavedWindow`) decides between them instead of
-// trusting the raw score's exact ordering—see the comment on
-// `candidates.sort` below for why a plain equality check isn't enough. Two
+// trusting the raw score’s exact ordering—see the comment on
+// `candidates.sort` below for why a plain equality check isn’t enough. Two
 // saved snapshots of the very same real window, taken at different times,
 // rarely score identically even though they represent the same window: a
 // single tab that was only open transiently in one of the two snapshots is
 // enough to separate their overlap ratios by a few percentage points.
 // Deliberately modest—small enough that a genuinely better url match (e.g.
-// most of a window's tabs vs. a small fraction of them) still wins purely on
+// most of a window’s tabs vs. a small fraction of them) still wins purely on
 // its own merits.
 const SCORE_TIE_EPSILON = 0.05;
 
@@ -91,7 +91,7 @@ function scoreCandidate(
 
 /**
  * Match saved windows to the windows actually open at startup, since window
- * ids (like tab ids) don't survive a browser restart.
+ * ids (like tab ids) don’t survive a browser restart.
  *
  * Windows are paired by tab URL overlap, greedily taking the
  * highest-overlap pairs first. An actual window with no good match (or no
@@ -101,8 +101,8 @@ function scoreCandidate(
  *
  * An incognito window is only ever paired with an incognito one, and a
  * normal window with a normal one, however much their URLs overlap: an
- * incognito window's tabs shouldn't carry over into a normal window, nor a
- * normal window's into an incognito one.
+ * incognito window’s tabs shouldn’t carry over into a normal window, nor a
+ * normal window’s into an incognito one.
  */
 export function matchWindows(
   savedWindows: SavedWindow[],
@@ -141,27 +141,27 @@ export function matchWindows(
     }
   }
   // Two saved trees can score identically or nearly so—e.g. two snapshots
-  // of the same window's tab set, one taken before a tab was reparented or
-  // reordered—and URL overlap alone can't tell which is current (see
+  // of the same window’s tab set, one taken before a tab was reparented or
+  // reordered—and URL overlap alone can’t tell which is current (see
   // `SCORE_TIE_EPSILON`). Preferring the more recently *saved* candidate
   // (`savedAt`) makes the actually-current one win, which is what a
   // near-tie should mean.
   //
   // `savedId` is only a final, deterministic tiebreak below, carrying no
-  // meaning of its own: a tree id is random, and a window id isn't stable
+  // meaning of its own: a tree id is random, and a window id isn’t stable
   // across browser restarts, so neither says which is newer.
-  // For saved trees it's practically never reached (two candidates sharing
+  // For saved trees it’s practically never reached (two candidates sharing
   // the exact same `savedAt` millisecond); for windows within one backup
-  // snapshot, which all share the snapshot's own `savedAt`, it's what
+  // snapshot, which all share the snapshot’s own `savedAt`, it’s what
   // settles any score-bucket tie.
   //
   // Scores are bucketed (by `SCORE_TIE_EPSILON` width) rather than compared
-  // pairwise ("is |a.score - b.score| within epsilon?") so this stays a
+  // pairwise (“is |a.score - b.score| within epsilon?”) so this stays a
   // strict, transitive ordering: with more than two candidates, a pairwise
-  // check can rank A before B, B before C, yet C before A—`Array.sort` isn't
+  // check can rank A before B, B before C, yet C before A—`Array.sort` isn’t
   // required to produce any particular result once a comparator does that.
   // Flooring each score into its bucket first, then comparing
-  // (bucket, savedAt, id) tuples, can't run into that—it's an ordinary
+  // (bucket, savedAt, id) tuples, can’t run into that—it’s an ordinary
   // lexicographic order.
   candidates.sort((a, b) => {
     const bucketDiff =

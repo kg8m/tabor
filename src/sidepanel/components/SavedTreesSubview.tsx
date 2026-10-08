@@ -63,13 +63,13 @@ async function loadOrphanedTrees(): Promise<OrphanedTree[]> {
 }
 
 /**
- * Lists the saved trees of windows that aren't open right now (newest save
+ * Lists the saved trees of windows that aren’t open right now (newest save
  * first), lets each be previewed, and removes one on request, for trees the
  * automatic cleanup in `initializeAllWindows` would otherwise keep around
  * for a long time.
  *
  * Reads storage directly, like `BackupHistorySubview`, and reloads whenever a
- * saved tree, pending-removal mark, or window's tree-id record changes, so
+ * saved tree, pending-removal mark, or window’s tree-id record changes, so
  * the list stays current both after a removal here and as windows
  * open/close meanwhile. Removal
  * itself goes through the background service worker (`removeSavedTrees`),
@@ -108,7 +108,7 @@ export function SavedTreesSubview({ onClose }: SavedTreesSubviewProps) {
   }, [selectedTreeId]);
 
   useEffect(() => {
-    // See `BackupHistorySubview` for why this isn't JSX's `autoFocus`.
+    // See `BackupHistorySubview` for why this isn’t JSX’s `autoFocus`.
     listElement.current?.focus();
   }, []);
 
@@ -226,7 +226,7 @@ export function SavedTreesSubview({ onClose }: SavedTreesSubviewProps) {
       trees?.findIndex((tree) => tree.treeId === selectedTreeId) ?? -1;
     setRemovedIndex(index === -1 ? null : index);
     // The Remove button that had focus is about to be replaced by
-    // "Remove…", so hand focus back to the list for the arrow keys.
+    // “Remove…”, so hand focus back to the list for the arrow keys.
     listElement.current?.focus();
   };
 

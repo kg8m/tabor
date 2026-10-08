@@ -28,7 +28,7 @@ export function setTree(windowId: number, tree: TreeState): void {
 }
 
 /**
- * Every window's in-memory tree, keyed by window id.
+ * Every window’s in-memory tree, keyed by window id.
  */
 export function getAllTrees(): Record<number, TreeState> {
   return Object.fromEntries(trees);
@@ -36,7 +36,7 @@ export function getAllTrees(): Record<number, TreeState> {
 
 /**
  * The id of the tree a window holds (see `WINDOW_TREE_KEY_PREFIX`), or
- * `undefined` if it hasn't been assigned one yet.
+ * `undefined` if it hasn’t been assigned one yet.
  */
 export function getTreeId(windowId: number): string | undefined {
   return treeIds.get(windowId);
@@ -50,7 +50,7 @@ export function setTreeId(windowId: number, treeId: string): void {
 }
 
 /**
- * Every window's tree id, keyed by window id.
+ * Every window’s tree id, keyed by window id.
  */
 export function getAllTreeIds(): Map<number, string> {
   return new Map(treeIds);
@@ -80,7 +80,7 @@ export function setIncognitoWindow(
 }
 
 /**
- * A window's type (an installed PWA's window isn't a `"normal"` one, for
+ * A window’s type (an installed PWA’s window isn’t a `"normal"` one, for
  * instance). Kept in memory for the same reason as `isIncognitoWindow`;
  * `"normal"` if never recorded.
  */
@@ -89,7 +89,7 @@ export function getWindowType(windowId: number): WindowType {
 }
 
 /**
- * Record a window's type (see `getWindowType`).
+ * Record a window’s type (see `getWindowType`).
  */
 export function setWindowType(windowId: number, windowType: WindowType): void {
   if (windowType === "normal") {
@@ -109,8 +109,8 @@ export function getActiveTabId(windowId: number): number | undefined {
 
 /**
  * The tab that was active immediately before the current one—closing the
- * active tab natively (not through Tabor's own UI) fires `tabs.onActivated`
- * for Chrome's own replacement pick *before* `tabs.onRemoved` for the closed
+ * active tab natively (not through Tabor’s own UI) fires `tabs.onActivated`
+ * for Chrome’s own replacement pick *before* `tabs.onRemoved` for the closed
  * tab, so by the time `onRemoved` runs, `getActiveTabId` already reflects
  * the replacement rather than the tab that just closed. `noteTabRemoved`
  * (`pending-close.ts`) falls back to this to recover which tab was actually
@@ -152,9 +152,9 @@ export function setRestoreSession(
 }
 
 /**
- * Drops a window's restore session once it's no longer needed (see
+ * Drops a window’s restore session once it’s no longer needed (see
  * `initializeWindow`/`initializeAllWindows`), so a tab opened much later
- * can't be mismatched against a leftover saved node that was never
+ * can’t be mismatched against a leftover saved node that was never
  * consumed—one whose URL just happens to match, from a saved tree that had
  * more tabs with that URL than were actually open at startup.
  */
@@ -163,14 +163,14 @@ export function removeRestoreSession(windowId: number): void {
 }
 
 /**
- * Drop all in-memory state for a window, e.g. once it's confirmed closed.
- * Also marks the window id as deleted (see `isDeletedWindow`): Chrome doesn't
- * guarantee `windows.onRemoved` fires only after every one of that window's
+ * Drop all in-memory state for a window, e.g. once it’s confirmed closed.
+ * Also marks the window id as deleted (see `isDeletedWindow`): Chrome doesn’t
+ * guarantee `windows.onRemoved` fires only after every one of that window’s
  * own `tabs.onRemoved`/`onActivated`/etc. events has already been delivered—a
  * straggler among them arriving after this runs would otherwise see `getTree`
  * fall back to an empty tree (this window id no longer being in `trees`) and,
  * for a handler that persists whatever it computes regardless, overwrite this
- * window's still-valid saved tree with that empty one.
+ * window’s still-valid saved tree with that empty one.
  */
 export function deleteWindow(windowId: number): void {
   trees.delete(windowId);
@@ -184,7 +184,7 @@ export function deleteWindow(windowId: number): void {
 }
 
 /**
- * Whether `deleteWindow` has been called for this window id and it hasn't
+ * Whether `deleteWindow` has been called for this window id and it hasn’t
  * been reinitialized since (see `clearDeletedWindow`). Event handlers check
  * this before acting on a window id, to guard against exactly the stale-event
  * scenario `deleteWindow` documents above.
@@ -194,9 +194,9 @@ export function isDeletedWindow(windowId: number): boolean {
 }
 
 /**
- * Clears a window id's deleted-marker once it's genuinely live again (e.g.
+ * Clears a window id’s deleted-marker once it’s genuinely live again (e.g.
  * `initializeWindow`/`initializeAllWindows` starting to treat it as such).
- * Window ids aren't normally reused within a browser session, so this is
+ * Window ids aren’t normally reused within a browser session, so this is
  * mostly a safety net rather than something expected to matter in practice.
  */
 export function clearDeletedWindow(windowId: number): void {

@@ -11,15 +11,15 @@ import type { TreeState } from "../../shared/tree/types";
 const EMPTY_TREE: TreeState = { nodes: {}, rootIds: [] };
 
 /**
- * The live tree for a window, and whether it's still loading (see
+ * The live tree for a window, and whether it’s still loading (see
  * `isLoading`).
  */
 export interface WindowTree {
   tree: TreeState;
-  // True until this window's tree is actually found in storage. A window
+  // True until this window’s tree is actually found in storage. A window
   // always has at least one tab, so a saved tree is never genuinely empty—
   // no tree id recorded for this window yet, or no tree saved under it yet,
-  // therefore means the background hasn't finished (re)initializing this
+  // therefore means the background hasn’t finished (re)initializing this
   // window (e.g. right after a browser restart), not that it has no tabs.
   isLoading: boolean;
 }
@@ -37,14 +37,14 @@ function getLoadingSnapshot(): WindowTree {
 }
 
 /**
- * An external store (for `useSyncExternalStore`) over one window's tree in
+ * An external store (for `useSyncExternalStore`) over one window’s tree in
  * `chrome.storage.local`, found via the tree id recorded for the window in
  * `chrome.storage.session` (see `TREE_ID_KEY_PREFIX`)—and followed to a new
  * one whenever that changes, e.g. when the background matches the window to
  * a saved tree. `snapshot` is a plain mutable variable rather than React
  * state—`useSyncExternalStore` requires `getSnapshot` to keep returning the
  * very same reference until the store actually changes, so the update has to
- * happen outside of React's own state mechanism.
+ * happen outside of React’s own state mechanism.
  */
 function createWindowTreeStore(windowId: number): {
   subscribe: (onStoreChange: () => void) => () => void;
@@ -57,7 +57,7 @@ function createWindowTreeStore(windowId: number): {
       let treeId: string | undefined;
       // Bumped whenever `treeId` changes or a change to its tree arrives, so
       // a `loadTree` resolving late—for a tree id this window has since
-      // moved off of, or with a value older than that change—can't
+      // moved off of, or with a value older than that change—can’t
       // overwrite the newer snapshot. No guard needed against this
       // subscription being torn down, though: each `windowId` gets its own
       // store instance (see `useWindowTree`), so a late resolution can only

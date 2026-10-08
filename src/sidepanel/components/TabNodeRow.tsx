@@ -28,7 +28,7 @@ interface TabNodeRowProps {
   editingNoteAnchor: NoteEditorAnchor | null;
   onOpenNoteEditor: (anchor: NoteEditorAnchor) => void;
   onCloseNoteEditor: () => void;
-  // Omitted for rows that don't take part in drag-and-drop (pinned tabs,
+  // Omitted for rows that don’t take part in drag-and-drop (pinned tabs,
   // which per spec have no parent/child relationships to reorder into).
   dropIndicatorPosition?: DropPosition | null;
   onDragStart?: (event: DragEvent) => void;
@@ -39,7 +39,7 @@ interface TabNodeRowProps {
 }
 
 /**
- * A single tab row in the tree: `TabNodeContent`'s favicon/title/note and
+ * A single tab row in the tree: `TabNodeContent`’s favicon/title/note and
  * collapse toggle, plus the drag-and-drop handlers, hover tooltip, note
  * editor, and pause/close/note buttons shown per its state.
  */
@@ -71,13 +71,13 @@ export function TabNodeRow({
     void closeTabs(windowId, [node.id]);
   };
 
-  // `chrome.tabs.discard` fires an onUpdated event with the tab's new
+  // `chrome.tabs.discard` fires an onUpdated event with the tab’s new
   // discarded state, which `handleTabUpdated` already reflects into the
   // tree—no need to route this through a message like `toggleCollapsed`.
   //
   // The button itself is hidden for the active tab (see `isActive` below):
-  // Chrome won't actually free memory there since it has to reload the tab
-  // right away to keep displaying it, so it'd just look like a page reload.
+  // Chrome won’t actually free memory there since it has to reload the tab
+  // right away to keep displaying it, so it’d just look like a page reload.
   const handleSuspend = (event: MouseEvent) => {
     event.stopPropagation();
     void chrome.tabs.discard(node.id);
@@ -120,7 +120,7 @@ export function TabNodeRow({
   };
 
   // Without this, a right-click while still hovering the row leaves the
-  // tooltip's `isVisible` stuck `true` (only `mouseleave` clears it), and its
+  // tooltip’s `isVisible` stuck `true` (only `mouseleave` clears it), and its
   // `document.body` portal—appended after `#root` in the DOM—then paints
   // above the context menu despite both sharing the same z-index.
   const handleContextMenu = (event: MouseEvent) => {
@@ -196,7 +196,7 @@ export function TabNodeRow({
         // Portaled to `document.body` rather than rendered in place: this
         // row can carry `opacity` (e.g. `.tab-node--suspended`), which would
         // otherwise wash out the popover too, `position: fixed` or not—
-        // opacity applies to a whole subtree's compositing, independent of
+        // opacity applies to a whole subtree’s compositing, independent of
         // how any of its descendants are positioned.
         createPortal(
           <NoteEditor

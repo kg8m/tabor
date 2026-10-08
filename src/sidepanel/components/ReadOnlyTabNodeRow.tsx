@@ -11,8 +11,8 @@ interface ReadOnlyTabNodeRowProps {
 }
 
 /**
- * A single tab row in a saved tree's preview (see `TreePreview`): the same
- * `TabNodeContent` and hover tooltip as the live tree's `TabNodeRow`, minus
+ * A single tab row in a saved tree’s preview (see `TreePreview`): the same
+ * `TabNodeContent` and hover tooltip as the live tree’s `TabNodeRow`, minus
  * anything interactive. A note-having row shows a non-clickable note icon
  * where `TabNodeRow` shows its note button.
  */
@@ -40,7 +40,7 @@ export function ReadOnlyTabNodeRow({
       onMouseLeave={rowTooltip.onMouseLeave}
     >
       {/* Loading and audible were only true as of when the tree was saved,
-          so they're left out rather than shown as if still current. Every
+          so they’re left out rather than shown as if still current. Every
           node is shown expanded (see `TreePreview`), so its chevron says so
           too, whatever its saved collapsed state. */}
       <TabNodeContent

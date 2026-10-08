@@ -6,11 +6,11 @@ export type DropPosition = "before" | "after" | "child";
 
 /**
  * Resolve where a drag-and-drop drop should land within a target row, given
- * how far down the pointer is (`offsetY`) within the row's height.
+ * how far down the pointer is (`offsetY`) within the row’s height.
  *
- * The top and bottom quarters of the row mean "reorder as a sibling before/
- * after this node"; the middle half means "make this node a child of the
- * target"—unless `canBeChild` is `false` (e.g. dragging a pinned tab, which
+ * The top and bottom quarters of the row mean “reorder as a sibling before/
+ * after this node”; the middle half means “make this node a child of the
+ * target”—unless `canBeChild` is `false` (e.g. dragging a pinned tab, which
  * per spec can never have children), in which case the middle half instead
  * falls back to whichever of before/after the pointer is closer to.
  */

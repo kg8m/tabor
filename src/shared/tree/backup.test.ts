@@ -26,7 +26,7 @@ function fillerTimestamps(count: number): number[] {
 }
 
 // Feeds `selectBackupTimestampsToKeep` one backup every 5 minutes (the
-// periodic alarm's interval) from `start` for `durationMinutes`, the same
+// periodic alarm’s interval) from `start` for `durationMinutes`, the same
 // way `takeBackupSnapshot` does, calling `onTick` after each round.
 function simulateRegularBackups(
   initial: number[],
@@ -126,7 +126,7 @@ describe("selectBackupTimestampsToKeep", () => {
   it("keeps a long-idle sparse history in full, since it never exceeds MIN_KEEP_COUNT", () => {
     // Simulates a long idle stretch: these 5 timestamps were already
     // thinned down to a sparse spread while backups were being taken
-    // regularly (see the "one backup per bucket" test above), then nothing
+    // regularly (see the “one backup per bucket” test above), then nothing
     // ran for a long time. Viewed from far enough in the future, a plain
     // bucket-thinning pass over them would collapse almost all of them into
     // a single wide bucket—but since there are only 5 of them, the
@@ -150,14 +150,14 @@ describe("selectBackupTimestampsToKeep", () => {
     expect(new Set(kept)).toEqual(new Set(alreadyThinned));
   });
 
-  it("does not pad the shortfall out with a bucket's ordinary rejects, only with aged-out bucket survivors", () => {
-    // 19 closely-spaced backups plus their bucket's one survivor push the
+  it("does not pad the shortfall out with a bucket’s ordinary rejects, only with aged-out bucket survivors", () => {
+    // 19 closely-spaced backups plus their bucket’s one survivor push the
     // total past MIN_KEEP_COUNT, so thinning actually runs and drops the 19.
-    // A single 40-day-old backup is the only other bucket survivor, and it's
+    // A single 40-day-old backup is the only other bucket survivor, and it’s
     // aged past MAX_AGE_MINUTES. The shortfall this leaves (nowhere near
     // MIN_KEEP_COUNT) must be topped up only from that aged-out survivor—
     // never from the 19 ordinary rejects thinning already dropped, even
-    // though that's the only way to actually reach MIN_KEEP_COUNT.
+    // though that’s the only way to actually reach MIN_KEEP_COUNT.
     const bucket5to10Kept = timestampAgeMinutesAgo(8);
     const ordinaryRejects = Array.from({ length: 19 }, (_, index) =>
       timestampAgeMinutesAgo(5 + (index + 1) * 0.01),
@@ -175,7 +175,7 @@ describe("selectBackupTimestampsToKeep", () => {
   it("drops a bucket-survivor older than 30 days once at least 5 newer ones survive", () => {
     // 5 timestamps within the first bucket edge, always kept in full
     // regardless of thinning, plus one far older than 30 days that would
-    // otherwise also survive thinning as its own bucket's representative.
+    // otherwise also survive thinning as its own bucket’s representative.
     const recents = Array.from({ length: 5 }, (_, index) =>
       timestampAgeMinutesAgo(index * 0.2),
     );
@@ -189,7 +189,7 @@ describe("selectBackupTimestampsToKeep", () => {
   it("keeps the newest 5 bucket-survivors even when all of them are older than 30 days", () => {
     // Ages (in minutes), one picked from inside each of 25 consecutive
     // buckets starting at the first bucket entirely past the 30-day cutoff,
-    // so each of these 25 timestamps survives thinning as its own bucket's
+    // so each of these 25 timestamps survives thinning as its own bucket’s
     // representative, ordered oldest-bucket-edge-first (i.e. most recent
     // first).
     const bucketSurvivorAgesMinutes = [
@@ -262,7 +262,7 @@ describe("loading backups from storage", () => {
     vi.unstubAllGlobals();
   });
 
-  it("loadAllBackups skips a key whose timestamp isn't numeric", async () => {
+  it("loadAllBackups skips a key whose timestamp isn’t numeric", async () => {
     stubStorage({
       "tabor:backup:1000": { 1: tree },
       "tabor:backup:abc": { 1: tree },
@@ -273,7 +273,7 @@ describe("loading backups from storage", () => {
     ]);
   });
 
-  it("loadAllBackups reads only backup entries' values", async () => {
+  it("loadAllBackups reads only backup entries’ values", async () => {
     const get = stubStorage({
       "tabor:backup:1000": { 1: tree },
       "tabor:tree:1": { tree, savedAt: 0 },
@@ -284,7 +284,7 @@ describe("loading backups from storage", () => {
     expect(get).toHaveBeenCalledExactlyOnceWith(["tabor:backup:1000"]);
   });
 
-  it("loadBackupTimestamps returns every well-formed backup's timestamp without reading any values", async () => {
+  it("loadBackupTimestamps returns every well-formed backup’s timestamp without reading any values", async () => {
     const get = stubStorage({
       "tabor:backup:1000": { 1: tree },
       "tabor:backup:2000": { 1: tree },
