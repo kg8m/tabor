@@ -1171,10 +1171,17 @@ async function handleTabDetached(
     return;
   }
 
+  // As far as the old window is concerned, a tab moving out is the same as
+  // it closing—so pick the next active tab the same way, rather than
+  // leaving it to Chrome’s own (native-order-based) pick.
+  noteTabRemoved(info.oldWindowId, tabId);
+
   const tree = getTree(info.oldWindowId);
   const updated = removeTab(tree, tabId);
   setTree(info.oldWindowId, updated);
   await saveWindowTree(info.oldWindowId, updated);
+
+  settlePendingClose(info.oldWindowId);
 }
 
 /**
@@ -1756,6 +1763,11 @@ chrome.runtime.onMessage.addListener((message: TaborMessage) => {
     }
     case "registerPendingTreeMove": {
       registerPendingTreeMove(getTree(message.windowId), message.tabIds);
+      // The tabs leave the source window one `onDetached` at a time, with
+      // `await`ed moves in between that can outlast the native debounce—
+      // register them as a single batch so the focus target is picked once,
+      // with all of them excluded.
+      registerPendingClose(message.windowId, message.tabIds);
       break;
     }
     case "removeSavedTrees": {
