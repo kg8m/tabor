@@ -367,6 +367,15 @@ button.tab-node__toggle {
   color: color-mix(in srgb, currentColor 65%, transparent);
 }
 
+/* In a note-less row this is effectively the row’s last visible item
+   (`.tab-node__note-spacer` after it is 0px wide and cancels its own gap
+   while unhovered), so only `.tab-node`’s 4px padding-right would separate
+   it from the row’s edge. The extra 4px brings that to 8px, matching the
+   row’s padding-left. */
+.tab-node:not(.tab-node--has-note) .tab-node__audible {
+  margin-right: 4px;
+}
+
 .tab-node__title {
   flex: 1 1 auto;
   overflow: hidden;
