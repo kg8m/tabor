@@ -5,6 +5,10 @@ import { useEffect, useRef, useState } from "react";
 // `title` delay) while still filtering out a pointer merely passing through.
 const SHOW_DELAY_MS = 200;
 
+// Space between the trigger and the tooltip, so the tooltip reads as
+// belonging to the trigger rather than as a continuation of it.
+const TRIGGER_GAP = 4;
+
 /**
  * The screen position to anchor a tooltip at.
  */
@@ -33,7 +37,7 @@ export interface TooltipControls {
  * without needing a merged-ref helper.
  *
  * `anchor` is the trigger’s own bounding rect (bottom-left corner, plus its
- * top edge for flipping above it), captured
+ * top edge for flipping above it), each pushed `TRIGGER_GAP` away, captured
  * only once the delay elapses—not tracked live—matching `NoteEditor`’s and
  * `ContextMenu`’s “position once, clamp on mount” approach rather than
  * following the trigger continuously.
@@ -55,7 +59,11 @@ export function useTooltip(
       }
 
       const rect = element.getBoundingClientRect();
-      setAnchor({ x: rect.left, y: rect.bottom, flipY: rect.top });
+      setAnchor({
+        x: rect.left,
+        y: rect.bottom + TRIGGER_GAP,
+        flipY: rect.top - TRIGGER_GAP,
+      });
       setIsVisible(true);
     }, SHOW_DELAY_MS);
   };
