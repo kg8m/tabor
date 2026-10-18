@@ -28,7 +28,8 @@ interface TooltipProps {
 
 /**
  * A hover tooltip, portaled to `document.body` and positioned `fixed` off of
- * `anchor` (the trigger element’s own bottom-left corner)—same reasoning as
+ * `anchor` (the trigger element’s own rect, below or above it per
+ * `anchor.placement`)—same reasoning as
  * `NoteEditor`’s own portal (a row can carry `opacity`, e.g.
  * `.tab-node--suspended`, which would wash out an in-place popover
  * regardless of its own `position`).

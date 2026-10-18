@@ -18,7 +18,14 @@ export interface TooltipAnchor {
   // The trigger’s top edge, to flip the tooltip above it when there’s no
   // room below (see `useViewportClampedPosition`’s `Anchor`).
   flipY: number;
+  placement: TooltipPlacement;
 }
+
+/**
+ * Which side of the trigger a tooltip opens on when there’s room for it
+ * there (see `useViewportClampedPosition`’s `Anchor`).
+ */
+export type TooltipPlacement = "below" | "above";
 
 /**
  * The tooltip state and hover handlers returned by `useTooltip`.
@@ -36,17 +43,30 @@ export interface TooltipControls {
  * whatever else already measures that element—e.g. `useOverflowDetection`—
  * without needing a merged-ref helper.
  *
+ * `placement` picks which side the tooltip prefers. Tab rows pass `"above"`:
+ * a row’s ancestors and descendants matter equally, but with the rows above
+ * covered, the hovered row’s own indentation still shows it has ancestors,
+ * while with the rows below covered, only its small collapse toggle (or
+ * dot) hints at descendants—too subtle to notice out of the corner of an
+ * eye.
+ *
  * `anchor` is the trigger’s own bounding rect (bottom-left corner, plus its
- * top edge for flipping above it), each pushed `TRIGGER_GAP` away, captured
+ * top edge for opening above it), each pushed `TRIGGER_GAP` away, captured
  * only once the delay elapses—not tracked live—matching `NoteEditor`’s and
  * `ContextMenu`’s “position once, clamp on mount” approach rather than
  * following the trigger continuously.
  */
 export function useTooltip(
   reference: RefObject<HTMLElement | null>,
+  placement: TooltipPlacement = "below",
 ): TooltipControls {
   const [isVisible, setIsVisible] = useState(false);
-  const [anchor, setAnchor] = useState<TooltipAnchor>({ x: 0, y: 0, flipY: 0 });
+  const [anchor, setAnchor] = useState<TooltipAnchor>({
+    x: 0,
+    y: 0,
+    flipY: 0,
+    placement,
+  });
   const timeoutReference = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
@@ -63,6 +83,7 @@ export function useTooltip(
         x: rect.left,
         y: rect.bottom + TRIGGER_GAP,
         flipY: rect.top - TRIGGER_GAP,
+        placement,
       });
       setIsVisible(true);
     }, SHOW_DELAY_MS);

@@ -64,7 +64,7 @@ export function TabNodeRow({
   onDragEnd,
 }: TabNodeRowProps) {
   const rowReference = useRef<HTMLDivElement>(null);
-  const rowTooltip = useTooltip(rowReference);
+  const rowTooltip = useTooltip(rowReference, "above");
 
   const handleClose = (event: MouseEvent) => {
     event.stopPropagation();

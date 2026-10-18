@@ -14,6 +14,11 @@ export interface Anchor {
   // `y`—e.g. a tooltip trigger’s own top edge, so the tooltip flips above
   // the trigger rather than being clamped up over it (and the pointer on it).
   flipY?: number;
+  // Which side of the trigger to try first when `flipY` is given. `"above"`
+  // puts the element’s bottom edge at `flipY` and falls back to `y` only when
+  // it doesn’t fit above—e.g. a tab row’s tooltip, which would otherwise
+  // cover the row’s descendants below it.
+  placement?: "below" | "above";
 }
 
 /**
@@ -58,10 +63,18 @@ export function useViewportClampedPosition(
     const { width, height } = element.getBoundingClientRect();
     const maxLeft = window.innerWidth - width - VIEWPORT_MARGIN;
     const maxTop = window.innerHeight - height - VIEWPORT_MARGIN;
-    const top =
-      anchor.flipY !== undefined && anchor.y > maxTop
-        ? anchor.flipY - height
-        : anchor.y;
+    // On `placement`’s side of the trigger if the element fits there,
+    // otherwise on the other side (when `flipY` gives one). The clamp below
+    // still applies afterward, for an element that fits on neither side.
+    let top = anchor.y;
+    if (anchor.flipY !== undefined) {
+      const aboveTop = anchor.flipY - height;
+      const canFitAbove = aboveTop >= VIEWPORT_MARGIN;
+      const canFitBelow = anchor.y <= maxTop;
+      if (anchor.placement === "above" ? canFitAbove : !canFitBelow) {
+        top = aboveTop;
+      }
+    }
     // Reading layout back from the DOM and feeding it into state is exactly
     // what `useLayoutEffect` is for (unlike deriving state from props/other
     // state, which is what `react-hooks/set-state-in-effect` otherwise
@@ -72,9 +85,16 @@ export function useViewportClampedPosition(
       left: Math.max(VIEWPORT_MARGIN, Math.min(anchor.x, maxLeft)),
       top: Math.max(VIEWPORT_MARGIN, Math.min(top, maxTop)),
     });
+  }, [
+    reference,
+    anchor.x,
+    anchor.y,
+    anchor.flipY,
+    anchor.placement,
     // `extraDependencies` is caller-provided and can’t be statically checked.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reference, anchor.x, anchor.y, anchor.flipY, ...extraDependencies]);
+    ...extraDependencies,
+  ]);
 
   return position;
 }

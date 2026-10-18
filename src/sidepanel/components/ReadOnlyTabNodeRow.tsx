@@ -21,7 +21,7 @@ export function ReadOnlyTabNodeRow({
   hasChildren,
 }: ReadOnlyTabNodeRowProps) {
   const rowReference = useRef<HTMLDivElement>(null);
-  const rowTooltip = useTooltip(rowReference);
+  const rowTooltip = useTooltip(rowReference, "above");
 
   const className = [
     "tab-node",
