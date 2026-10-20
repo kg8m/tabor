@@ -112,6 +112,47 @@ export function useTooltip(
     };
   }, [isVisible]);
 
+  // In Chrome (unlike Vivaldi), the trigger’s `mouseleave` doesn’t reliably
+  // fire when the pointer leaves the side panel altogether—into the page’s
+  // content area or another application—so the tooltip would stay on screen
+  // until the trigger is hovered again. Hence also hide it when the pointer leaves the document,
+  // when the window loses focus, and, as a last resort for a leave that
+  // never arrived at all, when the pointer is next seen over anything other
+  // than the trigger.
+  useEffect(() => {
+    if (!isVisible) {
+      return;
+    }
+
+    const hide = (): void => {
+      setIsVisible(false);
+    };
+
+    const handleMouseOut = (event: MouseEvent): void => {
+      if (event.relatedTarget === null) {
+        hide();
+      }
+    };
+
+    const handleMouseOver = (event: MouseEvent): void => {
+      if (
+        !(event.target instanceof Node) ||
+        !reference.current?.contains(event.target)
+      ) {
+        hide();
+      }
+    };
+
+    document.addEventListener("mouseout", handleMouseOut);
+    document.addEventListener("mouseover", handleMouseOver);
+    window.addEventListener("blur", hide);
+    return () => {
+      document.removeEventListener("mouseout", handleMouseOut);
+      document.removeEventListener("mouseover", handleMouseOver);
+      window.removeEventListener("blur", hide);
+    };
+  }, [isVisible, reference]);
+
   useEffect(() => {
     return () => clearTimeout(timeoutReference.current);
   }, []);
