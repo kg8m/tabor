@@ -1023,6 +1023,16 @@ async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
     return;
   }
 
+  // Vivaldi fires `onCreated` for another extension’s side panel document
+  // (e.g. Bitwarden’s `sidepanel-disabled.html`) as if it were a tab, but
+  // leaves it out of `chrome.tabs.query`—it isn’t part of the tab strip, so
+  // clicking its row in the tree would do nothing. A real tab is already in
+  // its window’s tab strip by the time its `onCreated` arrives.
+  const windowTabs = await chrome.tabs.query({ windowId: tab.windowId });
+  if (windowTabs.every((windowTab) => windowTab.id !== tab.id)) {
+    return;
+  }
+
   const actualTab = toActualTab(tab);
   const session = getRestoreSession(tab.windowId);
   const straggler = session && matchStraggler(session, actualTab);
