@@ -43,10 +43,12 @@ function createActiveTabIdStore(windowId: number): {
           windowId,
         });
         debugLog("initial query", { windowId, tabId: tab?.id });
-        if (tab?.id !== undefined) {
-          activeTabId = tab.id;
-          onStoreChange();
+        if (tab?.id === undefined) {
+          return;
         }
+
+        activeTabId = tab.id;
+        onStoreChange();
       }
       void loadActiveTab();
 
@@ -56,10 +58,12 @@ function createActiveTabIdStore(windowId: number): {
           windowId: activeInfo.windowId,
           matchesCurrentWindow: activeInfo.windowId === windowId,
         });
-        if (activeInfo.windowId === windowId) {
-          activeTabId = activeInfo.tabId;
-          onStoreChange();
+        if (activeInfo.windowId !== windowId) {
+          return;
         }
+
+        activeTabId = activeInfo.tabId;
+        onStoreChange();
       };
       chrome.tabs.onActivated.addListener(listener);
 

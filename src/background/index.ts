@@ -1164,11 +1164,13 @@ async function handleTabAttached(
   // reconstruct their original relative parent/child structure instead of
   // leaving them all flattened.
   const reparented = noteTreeMoveAttached(tabId, info.newWindowId);
-  if (reparented !== undefined) {
-    setTree(info.newWindowId, reparented);
-    await saveWindowTree(info.newWindowId, reparented);
-    await syncNativeOrder(reparented, info.newWindowId);
+  if (reparented === undefined) {
+    return;
   }
+
+  setTree(info.newWindowId, reparented);
+  await saveWindowTree(info.newWindowId, reparented);
+  await syncNativeOrder(reparented, info.newWindowId);
 }
 
 async function handleTabDetached(
