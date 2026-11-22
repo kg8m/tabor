@@ -1,4 +1,4 @@
-import type { MouseEvent } from "react";
+import type { MouseEvent, RefCallback } from "react";
 import { getCachedFaviconUrl } from "../../shared/tabs";
 import type { TabNode } from "../../shared/tree/types";
 import { useOverflowDetection } from "../hooks/useOverflowDetection";
@@ -20,6 +20,13 @@ interface TabNodeContentProps {
   // its chevron. Omitted when there’s nothing hidden to count (an expanded
   // row, or a read-only one, which is always shown expanded).
   hiddenDescendantCount?: number;
+  // Attached to the favicon (or the spinner or default icon in its place),
+  // which is what shows the row’s tooltip on hover. A callback ref rather
+  // than a ref object: an `HTMLElement` ref object can’t be passed as an
+  // `<img>`’s or a `<span>`’s own, more specific `ref` type.
+  faviconReference?: RefCallback<HTMLElement>;
+  onFaviconMouseEnter?: () => void;
+  onFaviconMouseLeave?: () => void;
 }
 
 // Caps the badge’s width, so it doesn’t spill any further over the favicon
@@ -37,11 +44,21 @@ export function TabNodeContent({
   hasChildren,
   onToggleCollapsed,
   hiddenDescendantCount,
+  faviconReference,
+  onFaviconMouseEnter,
+  onFaviconMouseLeave,
 }: TabNodeContentProps) {
   const { ref: titleReference, isOverflowing: isTitleOverflowing } =
     useOverflowDetection<HTMLSpanElement>(node.title);
   const { ref: noteReference, isOverflowing: isNoteOverflowing } =
     useOverflowDetection<HTMLSpanElement>(node.note ?? "");
+
+  // Shared by whichever element stands in for the favicon.
+  const faviconProps = {
+    ref: faviconReference,
+    onMouseEnter: onFaviconMouseEnter,
+    onMouseLeave: onFaviconMouseLeave,
+  };
 
   return (
     <>
@@ -96,13 +113,22 @@ export function TabNodeContent({
         </span>
       )}
       {node.loading ? (
-        <span className="tab-node__favicon tab-node__spinner" />
+        <span
+          {...faviconProps}
+          className="tab-node__favicon tab-node__spinner"
+        />
       ) : node.favIconUrl ? (
-        <img className="tab-node__favicon" src={node.favIconUrl} alt="" />
+        <img
+          {...faviconProps}
+          className="tab-node__favicon"
+          src={node.favIconUrl}
+          alt=""
+        />
       ) : node.url ? (
         // No usable `favIconUrl` (e.g. a `chrome://` or `file://` page): fall
         // back to the browser’s own cached favicon for the page.
         <img
+          {...faviconProps}
           className="tab-node__favicon"
           src={getCachedFaviconUrl(node.url, 16)}
           alt=""
@@ -112,7 +138,10 @@ export function TabNodeContent({
         // started normalizing an empty string to `undefined` (see
         // `toActualTab`) can still have one on disk, which would otherwise
         // render as `<img src="">`.
-        <span className="tab-node__favicon tab-node__favicon--default">
+        <span
+          {...faviconProps}
+          className="tab-node__favicon tab-node__favicon--default"
+        >
           <DefaultFaviconIcon />
         </span>
       )}

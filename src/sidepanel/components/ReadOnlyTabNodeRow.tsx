@@ -21,7 +21,10 @@ export function ReadOnlyTabNodeRow({
   hasChildren,
 }: ReadOnlyTabNodeRowProps) {
   const rowReference = useRef<HTMLDivElement>(null);
-  const rowTooltip = useTooltip(rowReference, "above");
+  const faviconReference = useRef<HTMLElement>(null);
+  // Shown only on hovering the favicon but positioned off of the whole row,
+  // the same as `TabNodeRow`’s.
+  const rowTooltip = useTooltip(faviconReference, "above", rowReference);
 
   const className = [
     "tab-node",
@@ -33,12 +36,7 @@ export function ReadOnlyTabNodeRow({
     .join(" ");
 
   return (
-    <div
-      ref={rowReference}
-      className={className}
-      onMouseEnter={rowTooltip.onMouseEnter}
-      onMouseLeave={rowTooltip.onMouseLeave}
-    >
+    <div ref={rowReference} className={className}>
       {/* Loading and audible were only true as of when the tree was saved,
           so they’re left out rather than shown as if still current. Every
           node is shown expanded (see `TreePreview`), so its chevron says so
@@ -46,6 +44,11 @@ export function ReadOnlyTabNodeRow({
       <TabNodeContent
         node={{ ...node, loading: false, audible: false, collapsed: false }}
         hasChildren={hasChildren}
+        faviconReference={(element) => {
+          faviconReference.current = element;
+        }}
+        onFaviconMouseEnter={rowTooltip.onMouseEnter}
+        onFaviconMouseLeave={rowTooltip.onMouseLeave}
       />
       {node.note !== null && (
         <span

@@ -64,7 +64,11 @@ export function TabNodeRow({
   onDragEnd,
 }: TabNodeRowProps) {
   const rowReference = useRef<HTMLDivElement>(null);
-  const rowTooltip = useTooltip(rowReference, "above");
+  const faviconReference = useRef<HTMLElement>(null);
+  // Shown only on hovering the favicon, so moving the pointer across rows
+  // doesn’t keep popping tooltips up over the rows above, but positioned off
+  // of the whole row, so it doesn’t cover the row itself.
+  const rowTooltip = useTooltip(faviconReference, "above", rowReference);
 
   const handleClose = (event: MouseEvent) => {
     event.stopPropagation();
@@ -99,20 +103,10 @@ export function TabNodeRow({
     }
   };
 
-  // React dispatches `mouseenter` by its own component tree rather than the
-  // DOM’s, so the portaled note editor (see below) counts as part of this
-  // row: moving the pointer from another row onto it fires this row’s
-  // `mouseenter` too. Left unfiltered, that starts the tooltip’s timer while
-  // the editor is open, and the tooltip then pops up the moment the editor
-  // closes—with no `mouseleave` ever coming to clear it, since the editor
-  // the pointer was actually over is gone from the DOM by then. Hence only
-  // an enter onto the row’s own DOM counts, and never while editing.
-  const handleMouseEnter = (event: MouseEvent) => {
-    if (
-      editingNoteAnchor ||
-      !(event.target instanceof Node) ||
-      !rowReference.current?.contains(event.target)
-    ) {
+  // Not while this row’s note editor is open: the tooltip would otherwise
+  // pop up over the editor, or the moment it closes.
+  const handleFaviconMouseEnter = () => {
+    if (editingNoteAnchor) {
       return;
     }
 
@@ -164,8 +158,6 @@ export function TabNodeRow({
       draggable={onDragStart !== undefined}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={rowTooltip.onMouseLeave}
       onDragStart={handleDragStart}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -177,12 +169,13 @@ export function TabNodeRow({
         hasChildren={hasChildren}
         onToggleCollapsed={handleToggleCollapsed}
         hiddenDescendantCount={hiddenDescendantCount}
+        faviconReference={(element) => {
+          faviconReference.current = element;
+        }}
+        onFaviconMouseEnter={handleFaviconMouseEnter}
+        onFaviconMouseLeave={rowTooltip.onMouseLeave}
       />
-      {/* Suppressed while this row’s note editor is open: the editor is
-          portaled but still a child of this row in the React tree, and React
-          dispatches `mouseenter`/`mouseleave` by that tree rather than the
-          DOM’s—so moving the pointer from the row onto the editor never
-          fires the row’s `mouseleave`, and the tooltip would otherwise show
+      {/* Suppressed while this row’s note editor is open, so it never shows
           up on top of the editor. */}
       {rowTooltip.isVisible && !editingNoteAnchor && (
         <Tooltip

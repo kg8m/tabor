@@ -9,7 +9,7 @@ Chrome and Vivaldi are the only officially supported browsers, but it may also w
 ## Features
 
 - Side panel tree view of every tab in the window, with favicon, title, loading/suspended/audio-playing state, and
-  suspend/close buttons per row; hovering a row shows its full title, URL, and note in a tooltip
+  suspend/close buttons per row; hovering a row’s favicon shows its full title, URL, and note in a tooltip
 - A tab opened from another tab (link or otherwise) becomes that tab’s child; closing a tab promotes its children to its
   own position
 - Closing the active tab focuses a tree-aware next tab (nearest surviving descendant, then sibling, then ancestor)
