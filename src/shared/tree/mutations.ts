@@ -108,7 +108,7 @@ export function removeTab(tree: TreeState, id: number): TreeState {
 
   const replaceWithChildren = (ids: number[]): number[] =>
     ids.flatMap((currentId) =>
-      currentId === id ? target.childIds : [currentId],
+      currentId === id ? target.childIds : currentId,
     );
 
   if (target.parentId === null) {
@@ -392,7 +392,7 @@ function promoteChildren(tree: TreeState, id: number): TreeState {
   // list—so its children are inserted right after it, not in its place.
   const insertChildrenAfterTarget = (ids: number[]): number[] =>
     ids.flatMap((currentId) =>
-      currentId === id ? [id, ...target.childIds] : [currentId],
+      currentId === id ? [id, ...target.childIds] : currentId,
     );
 
   if (target.parentId === null) {

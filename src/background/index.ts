@@ -619,7 +619,7 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   );
   const matchedTreeIds = new Set(
     matches.flatMap((match) =>
-      match.savedId === undefined ? [] : [match.savedId],
+      match.savedId === undefined ? [] : match.savedId,
     ),
   );
 
@@ -763,7 +763,7 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   const assignedTreeIds = new Set(
     actualWindows.flatMap((actualWindow) => {
       const treeId = getTreeId(actualWindow.windowId);
-      return treeId === undefined ? [] : [treeId];
+      return treeId === undefined ? [] : treeId;
     }),
   );
   const unmatchedSavedWindows = savedWindows.filter(
