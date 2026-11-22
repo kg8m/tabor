@@ -50,15 +50,18 @@ export interface TooltipControls {
  * dot) hints at descendants—too subtle to notice out of the corner of an
  * eye.
  *
- * `anchor` is the trigger’s own bounding rect (bottom-left corner, plus its
- * top edge for opening above it), each pushed `TRIGGER_GAP` away, captured
- * only once the delay elapses—not tracked live—matching `NoteEditor`’s and
- * `ContextMenu`’s “position once, clamp on mount” approach rather than
- * following the trigger continuously.
+ * `anchor` is the bounding rect of `anchorReference`’s element (bottom-left
+ * corner, plus its top edge for opening above it), each pushed `TRIGGER_GAP`
+ * away, captured only once the delay elapses—not tracked live—matching
+ * `NoteEditor`’s and `ContextMenu`’s “position once, clamp on mount”
+ * approach rather than following the trigger continuously.
+ * `anchorReference` defaults to the trigger itself; pass a different one to
+ * position the tooltip off of a larger element containing a small trigger.
  */
 export function useTooltip(
   reference: RefObject<HTMLElement | null>,
   placement: TooltipPlacement = "below",
+  anchorReference: RefObject<HTMLElement | null> = reference,
 ): TooltipControls {
   const [isVisible, setIsVisible] = useState(false);
   const [anchor, setAnchor] = useState<TooltipAnchor>({
@@ -73,7 +76,7 @@ export function useTooltip(
 
   const onMouseEnter = (): void => {
     timeoutReference.current = setTimeout(() => {
-      const element = reference.current;
+      const element = anchorReference.current;
       if (!element) {
         return;
       }
