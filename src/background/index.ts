@@ -619,7 +619,7 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   );
   const matchedTreeIds = new Set(
     matches.flatMap((match) =>
-      match.savedId === undefined ? [] : [match.savedId],
+      match.savedId === undefined ? [] : match.savedId,
     ),
   );
 
@@ -763,7 +763,7 @@ async function initializeAllWindows(excludeTabId?: number): Promise<void> {
   const assignedTreeIds = new Set(
     actualWindows.flatMap((actualWindow) => {
       const treeId = getTreeId(actualWindow.windowId);
-      return treeId === undefined ? [] : [treeId];
+      return treeId === undefined ? [] : treeId;
     }),
   );
   const unmatchedSavedWindows = savedWindows.filter(
@@ -1164,11 +1164,13 @@ async function handleTabAttached(
   // reconstruct their original relative parent/child structure instead of
   // leaving them all flattened.
   const reparented = noteTreeMoveAttached(tabId, info.newWindowId);
-  if (reparented !== undefined) {
-    setTree(info.newWindowId, reparented);
-    await saveWindowTree(info.newWindowId, reparented);
-    await syncNativeOrder(reparented, info.newWindowId);
+  if (reparented === undefined) {
+    return;
   }
+
+  setTree(info.newWindowId, reparented);
+  await saveWindowTree(info.newWindowId, reparented);
+  await syncNativeOrder(reparented, info.newWindowId);
 }
 
 async function handleTabDetached(

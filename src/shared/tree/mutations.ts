@@ -108,7 +108,7 @@ export function removeTab(tree: TreeState, id: number): TreeState {
 
   const replaceWithChildren = (ids: number[]): number[] =>
     ids.flatMap((currentId) =>
-      currentId === id ? target.childIds : [currentId],
+      currentId === id ? target.childIds : currentId,
     );
 
   if (target.parentId === null) {
@@ -392,7 +392,7 @@ function promoteChildren(tree: TreeState, id: number): TreeState {
   // list—so its children are inserted right after it, not in its place.
   const insertChildrenAfterTarget = (ids: number[]): number[] =>
     ids.flatMap((currentId) =>
-      currentId === id ? [id, ...target.childIds] : [currentId],
+      currentId === id ? [id, ...target.childIds] : currentId,
     );
 
   if (target.parentId === null) {
@@ -444,11 +444,12 @@ export function reorderFromPinnedChange(
   }
 
   const previousIndex = detached.rootIds.indexOf(previousId);
-  if (previousIndex === -1) {
-    return attachAt(detached, tabId, null, detached.rootIds.length);
-  }
-
-  return attachAt(detached, tabId, null, previousIndex + 1);
+  return attachAt(
+    detached,
+    tabId,
+    null,
+    previousIndex === -1 ? detached.rootIds.length : previousIndex + 1,
+  );
 }
 
 /**
@@ -474,16 +475,16 @@ export function moveNode(
   id: number,
   target: DropTarget,
 ): TreeState {
-  if (
-    tree.nodes[id] === undefined ||
-    tree.nodes[target.targetId] === undefined
-  ) {
+  const node = tree.nodes[id];
+  const targetNode = tree.nodes[target.targetId];
+  if (node === undefined || targetNode === undefined) {
     return tree;
   }
-  if (id === target.targetId || isSelfOrDescendant(tree, id, target.targetId)) {
-    return tree;
-  }
-  if (tree.nodes[id].pinned !== tree.nodes[target.targetId]!.pinned) {
+
+  const doesCreateCycle =
+    id === target.targetId || isSelfOrDescendant(tree, id, target.targetId);
+  const doesCrossPinnedBoundary = node.pinned !== targetNode.pinned;
+  if (doesCreateCycle || doesCrossPinnedBoundary) {
     return tree;
   }
 

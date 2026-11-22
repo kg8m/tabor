@@ -51,13 +51,11 @@ async function loadOrphanedTrees(): Promise<OrphanedTree[]> {
       const stored = trees.get(treeId);
       return stored === undefined
         ? []
-        : [
-            {
-              ...stored,
-              treeId,
-              pendingRemovalSince: pendingRemovals.get(treeId),
-            },
-          ];
+        : {
+            ...stored,
+            treeId,
+            pendingRemovalSince: pendingRemovals.get(treeId),
+          };
     })
     .toSorted((a, b) => b.savedAt - a.savedAt);
 }

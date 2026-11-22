@@ -162,8 +162,10 @@ export function settlePendingClose(windowId: number): void {
  */
 export function clearPendingClose(windowId: number): void {
   const batch = pendingBatches.get(windowId);
-  if (batch !== undefined) {
-    clearTimeout(batch.timer);
-    pendingBatches.delete(windowId);
+  if (batch === undefined) {
+    return;
   }
+
+  clearTimeout(batch.timer);
+  pendingBatches.delete(windowId);
 }

@@ -57,6 +57,19 @@ export default defineConfig(
         "error",
         { cases: { kebabCase: true, pascalCase: true, camelCase: true } },
       ],
+      // JSDoc blocks here are written the conventional way, with each line
+      // prefixed by ` * `. Enforce that instead of the opposite style this
+      // rule would impose.
+      "unicorn/no-asterisk-prefix-in-documentation-comments": "off",
+      "jsdoc/require-asterisk-prefix": "error",
+      // A ternary only reads better than `if`/`return` when each branch fits
+      // on one line; otherwise it buries a multi-line condition or branch
+      // inside an expression.
+      "unicorn/prefer-ternary": ["error", "only-single-line"],
+      // Consecutive guards usually stand for different reasons to bail out,
+      // and combining them into one condition hides which is which. Its
+      // autofix would also do that silently.
+      "unicorn/prefer-combined-guards": "off",
     },
   },
   {

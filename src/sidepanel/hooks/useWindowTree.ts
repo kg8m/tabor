@@ -72,10 +72,12 @@ function createWindowTreeStore(windowId: number): {
         }
         const currentGeneration = generation;
         const loaded = await loadTree(nextTreeId);
-        if (loaded !== undefined && currentGeneration === generation) {
-          snapshot = { tree: loaded.tree, isLoading: false };
-          onStoreChange();
+        if (loaded === undefined || currentGeneration !== generation) {
+          return;
         }
+
+        snapshot = { tree: loaded.tree, isLoading: false };
+        onStoreChange();
       }
 
       async function loadInitialTree() {
@@ -104,18 +106,20 @@ function createWindowTreeStore(windowId: number): {
           return;
         }
         const change = changes[getStorageKey(treeId)];
-        if (change !== undefined) {
-          // Newer than whatever a still-pending `loadTree` may return.
-          generation += 1;
-          snapshot = {
-            tree:
-              change.newValue === undefined
-                ? EMPTY_TREE
-                : unwrapStoredTree(change.newValue).tree,
-            isLoading: false,
-          };
-          onStoreChange();
+        if (change === undefined) {
+          return;
         }
+
+        // Newer than whatever a still-pending `loadTree` may return.
+        generation += 1;
+        snapshot = {
+          tree:
+            change.newValue === undefined
+              ? EMPTY_TREE
+              : unwrapStoredTree(change.newValue).tree,
+          isLoading: false,
+        };
+        onStoreChange();
       };
 
       chrome.storage.session.onChanged.addListener(sessionListener);
