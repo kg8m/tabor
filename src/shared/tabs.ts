@@ -31,10 +31,9 @@ export function isTaborOwnTab(tab: chrome.tabs.Tab): boolean {
 export function normalizeFavIconUrl(
   favIconUrl: string | undefined,
 ): string | undefined {
-  if (!favIconUrl || favIconUrl.startsWith("file://")) {
-    return undefined;
-  }
-  return favIconUrl;
+  return !favIconUrl || favIconUrl.startsWith("file://")
+    ? undefined
+    : favIconUrl;
 }
 
 /**

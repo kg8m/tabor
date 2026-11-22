@@ -444,11 +444,12 @@ export function reorderFromPinnedChange(
   }
 
   const previousIndex = detached.rootIds.indexOf(previousId);
-  if (previousIndex === -1) {
-    return attachAt(detached, tabId, null, detached.rootIds.length);
-  }
-
-  return attachAt(detached, tabId, null, previousIndex + 1);
+  return attachAt(
+    detached,
+    tabId,
+    null,
+    previousIndex === -1 ? detached.rootIds.length : previousIndex + 1,
+  );
 }
 
 /**

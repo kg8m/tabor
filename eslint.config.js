@@ -62,6 +62,10 @@ export default defineConfig(
       // rule would impose.
       "unicorn/no-asterisk-prefix-in-documentation-comments": "off",
       "jsdoc/require-asterisk-prefix": "error",
+      // A ternary only reads better than `if`/`return` when each branch fits
+      // on one line; otherwise it buries a multi-line condition or branch
+      // inside an expression.
+      "unicorn/prefer-ternary": ["error", "only-single-line"],
     },
   },
   {

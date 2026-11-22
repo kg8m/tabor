@@ -229,9 +229,9 @@ export function selectMalformedKeys(keys: string[]): string[] {
       const [prefix, parse] = entry;
       return extractSuffix(key, prefix, parse) === undefined;
     }
-    if (key.startsWith(DEBUG_LOG_KEY_PREFIX)) {
-      return !/^\d+(?:-|$)/.test(key.slice(DEBUG_LOG_KEY_PREFIX.length));
-    }
-    return false;
+    return (
+      key.startsWith(DEBUG_LOG_KEY_PREFIX) &&
+      !/^\d+(?:-|$)/.test(key.slice(DEBUG_LOG_KEY_PREFIX.length))
+    );
   });
 }
