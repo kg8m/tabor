@@ -37,6 +37,19 @@ export function normalizeFavIconUrl(
 }
 
 /**
+ * The browser’s own cached favicon for `pageUrl`, served through the
+ * `_favicon` API (needs the `favicon` permission)—the same source the native
+ * tab strip draws from. A fallback for tabs with no usable `favIconUrl`: e.g.
+ * `chrome://` pages, other extensions’ pages and `file://` pages, whose
+ * favicons the side panel can’t load directly (see `normalizeFavIconUrl`).
+ * The browser serves a generic icon itself when it has none cached.
+ */
+export function getCachedFaviconUrl(pageUrl: string, size: number): string {
+  const parameters = new URLSearchParams({ pageUrl, size: String(size) });
+  return `${chrome.runtime.getURL("/_favicon/")}?${parameters.toString()}`;
+}
+
+/**
  * Whether `tab` should render as suspended. `discarded` alone only reports a
  * tab that was loaded and later unloaded again—it says nothing about one
  * that hasn’t loaded at all yet, e.g. a non-active tab Chrome just

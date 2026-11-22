@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getCachedFaviconUrl,
   isTabSuspended,
   isTaborOwnTab,
   normalizeFavIconUrl,
@@ -17,6 +18,24 @@ function tab(overrides: Partial<chrome.tabs.Tab> = {}): chrome.tabs.Tab {
     ...overrides,
   } as chrome.tabs.Tab;
 }
+
+describe("getCachedFaviconUrl", () => {
+  // `chrome.runtime.getURL` is stubbed in `src/vitest.setup.ts` to return the
+  // given path as is.
+  it("points the `_favicon` API at the page URL with the given size", () => {
+    expect(getCachedFaviconUrl("chrome://extensions/", 16)).toBe(
+      "/_favicon/?pageUrl=chrome%3A%2F%2Fextensions%2F&size=16",
+    );
+  });
+
+  it("encodes characters in the page URL that are special in a query string", () => {
+    expect(
+      getCachedFaviconUrl("https://example.com/search?q=a&b=c#top", 16),
+    ).toBe(
+      "/_favicon/?pageUrl=https%3A%2F%2Fexample.com%2Fsearch%3Fq%3Da%26b%3Dc%23top&size=16",
+    );
+  });
+});
 
 describe("normalizeFavIconUrl", () => {
   it("passes through an ordinary URL", () => {

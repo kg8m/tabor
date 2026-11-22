@@ -7,7 +7,15 @@ export default defineManifest({
   description: "Tree-style tab manager extension for Chrome and Vivaldi",
   // `chrome.storage.local.getKeys()` needs Chrome 130.
   minimum_chrome_version: "130",
-  permissions: ["tabs", "storage", "sidePanel", "unlimitedStorage", "alarms"],
+  permissions: [
+    "tabs",
+    "storage",
+    "sidePanel",
+    "unlimitedStorage",
+    "alarms",
+    // For `getCachedFaviconUrl`’s `_favicon` API.
+    "favicon",
+  ],
   icons: {
     16: "icons/icon16.png",
     32: "icons/icon32.png",

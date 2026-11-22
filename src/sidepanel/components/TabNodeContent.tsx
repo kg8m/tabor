@@ -1,4 +1,5 @@
 import type { MouseEvent } from "react";
+import { getCachedFaviconUrl } from "../../shared/tabs";
 import type { TabNode } from "../../shared/tree/types";
 import { useOverflowDetection } from "../hooks/useOverflowDetection";
 import {
@@ -98,6 +99,14 @@ export function TabNodeContent({
         <span className="tab-node__favicon tab-node__spinner" />
       ) : node.favIconUrl ? (
         <img className="tab-node__favicon" src={node.favIconUrl} alt="" />
+      ) : node.url ? (
+        // No usable `favIconUrl` (e.g. a `chrome://` or `file://` page): fall
+        // back to the browser’s own cached favicon for the page.
+        <img
+          className="tab-node__favicon"
+          src={getCachedFaviconUrl(node.url, 16)}
+          alt=""
+        />
       ) : (
         // Falsy rather than `=== undefined`: a tree saved before favIconUrl
         // started normalizing an empty string to `undefined` (see
