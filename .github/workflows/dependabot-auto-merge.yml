@@ -1,0 +1,45 @@
+# https://docs.github.com/en/code-security/dependabot/working-with-dependabot/automating-dependabot-with-github-actions#enable-auto-merge-on-a-pull-request
+name: Dependabot Auto-merge
+
+on:
+  pull_request:
+
+# Use my GitHub app’s token instead of `GITHUB_TOKEN` for merging.
+permissions: {}
+
+jobs:
+  dependabot-auto-merge:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    permissions:
+      # For `dependabot/fetch-metadata` to read the pull request’s commits.
+      pull-requests: read
+    steps:
+      # https://github.com/dependabot/fetch-metadata
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v3.1.0
+
+      # Leave major updates for manual review: UI isn’t covered by tests, so an update passing CI can still break the
+      # extension at runtime, and major updates are the likeliest to.
+      # https://github.com/actions/create-github-app-token
+      - name: Generate token
+        id: generate_token
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+        uses: actions/create-github-app-token@v3.4.0
+        with:
+          client-id: ${{ secrets.KG8M_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.KG8M_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Enable auto-merge for Dependabot PRs
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+        run: gh pr merge --auto --merge "$PR_URL"
+        env:
+          PR_URL: "${{ github.event.pull_request.html_url }}"
+
+          # Use my GitHub app’s temporary token because the default `GITHUB_TOKEN` prevents other workflows from being
+          # triggered on a pull request creation.
+          # cf. https://docs.github.com/en/actions/using-workflows/triggering-a-workflow#triggering-a-workflow-from-a-workflow
+          GH_TOKEN: "${{ steps.generate_token.outputs.token }}"
+    timeout-minutes: 5
