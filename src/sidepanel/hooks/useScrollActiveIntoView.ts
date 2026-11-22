@@ -22,7 +22,15 @@ export function useScrollActiveIntoView(
     const element = document.querySelector(
       `[data-tab-id="${CSS.escape(String(activeTabId))}"]`,
     );
-    element?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    // Read at the time of scrolling rather than once, so changing the OS
+    // setting takes effect without reopening the side panel.
+    const shouldReduceMotion = matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    element?.scrollIntoView({
+      block: "nearest",
+      behavior: shouldReduceMotion ? "instant" : "smooth",
+    });
     // Re-run not just when the active tab id changes, but also when its row
     // actually appears in the tree: e.g. right after Ctrl+T, the browser
     // can fire onActivated for the new tab before the side panel’s tree

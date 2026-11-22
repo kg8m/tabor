@@ -151,6 +151,15 @@ body {
   grid-template-rows: 0fr;
 }
 
+/* Collapsing/expanding still shows its result instantly, so nothing’s lost
+   without the motion. Loading spinners keep spinning, though: they show a
+   state rather than decorating a change. */
+@media (prefers-reduced-motion: reduce) {
+  .tab-tree__children-outer {
+    transition: none;
+  }
+}
+
 .tab-tree__children {
   overflow: hidden;
   /* `margin-left` aligns the guide line under the parent row’s toggle/pin
