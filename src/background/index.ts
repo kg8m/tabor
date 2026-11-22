@@ -1266,6 +1266,11 @@ async function handleTabUpdated(
     updated = reorderFromPinnedChange(updated, tabId, nativePinnedOrder);
   }
 
+  // Most `onUpdated` events carry nothing new for the tree (see `updateTab`).
+  if (updated === tree) {
+    return;
+  }
+
   setTree(tab.windowId, updated);
   await saveWindowTree(tab.windowId, updated);
 }
@@ -1303,6 +1308,11 @@ async function handleTabActivated(
 
   const tree = getTree(activeInfo.windowId);
   const updated = updateTab(tree, activeInfo.tabId, toSelfHealingUpdate(tab));
+  // The activated tab’s state is usually already in sync (see `updateTab`).
+  if (updated === tree) {
+    return;
+  }
+
   setTree(activeInfo.windowId, updated);
   await saveWindowTree(activeInfo.windowId, updated);
 }

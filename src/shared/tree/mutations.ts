@@ -152,6 +152,11 @@ export type TabUpdate = Partial<
 
 /**
  * Update a tab’s own properties, leaving its position in the tree untouched.
+ *
+ * Returns `tree` itself when `update` wouldn’t change anything, so callers
+ * can skip saving it: most `chrome.tabs.onUpdated`/`onActivated` events
+ * carry nothing new for the tree, and saving the whole tree for each of them
+ * would also make the side panel reload and re-render it every time.
  */
 export function updateTab(
   tree: TreeState,
@@ -160,6 +165,15 @@ export function updateTab(
 ): TreeState {
   const node = tree.nodes[id];
   if (node === undefined) {
+    return tree;
+  }
+
+  // Every `TabUpdate` value is a primitive (or `null`/`undefined`), so
+  // comparing them one by one is enough.
+  const isUnchanged = Object.entries(update).every(([key, value]) =>
+    Object.is(node[key as keyof TabUpdate], value),
+  );
+  if (isUnchanged) {
     return tree;
   }
 

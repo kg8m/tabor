@@ -354,6 +354,56 @@ describe("updateTab", () => {
     expect(result).toEqual(tree);
   });
 
+  it("returns the very same tree when every given property already has that value", () => {
+    const a = createNode({
+      id: 1,
+      title: "Title",
+      favIconUrl: undefined,
+      loading: false,
+      note: null,
+    });
+    const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
+
+    const result = updateTab(tree, 1, {
+      title: "Title",
+      favIconUrl: undefined,
+      loading: false,
+      note: null,
+    });
+
+    expect(result).toBe(tree);
+  });
+
+  it("returns the very same tree for an empty update", () => {
+    const a = createNode({ id: 1 });
+    const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
+
+    const result = updateTab(tree, 1, {});
+
+    expect(result).toBe(tree);
+  });
+
+  it("returns a new tree when any one of the given properties differs", () => {
+    const a = createNode({ id: 1, title: "Title", loading: false });
+    const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
+
+    const result = updateTab(tree, 1, { title: "Title", loading: true });
+
+    expect(result).not.toBe(tree);
+    expect(result.nodes[1]?.loading).toBe(true);
+    expect(tree.nodes[1]?.loading).toBe(false);
+  });
+
+  it("treats clearing a favicon as a change", () => {
+    const a = createNode({ id: 1, favIconUrl: "https://example.com/icon.png" });
+    const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
+
+    const result = updateTab(tree, 1, { favIconUrl: undefined });
+
+    expect(result).not.toBe(tree);
+    expect(result.nodes[1]?.favIconUrl).toBeUndefined();
+  });
+
   it("can toggle collapsed", () => {
     const a = createNode({ id: 1, collapsed: false });
     const tree: TreeState = { nodes: { 1: a }, rootIds: [1] };
