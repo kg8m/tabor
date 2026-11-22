@@ -57,6 +57,11 @@ export default defineConfig(
         "error",
         { cases: { kebabCase: true, pascalCase: true, camelCase: true } },
       ],
+      // JSDoc blocks here are written the conventional way, with each line
+      // prefixed by ` * `. Enforce that instead of the opposite style this
+      // rule would impose.
+      "unicorn/no-asterisk-prefix-in-documentation-comments": "off",
+      "jsdoc/require-asterisk-prefix": "error",
     },
   },
   {
