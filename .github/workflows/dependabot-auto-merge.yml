@@ -13,7 +13,10 @@ jobs:
   # `npm run build` run the updated packages’ code.
   build-diff:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    # Skip a run triggered by someone else pushing to Dependabot’s branch: it can’t read Dependabot’s secrets, and a pull
+    # request changed by hand shouldn’t be merged automatically anyway. `dependabot-auto-merge` is skipped along with
+    # this job.
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.actor == 'dependabot[bot]'
     permissions:
       contents: read
     outputs:
