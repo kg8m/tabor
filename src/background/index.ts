@@ -1264,6 +1264,21 @@ async function handleTabUpdated(
       .map((nativeTab) => nativeTab.id)
       .filter((id): id is number => id !== undefined);
     updated = reorderFromPinnedChange(updated, tabId, nativePinnedOrder);
+  } else if (update.pinned === false) {
+    // Unpinning doesn’t necessarily move the tab natively (e.g. the last
+    // pinned tab simply becomes the first unpinned one), so no `onMoved`
+    // event may come to place it. Pinned nodes aren’t kept together at the
+    // front of `rootIds` either, so leaving the node where it is could show
+    // it anywhere among the unpinned tabs. Place it the same way as a native
+    // move instead.
+    const nativeUnpinnedTabs = await chrome.tabs.query({
+      windowId: tab.windowId,
+      pinned: false,
+    });
+    const nativeUnpinnedOrder = nativeUnpinnedTabs
+      .map((nativeTab) => nativeTab.id)
+      .filter((id): id is number => id !== undefined);
+    updated = reorderFromNativeMove(updated, tabId, nativeUnpinnedOrder);
   }
 
   // Most `onUpdated` events carry nothing new for the tree (see `updateTab`).
