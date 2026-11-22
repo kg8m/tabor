@@ -51,4 +51,5 @@ Requires Chrome 130+ (or a Vivaldi version based on it) and Node.js 26.
 - `npm run build` — type check, then production build into `dist/`
 - `npm run typecheck` — TypeScript type checking
 - `npm run lint` / `npm run format` — ESLint / Prettier
+- `npm run format:check` — Prettier, reporting unformatted files without rewriting them
 - `npm test` — Vitest (tree/sync logic only; UI components are untested)
