@@ -36,8 +36,7 @@ Chrome and Vivaldi are the only officially supported browsers, but it may also w
 
 ## Install
 
-Requires Chrome 130+ (or a Vivaldi version based on it) and Node.js 24 (the exact version is pinned in `package.json`’s
-`engines`).
+Requires Chrome 130+ (or a Vivaldi version based on it) and Node.js 26.
 
 1. `npm install`
 2. `npm run build`
