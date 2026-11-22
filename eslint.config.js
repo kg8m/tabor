@@ -66,6 +66,10 @@ export default defineConfig(
       // on one line; otherwise it buries a multi-line condition or branch
       // inside an expression.
       "unicorn/prefer-ternary": ["error", "only-single-line"],
+      // Consecutive guards usually stand for different reasons to bail out,
+      // and combining them into one condition hides which is which. Its
+      // autofix would also do that silently.
+      "unicorn/prefer-combined-guards": "off",
     },
   },
   {
